@@ -4,7 +4,7 @@ import Foundation
 
 struct Token {
 
-    enum Kind {
+    enum Kind: Equatable {
         case symbol(String)
         case integer(Int)
         case double(Double)
@@ -66,7 +66,9 @@ extension Lexer {
 
             let isWhitespace = character.isWhitespace
             let (progress, error) = isWhitespace
-            ? scanUntil(from: cursor) { ch in !ch.isWhitespace }
+            ? scanUntil(
+                from: cursor,
+                ignoreQuotedContent: false) { ch in !ch.isWhitespace }
             : scanUntil(from: cursor) { ch in ch.isWhitespace || ch.isBracket }
 
             if let error {
@@ -155,6 +157,7 @@ private extension Lexer {
 
     func scanUntil(
         from index: String.Index,
+        ignoreQuotedContent: Bool = true,
         stopWhere stoppingCondition: (Character) -> Bool
     ) -> (String.Index, CompilerError?) {
         var insideQuote = false
@@ -164,8 +167,11 @@ private extension Lexer {
             defer { cursor = input.index(after: cursor) }
             let character = input[cursor]
 
-            if character.isQuotation { insideQuote.toggle(); continue }
-            if insideQuote { continue }
+            if ignoreQuotedContent {
+                if character.isQuotation { insideQuote.toggle(); continue }
+                if insideQuote { continue }
+            }
+
             if stoppingCondition(character) { return (cursor, nil) }
         }
 
@@ -199,4 +205,3 @@ fileprivate extension Character {
     var isQuotation: Bool { self == "\"" }
     var isSign: Bool { self == "+" || self == "-" }
 }
-
