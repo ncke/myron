@@ -16,9 +16,9 @@ final class Parser {
 
 extension Parser {
 
-    func parse() -> ([Expression], [CompilerError]) {
+    func parse() -> ([Expression], [MyronError]) {
         var forms = [Expression]()
-        var errors = [CompilerError]()
+        var errors = [MyronError]()
         var cursor = 0
 
         while cursor < tokens.count {
@@ -35,7 +35,7 @@ extension Parser {
 
     private func parseExpression(
         from startIndex: Int,
-        errors: inout [CompilerError]
+        errors: inout [MyronError]
     ) -> (Int, Expression?) {
         let token = tokens[startIndex]
 
@@ -51,7 +51,7 @@ extension Parser {
                 errors: &errors)
             return (progress, result)
         case .rightBracket:
-            let error = CompilerError(
+            let error = MyronError(
                 reason: .unmatchedParenthesis,
                 location: token.location)
             errors.append(error)
@@ -72,7 +72,7 @@ extension Parser {
     private func parseList(
         from startIndex: Int,
         openingToken: Token,
-        errors: inout [CompilerError]
+        errors: inout [MyronError]
     ) -> (Int, Expression?) {
         var list = [Expression]()
         var token: Token?
@@ -96,7 +96,7 @@ extension Parser {
         let location = start..<finish
 
         if token?.kind != .rightBracket {
-            let error = CompilerError(
+            let error = MyronError(
                 reason: .expectedRightBracket,
                 location: location)
             errors.append(error)
@@ -109,16 +109,43 @@ extension Parser {
 
 }
 
-// MARK: - Syntax Tree
+// MARK: - Expression
 
 indirect enum Expression {
     case atom(Atom, Metadata)
     case list([Expression], Metadata)
 
     struct Metadata {
-        let location: Range<String.Index>
+        let location: Range<String.Index>?
     }
 }
+
+extension Expression {
+
+    func getLocation() -> Range<String.Index>? {
+        switch self {
+            case let .atom(_, metadata): return metadata.location
+            case let .list(_, metadata): return metadata.location
+        }
+    }
+
+}
+
+extension Expression: CustomStringConvertible {
+
+    var description: String {
+        switch self {
+        case let .atom(atom, _):
+            return atom.description
+        case let .list(expressions, _):
+            let descriptions = expressions.map(\.description)
+            return "(\(descriptions.joined(separator: " ")))"
+        }
+    }
+
+}
+
+// MARK: - Atom
 
 enum Atom {
     case symbol(String)
@@ -126,4 +153,18 @@ enum Atom {
     case integer(Int)
     case double(Double)
     case string(String)
+}
+
+extension Atom: CustomStringConvertible {
+
+    var description: String {
+        switch self {
+        case let .symbol(symbol): return symbol
+        case let .boolean(boolean): return boolean.description
+        case let .integer(integer): return integer.description
+        case let .double(double): return double.description
+        case let .string(string): return string
+        }
+    }
+
 }

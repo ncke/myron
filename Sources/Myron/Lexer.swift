@@ -33,10 +33,10 @@ final class Lexer {
 
 extension Lexer {
 
-    func tokenize() -> ([Token], [CompilerError]) {
+    func tokenize() -> ([Token], [MyronError]) {
         var cursor = input.startIndex
         var tokens: [Token] = []
-        var errors: [CompilerError] = []
+        var errors: [MyronError] = []
 
         func emit(start: String.Index, finish: String.Index) {
             let outcome = makeToken(start: start, finish: finish)
@@ -92,13 +92,13 @@ private extension Lexer {
     func makeToken(
         start: String.Index,
         finish: String.Index
-    ) -> Result<Token, CompilerError> {
+    ) -> Result<Token, MyronError> {
         precondition(start < finish)
         let location = start..<finish
         let text = String(input[location])
 
-        func error(_ reason: CompilerError.Reason) -> CompilerError {
-            CompilerError(reason: reason, location: location)
+        func error(_ reason: MyronError.Reason) -> MyronError {
+            MyronError(reason: reason, location: location)
         }
 
         func token(_ kind: Token.Kind) -> Token {
@@ -159,7 +159,7 @@ private extension Lexer {
         from index: String.Index,
         ignoreQuotedContent: Bool = true,
         stopWhere stoppingCondition: (Character) -> Bool
-    ) -> (String.Index, CompilerError?) {
+    ) -> (String.Index, MyronError?) {
         var insideQuote = false
         var cursor = index
 
@@ -176,7 +176,7 @@ private extension Lexer {
         }
 
         if insideQuote {
-            let error = CompilerError(
+            let error = MyronError(
                 reason: .expectedQuote,
                 location: index..<cursor)
             return (cursor, error)
