@@ -10,6 +10,7 @@ public enum Value {
     case boolean(Bool)
     case double(Double)
     case integer(Int)
+    case list([Value])
     case string(String)
     case symbol(String)
     case primitive(Primitive)
@@ -49,6 +50,8 @@ extension Value: CustomStringConvertible {
         case .boolean(let boolean): "\(boolean)"
         case .double(let double): "\(double)"
         case .integer(let integer): "\(integer)"
+        case .list(let list):
+            "(" + list.map(\.description).joined(separator: " ") + ")"
         case .string(let string): "\(string)"
         case .symbol(let symbol): "<\(symbol)>"
         case .primitive: "<primitive>"
@@ -71,14 +74,15 @@ class Evaluator {
 
     func eval(
         _ expression: Expression,
-        environment: Environment
+        environment: Environment,
+        inQuoteMode: Bool = false
     ) throws -> Value {
-        if isSpecialForm(expression) {
+        if !inQuoteMode, isSpecialForm(expression) {
             return try evalSpecialForm(expression, environment: environment)
         }
 
         if case .atom(let atom, _) = expression {
-            if case .symbol(let name) = atom {
+            if !inQuoteMode, case .symbol(let name) = atom {
                 guard let value = environment.lookup(name) else {
                     throw MyronError(
                         reason: .unrecognisedSymbol,
@@ -92,7 +96,11 @@ class Evaluator {
         }
 
         if case .list(_, _) = expression {
-            return try evalList(expression, environment: environment)
+            return try evalList(
+                expression,
+                environment: environment,
+                inQuoteMode: inQuoteMode
+            )
         }
 
         throw MyronError(
@@ -107,7 +115,7 @@ class Evaluator {
 private extension Evaluator {
 
     static let specialFormNames: Set<String> = [
-        "if", "define"
+        "if", "define", "quote"
     ]
 
     func getSpecialFormName(_ expression: Expression) -> String? {
@@ -152,6 +160,9 @@ private extension Evaluator {
 
         case "if":
             return try evalIf(expression, environment: environment)
+
+        case "quote":
+            return try evalQuote(expression, environment: environment)
 
         default:
             throw makeUnimplementedFeatureError()
@@ -277,6 +288,27 @@ private extension Evaluator {
         }
     }
 
+    func evalQuote(
+        _ expression: Expression,
+        environment: Environment
+    ) throws -> Value {
+        guard case let .list(elements, _) = expression else {
+            fatalError("evalQuote called with non-list expression")
+        }
+
+        guard elements.count == 2 else {
+            throw MyronError(
+                reason: .unexpectedArity,
+                location: expression.getLocation())
+        }
+
+        let quotation = elements[1]
+        return try eval(
+            quotation,
+            environment: environment,
+            inQuoteMode: true)
+    }
+
 }
 
 // MARK: - Lists
@@ -285,15 +317,23 @@ private extension Evaluator {
 
     func evalList(
         _ expression: Expression,
-        environment: Environment
+        environment: Environment,
+        inQuoteMode: Bool
     ) throws -> Value {
         guard case let .list(elements, _) = expression else {
             fatalError("evalList called with non-list expression")
         }
 
         let values = try elements.map { element in
-            let value = try eval(element, environment: environment)
+            let value = try eval(
+                element,
+                environment: environment,
+                inQuoteMode: inQuoteMode)
             return value
+        }
+
+        if inQuoteMode {
+            return .list(values)
         }
 
         guard let head = values.first else {

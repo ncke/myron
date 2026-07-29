@@ -124,8 +124,8 @@ extension Expression {
 
     func getLocation() -> Range<String.Index>? {
         switch self {
-            case let .atom(_, metadata): return metadata.location
-            case let .list(_, metadata): return metadata.location
+        case let .atom(_, metadata): return metadata.location
+        case let .list(_, metadata): return metadata.location
         }
     }
 

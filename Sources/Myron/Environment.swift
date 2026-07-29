@@ -47,6 +47,10 @@ private extension Environment {
         }
     }
 
+    static func unimplemented(args: [Value]) -> Alt<Value, MyronError.Reason> {
+        Alt(.unimplementedFeature)
+    }
+
 }
 
 // MARK: - Standard Mathematics
