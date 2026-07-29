@@ -86,8 +86,8 @@ private extension Environment {
         }
     }
 
-    static func unimplemented(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        Alt(.unimplementedFeature)
+    static func unimplemented(args: [Value]) -> Either<Value, MyronError.Reason> {
+        Either(.unimplementedFeature)
     }
 
 }

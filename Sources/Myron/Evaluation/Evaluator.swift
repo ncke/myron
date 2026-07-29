@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Value
 
-public typealias Primitive = ([Value]) -> Alt<Value, MyronError.Reason>
+public typealias Primitive = ([Value]) -> Either<Value, MyronError.Reason>
 
 public typealias Procedure = ([Value]) throws -> Value
 

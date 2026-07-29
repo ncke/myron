@@ -1,6 +1,8 @@
 import Foundation
 
-public struct Alt<First, Second> {
+// MARK: - Either
+
+public struct Either<First, Second> {
 
     private enum Store {
         case first(First)

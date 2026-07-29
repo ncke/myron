@@ -4,37 +4,37 @@ import Foundation
 
 struct StandardComparison {
 
-    static func eq(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Alt(.unexpectedArity) }
+    static func eq(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count == 2 else { return Either(.unexpectedArity) }
         let fst = args[0]
         let snd = args[1]
 
         guard fst.typeName == snd.typeName else {
-            return Alt(.typeMismatch)
+            return Either(.typeMismatch)
         }
 
         if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Alt(.boolean(f == s))
+            return Either(.boolean(f == s))
         }
 
         if case .double(let f) = fst, case .double(let s) = snd {
-            return Alt(.boolean(f == s))
+            return Either(.boolean(f == s))
         }
 
         if case .boolean(let f) = fst, case .boolean(let s) = snd {
-            return Alt(.boolean(f == s))
+            return Either(.boolean(f == s))
         }
 
         if case .string(let f) = fst, case .string(let s) = snd {
-            return Alt(.boolean(f == s))
+            return Either(.boolean(f == s))
         }
 
         if case .symbol(let f) = fst, case .symbol(let s) = snd {
-            return Alt(.boolean(f == s))
+            return Either(.boolean(f == s))
         }
 
         if case .list(let f) = fst, case .list(let s) = snd {
-            if f.count != s.count { return Alt(.boolean(false)) }
+            if f.count != s.count { return Either(.boolean(false)) }
 
             for (ef, es) in zip(f, s) {
                 let compare = eq(args: [ef, es])
@@ -43,54 +43,54 @@ struct StandardComparison {
                         case .boolean(let bool) = result,
                         !bool
                 {
-                    return Alt(.boolean(false))
+                    return Either(.boolean(false))
                 }
             }
 
-            return Alt(.boolean(true))
+            return Either(.boolean(true))
         }
 
-        return Alt(.inequatableTypes)
+        return Either(.inequatableTypes)
     }
 
-    static func neq(args: [Value]) -> Alt<Value, MyronError.Reason> {
+    static func neq(args: [Value]) -> Either<Value, MyronError.Reason> {
         let compare = eq(args: args)
         if compare.second() != nil { return compare }
 
         if  let result = compare.first(),
             case .boolean(let bool) = result
         {
-            return Alt(.boolean(!bool))
+            return Either(.boolean(!bool))
         }
 
-        return Alt(.internalError)
+        return Either(.internalError)
     }
 
-    static func gt(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Alt(.unexpectedArity) }
+    static func gt(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count == 2 else { return Either(.unexpectedArity) }
         let fst = args[0]
         let snd = args[1]
 
         guard fst.typeName == snd.typeName else {
-            return Alt(.typeMismatch)
+            return Either(.typeMismatch)
         }
 
         if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Alt(.boolean(f > s))
+            return Either(.boolean(f > s))
         }
 
         if case .double(let f) = fst, case .double(let s) = snd {
-            return Alt(.boolean(f > s))
+            return Either(.boolean(f > s))
         }
 
         if case .string(let f) = fst, case .string(let s) = snd {
-            return Alt(.boolean(f > s))
+            return Either(.boolean(f > s))
         }
 
-        return Alt(.incomparableTypes)
+        return Either(.incomparableTypes)
     }
 
-    static func gte(args: [Value]) -> Alt<Value, MyronError.Reason> {
+    static func gte(args: [Value]) -> Either<Value, MyronError.Reason> {
         let greater = gt(args: args)
         if greater.second() != nil { return greater }
         if case let .boolean(bool) = greater.first(), bool { return greater }
@@ -99,31 +99,31 @@ struct StandardComparison {
         return equal
     }
 
-    static func lt(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Alt(.unexpectedArity) }
+    static func lt(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count == 2 else { return Either(.unexpectedArity) }
         let fst = args[0]
         let snd = args[1]
 
         guard fst.typeName == snd.typeName else {
-            return Alt(.typeMismatch)
+            return Either(.typeMismatch)
         }
 
         if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Alt(.boolean(f < s))
+            return Either(.boolean(f < s))
         }
 
         if case .double(let f) = fst, case .double(let s) = snd {
-            return Alt(.boolean(f < s))
+            return Either(.boolean(f < s))
         }
 
         if case .string(let f) = fst, case .string(let s) = snd {
-            return Alt(.boolean(f < s))
+            return Either(.boolean(f < s))
         }
 
-        return Alt(.incomparableTypes)
+        return Either(.incomparableTypes)
     }
 
-    static func lte(args: [Value]) -> Alt<Value, MyronError.Reason> {
+    static func lte(args: [Value]) -> Either<Value, MyronError.Reason> {
         let lesser = lt(args: args)
         if lesser.second() != nil { return lesser }
         if case let .boolean(bool) = lesser.first(), bool { return lesser }

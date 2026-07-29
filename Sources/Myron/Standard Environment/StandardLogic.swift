@@ -4,41 +4,41 @@ import Foundation
 
 struct StandardLogic {
 
-    static func and(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Alt(.unexpectedArity) }
+    static func and(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count >= 2 else { return Either(.unexpectedArity) }
 
         for arg in args {
             if case .boolean(let bool) = arg {
-                if !bool { return Alt(.boolean(false)) }
+                if !bool { return Either(.boolean(false)) }
             } else {
-                return Alt(.typeMismatch)
+                return Either(.typeMismatch)
             }
         }
 
-        return Alt(.boolean(true))
+        return Either(.boolean(true))
     }
 
-    static func or(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Alt(.unexpectedArity) }
+    static func or(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count >= 2 else { return Either(.unexpectedArity) }
 
         for arg in args {
             if case .boolean(let bool) = arg {
-                if bool { return Alt(.boolean(true)) }
+                if bool { return Either(.boolean(true)) }
             } else {
-                return Alt(.typeMismatch)
+                return Either(.typeMismatch)
             }
         }
 
-        return Alt(.boolean(false))
+        return Either(.boolean(false))
     }
 
-    static func not(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Alt(.unexpectedArity) }
+    static func not(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count == 1 else { return Either(.unexpectedArity) }
 
         if case .boolean(let bool) = args[0] {
-            return Alt(.boolean(!bool))
+            return Either(.boolean(!bool))
         }
 
-        return Alt(.typeMismatch)
+        return Either(.typeMismatch)
     }
 }

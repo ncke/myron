@@ -4,8 +4,8 @@ import Foundation
 
 struct StandardMathematics {
 
-    static func add(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Alt(.unexpectedArity) }
+    static func add(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count >= 2 else { return Either(.unexpectedArity) }
         let fst = args[0]
 
         if case .integer(var sum) = fst {
@@ -13,11 +13,11 @@ struct StandardMathematics {
                 if case .integer(let n) = arg {
                     sum += n
                 } else {
-                    return Alt(.typeMismatch)
+                    return Either(.typeMismatch)
                 }
             }
 
-            return Alt(.integer(sum))
+            return Either(.integer(sum))
         }
 
         if case .double(var sum) = fst {
@@ -25,55 +25,55 @@ struct StandardMathematics {
                 if case .double(let n) = arg {
                     sum += n
                 } else {
-                    return Alt(.typeMismatch)
+                    return Either(.typeMismatch)
                 }
             }
 
-            return Alt(.double(sum))
+            return Either(.double(sum))
         }
 
-        return Alt(.typeMismatch)
+        return Either(.typeMismatch)
     }
 
-    static func sub(args: [Value]) -> Alt<Value, MyronError.Reason> {
+    static func sub(args: [Value]) -> Either<Value, MyronError.Reason> {
         if args.count == 1 {
             return negation(args: args)
         }
 
-        guard args.count == 2 else { return Alt(.unexpectedArity) }
+        guard args.count == 2 else { return Either(.unexpectedArity) }
         let fst = args[0]
         let snd = args[1]
 
         if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Alt(.integer(f - s))
+            return Either(.integer(f - s))
         }
 
         if case .double(let f) = fst, case .double(let s) = snd {
-            return Alt(.double(f - s))
+            return Either(.double(f - s))
         }
 
-        return Alt(.typeMismatch)
+        return Either(.typeMismatch)
     }
 
     private static func negation(
         args: [Value]
-    ) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Alt(.unexpectedArity) }
+    ) -> Either<Value, MyronError.Reason> {
+        guard args.count == 1 else { return Either(.unexpectedArity) }
         let number = args[0]
 
         if case .integer(let i) = number {
-            return Alt(.integer(-i))
+            return Either(.integer(-i))
         }
 
         if case .double(let d) = number {
-            return Alt(.double(-d))
+            return Either(.double(-d))
         }
 
-        return Alt(.typeMismatch)
+        return Either(.typeMismatch)
     }
 
-    static func mul(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Alt(.unexpectedArity) }
+    static func mul(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count >= 2 else { return Either(.unexpectedArity) }
         let fst = args[0]
 
         if case .integer(var prod) = fst {
@@ -81,11 +81,11 @@ struct StandardMathematics {
                 if case .integer(let n) = arg {
                     prod *= n
                 } else {
-                    return Alt(.typeMismatch)
+                    return Either(.typeMismatch)
                 }
             }
 
-            return Alt(.integer(prod))
+            return Either(.integer(prod))
         }
 
         if case .double(var prod) = fst {
@@ -93,32 +93,32 @@ struct StandardMathematics {
                 if case .double(let n) = arg {
                     prod *= n
                 } else {
-                    return Alt(.typeMismatch)
+                    return Either(.typeMismatch)
                 }
             }
 
-            return Alt(.double(prod))
+            return Either(.double(prod))
         }
 
-        return Alt(.typeMismatch)
+        return Either(.typeMismatch)
     }
 
-    static func div(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Alt(.unexpectedArity) }
+    static func div(args: [Value]) -> Either<Value, MyronError.Reason> {
+        guard args.count == 2 else { return Either(.unexpectedArity) }
         let fst = args[0]
         let snd = args[1]
 
         if case .integer(let f) = fst, case .integer(let s) = snd {
-            if s == 0 { return Alt(.divisionByZero) }
-            return Alt(.integer(f / s))
+            if s == 0 { return Either(.divisionByZero) }
+            return Either(.integer(f / s))
         }
 
         if case .double(let f) = fst, case .double(let s) = snd {
-            if s == Double.zero { return Alt(.divisionByZero) }
-            return Alt(.double(f / s))
+            if s == Double.zero { return Either(.divisionByZero) }
+            return Either(.double(f / s))
         }
 
-        return Alt(.typeMismatch)
+        return Either(.typeMismatch)
     }
 
 }
