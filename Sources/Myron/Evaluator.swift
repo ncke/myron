@@ -11,6 +11,7 @@ public enum Value {
     case double(Double)
     case integer(Int)
     case list([Value])
+    case nothing
     case string(String)
     case symbol(String)
     case primitive(Primitive)
@@ -24,6 +25,21 @@ extension Value {
         switch self {
         case .boolean, .double, .integer, .string, .symbol: return true
         default: return false
+        }
+    }
+
+    var typeName: String {
+        switch self {
+        case .boolean: return "boolean"
+        case .double: return "double"
+        case .integer: return "integer"
+        case .list: return "list"
+        case .nothing: return "nothing"
+        case .string: return "string"
+        case .symbol: return "symbol"
+        case .primitive: return "primitive"
+        case .procedure: return "procedure"
+        case .define: return "define"
         }
     }
 
@@ -52,6 +68,7 @@ extension Value: CustomStringConvertible {
         case .integer(let integer): "\(integer)"
         case .list(let list):
             "(" + list.map(\.description).joined(separator: " ") + ")"
+        case .nothing: "<nothing>"
         case .string(let string): "\(string)"
         case .symbol(let symbol): "<\(symbol)>"
         case .primitive: "<primitive>"

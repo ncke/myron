@@ -35,12 +35,51 @@ private extension Environment {
 
     func standardLookup(_ name: String) -> Value? {
         switch name {
-        case "pi": return .double(Double.pi)
 
+        // Comparison.
+        case "eq": return .primitive(StandardComparison.eq)
+        case "==": return .primitive(StandardComparison.eq)
+        case "neq": return .primitive(StandardComparison.neq)
+        case "!=": return .primitive(StandardComparison.neq)
+        case "gt": return .primitive(StandardComparison.gt)
+        case ">": return .primitive(StandardComparison.gt)
+        case "gte": return .primitive(StandardComparison.gte)
+        case ">=": return .primitive(StandardComparison.gte)
+        case "lt": return .primitive(StandardComparison.lt)
+        case "<": return .primitive(StandardComparison.lt)
+        case "lte": return .primitive(StandardComparison.lte)
+        case "<=": return .primitive(StandardComparison.lte)
+
+        // Logic.
+        case "and": return .primitive(StandardLogic.and)
+        case "or": return .primitive(StandardLogic.or)
+        case "not": return .primitive(StandardLogic.not)
+
+        // Mathematics.
+        case "pi": return .double(Double.pi)
         case "+": return .primitive(StandardMathematics.add)
         case "-": return .primitive(StandardMathematics.sub)
         case "*": return .primitive(StandardMathematics.mul)
         case "/": return .primitive(StandardMathematics.div)
+        case "^": return .primitive(Self.unimplemented)
+        case "sqrt": return .primitive(Self.unimplemented)
+        case "log": return .primitive(Self.unimplemented)
+        case "ln": return .primitive(Self.unimplemented)
+        case "sin": return .primitive(Self.unimplemented)
+        case "cos": return .primitive(Self.unimplemented)
+        case "tan": return .primitive(Self.unimplemented)
+        case "asin": return .primitive(Self.unimplemented)
+        case "acos": return .primitive(Self.unimplemented)
+        case "atan": return .primitive(Self.unimplemented)
+
+        // Lists.
+        case "head": return .primitive(StandardLists.head)
+        case "tail": return .primitive(StandardLists.tail)
+        case "last": return .primitive(StandardLists.last)
+        case "take": return .primitive(StandardLists.take)
+        case "drop": return .primitive(StandardLists.drop)
+        case "length": return .primitive(StandardLists.length)
+        case "empty": return .primitive(StandardLists.empty)
 
         default:
             return nil
@@ -49,108 +88,6 @@ private extension Environment {
 
     static func unimplemented(args: [Value]) -> Alt<Value, MyronError.Reason> {
         Alt(.unimplementedFeature)
-    }
-
-}
-
-// MARK: - Standard Mathematics
-
-struct StandardMathematics {
-
-    static func add(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Alt(.unexpectedArity) }
-        let fst = args[0]
-
-        if case .integer(var sum) = fst {
-            for arg in args.dropFirst() {
-                if case .integer(let n) = arg {
-                    sum += n
-                } else {
-                    return Alt(.typeMismatch)
-                }
-            }
-
-            return Alt(.integer(sum))
-        }
-
-        if case .double(var sum) = fst {
-            for arg in args.dropFirst() {
-                if case .double(let n) = arg {
-                    sum += n
-                } else {
-                    return Alt(.typeMismatch)
-                }
-            }
-
-            return Alt(.double(sum))
-        }
-
-        return Alt(.typeMismatch)
-    }
-
-    static func sub(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Alt(.unexpectedArity) }
-        let fst = args[0]
-        let snd = args[1]
-
-        if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Alt(.integer(f - s))
-        }
-
-        if case .double(let f) = fst, case .double(let s) = snd {
-            return Alt(.double(f - s))
-        }
-
-        return Alt(.typeMismatch)
-    }
-
-    static func mul(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Alt(.unexpectedArity) }
-        let fst = args[0]
-
-        if case .integer(var prod) = fst {
-            for arg in args.dropFirst() {
-                if case .integer(let n) = arg {
-                    prod *= n
-                } else {
-                    return Alt(.typeMismatch)
-                }
-            }
-
-            return Alt(.integer(prod))
-        }
-
-        if case .double(var prod) = fst {
-            for arg in args.dropFirst() {
-                if case .double(let n) = arg {
-                    prod *= n
-                } else {
-                    return Alt(.typeMismatch)
-                }
-            }
-
-            return Alt(.double(prod))
-        }
-
-        return Alt(.typeMismatch)
-    }
-
-    static func div(args: [Value]) -> Alt<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Alt(.unexpectedArity) }
-        let fst = args[0]
-        let snd = args[1]
-
-        if case .integer(let f) = fst, case .integer(let s) = snd {
-            if s == 0 { return Alt(.divisionByZero) }
-            return Alt(.integer(f / s))
-        }
-
-        if case .double(let f) = fst, case .double(let s) = snd {
-            if s == Double.zero { return Alt(.divisionByZero) }
-            return Alt(.double(f / s))
-        }
-
-        return Alt(.typeMismatch)
     }
 
 }
