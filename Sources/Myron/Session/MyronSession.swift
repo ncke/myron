@@ -21,11 +21,13 @@ public final class MyronSession {
         case nothing
     }
 
+    let configuration: MyronSessionConfiguration
     let environment: Environment
     let environmentRegistry: EnvironmentRegistry
     let evaluator: Evaluator
 
-    public init() {
+    public init(configuration: MyronSessionConfiguration = .standard) {
+        self.configuration = configuration
         self.environmentRegistry = EnvironmentRegistry()
         self.environment = Environment(registry: environmentRegistry)
         self.evaluator = Evaluator(registry: environmentRegistry)
@@ -35,15 +37,19 @@ public final class MyronSession {
          environmentRegistry.shutdownAll()
     }
 
-    public func eval(_ expression: String) -> Result {
-        let lexer = Lexer(input: expression)
+    public func eval(
+        _ expression: String,
+        sourceHandle: Int? = nil
+    ) -> Result {
+        let lexer = Lexer(input: expression, sourceHandle: sourceHandle)
         let (tokens, lexingErrors) = lexer.tokenize()
         let parser = Parser(tokens: tokens)
         let (forms, parsingErrors) = parser.parse()
 
         guard lexingErrors.isEmpty, parsingErrors.isEmpty else {
             let errors = lexingErrors + parsingErrors
-            return .failure(errors)
+            let adornedErrors = adornErrorsIfNecessary(errors, in: expression)
+            return .failure(adornedErrors)
         }
 
         let silentForms = forms.dropLast()
@@ -58,13 +64,15 @@ public final class MyronSession {
                 return .success(value)
 
             } catch let error as MyronError {
-                return .failure([error])
-                
+                let adornedError = adornErrorIfNecessary(error, in: expression)
+                return .failure([adornedError])
+
             } catch {
                 let error = MyronError(
                     reason: .unimplementedFeature,
                     location: form.getLocation())
-                return .failure([error])
+                let adornedError = adornErrorIfNecessary(error, in: expression)
+                return .failure([adornedError])
             }
         }
 
@@ -77,6 +85,23 @@ public final class MyronSession {
 
         let result = caughtEval(lastForm)
         return result
+    }
+
+}
+
+// MARK: - Error Messages
+
+private extension MyronSession {
+
+    func adornErrorsIfNecessary(_ errors: [MyronError], in expression: String) -> [MyronError] {
+        errors.map { error in adornErrorIfNecessary(error, in: expression) }
+    }
+
+    func adornErrorIfNecessary(_ error: MyronError, in expression: String) -> MyronError {
+        switch configuration.errorStyle {
+        case .terse: return error
+        case .verbose: return error.withMessage(in: expression)
+        }
     }
 
 }

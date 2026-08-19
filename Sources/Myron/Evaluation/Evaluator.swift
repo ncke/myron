@@ -70,7 +70,7 @@ extension Value: CustomStringConvertible {
             "(" + list.map(\.description).joined(separator: " ") + ")"
         case .nothing: "<nothing>"
         case .string(let string): "\(string)"
-        case .symbol(let symbol): "<\(symbol)>"
+        case .symbol(let symbol): "\(symbol)"
         case .primitive: "<primitive>"
         case .procedure: "<procedure>"
         case .define(let name): "<define: \(name)>"
@@ -137,8 +137,8 @@ private extension Evaluator {
 
     func getSpecialFormName(_ expression: Expression) -> String? {
         switch expression {
-        case .list(let (elements, _)):
-            if  case .atom(let (atom, _)) = elements.first,
+        case .list(let elements, _):
+            if  case .atom(let atom, _) = elements.first,
                 case .symbol(let name) = atom
             {
                 return name
@@ -364,7 +364,7 @@ private extension Evaluator {
         switch head {
 
         case .primitive(let primitiveFunction):
-            let result = try primitiveFunction(tail)
+            let result = primitiveFunction(tail)
 
             if let errorReason = result.second() {
                 throw MyronError(
@@ -384,7 +384,9 @@ private extension Evaluator {
             return try procedure(tail)
 
         default:
-            fatalError("TODO: handle non-primitives")
+            throw MyronError(
+                reason: .expectedFunction(head.typeName),
+                location: expression.getLocation())
         }
     }
 

@@ -2,12 +2,13 @@ import Foundation
 
 // MARK: - MyronError
 
-public struct MyronError: Error {
+public struct MyronError: Error, Sendable {
 
-    public enum Reason {
+    public enum Reason: Sendable {
         case cannotBeNegative
         case divisionByZero
         case emptyApplication
+        case expectedFunction(String)
         case expectedQuote
         case expectedRightBracket
         case expectedSymbol
@@ -23,7 +24,18 @@ public struct MyronError: Error {
     }
 
     public let reason: Reason
-    public let location: Range<String.Index>?
+    public let location: Range<Int>?
+    public let message: String?
+
+    public init(
+        reason: Reason,
+        location: Range<Int>?,
+        message: String? = nil
+    ) {
+        self.reason = reason
+        self.location = location
+        self.message = message
+    }
 }
 
 // MARK: - Reason Description
@@ -35,6 +47,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .cannotBeNegative: return "Cannot be negative"
         case .divisionByZero: return "Division by zero"
         case .emptyApplication: return "Empty application"
+        case .expectedFunction(let typeName): return "Expected function but got \(typeName)"
         case .expectedQuote: return "Expected quote"
         case .expectedRightBracket: return "Expected right bracket"
         case .expectedSymbol: return "Expected symbol"

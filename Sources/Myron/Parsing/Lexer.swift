@@ -15,16 +15,19 @@ struct Token {
     }
 
     let kind: Kind
-    let location: Range<String.Index>
+    let sourceHandle: Int?
+    let location: Range<Int>
 }
 
 // MARK: - Lexer
 
 final class Lexer {
     let input: String
+    let sourceHandle: Int?
 
-    init(input: String) {
+    init(input: String, sourceHandle: Int?) {
         self.input = input
+        self.sourceHandle = sourceHandle
     }
 
 }
@@ -94,15 +97,21 @@ private extension Lexer {
         finish: String.Index
     ) -> Result<Token, MyronError> {
         precondition(start < finish)
-        let location = start..<finish
-        let text = String(input[location])
+        let text = String(input[start..<finish])
+        let startOffset = input.distance(from: input.startIndex, to: start)
+        let finishOffset = input.distance(from: input.startIndex, to: finish)
+        let location = startOffset..<finishOffset
+
 
         func error(_ reason: MyronError.Reason) -> MyronError {
             MyronError(reason: reason, location: location)
         }
 
         func token(_ kind: Token.Kind) -> Token {
-            Token(kind: kind, location: location)
+            Token(
+                kind: kind,
+                sourceHandle: sourceHandle,
+                location: location)
         }
 
         switch text {
@@ -176,9 +185,11 @@ private extension Lexer {
         }
 
         if insideQuote {
+            let errorStart = input.distance(from: input.startIndex, to: index)
+            let errorFinish = input.distance(from: input.startIndex, to: cursor)
             let error = MyronError(
                 reason: .expectedQuote,
-                location: index..<cursor)
+                location: errorStart..<errorFinish)
             return (cursor, error)
         }
 

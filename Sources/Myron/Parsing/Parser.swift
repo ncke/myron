@@ -116,13 +116,13 @@ indirect enum Expression {
     case list([Expression], Metadata)
 
     struct Metadata {
-        let location: Range<String.Index>?
+        let location: Range<Int>?
     }
 }
 
 extension Expression {
 
-    func getLocation() -> Range<String.Index>? {
+    func getLocation() -> Range<Int>? {
         switch self {
         case let .atom(_, metadata): return metadata.location
         case let .list(_, metadata): return metadata.location
