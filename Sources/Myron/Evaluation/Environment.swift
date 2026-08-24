@@ -5,7 +5,7 @@ import Foundation
 public final class Environment {
     private var mappings: [String: Value] = [:]
     private var outer: Environment?
-    private weak var registry: EnvironmentRegistry?
+    private(set) weak var registry: EnvironmentRegistry!
 
     init(outer: Environment? = nil, registry: EnvironmentRegistry) {
         self.outer = outer
