@@ -32,34 +32,10 @@ extension Evaluator {
         }
 
         let tail = Array(values.dropFirst())
+        let location = expression.getLocation()
 
-        switch head {
-
-        case .primitive(let primitiveFunction):
-            let result = primitiveFunction(tail)
-
-            if let errorReason = result.second() {
-                throw MyronError(
-                    reason: errorReason,
-                    location: expression.getLocation())
-            }
-
-            if let value = result.first() {
-                return value
-            }
-
-            throw MyronError(
-                reason: .internalError,
-                location: expression.getLocation())
-
-        case .procedure(let procedure):
-            return try procedure(tail)
-
-        default:
-            throw MyronError(
-                reason: .expectedFunction(head.typeName),
-                location: expression.getLocation())
-        }
+        let result = try apply(head, to: tail, at: location)
+        return result
     }
 
 }
