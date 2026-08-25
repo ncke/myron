@@ -4,6 +4,7 @@ import Testing
 // MARK: - Comparison
 
 @Suite("Standard Comparison")
+
 struct StandardComparisonTests {
 
     @Test("equality", arguments: [
@@ -15,12 +16,12 @@ struct StandardComparisonTests {
         ("(eq true false)", "false"),
         ("(eq \"a\" \"a\")", "true"),
         ("(eq \"a\" \"b\")", "false"),
-        ("(eq (quote a) (quote a))", "true"),
-        ("(eq (quote a) (quote b))", "false"),
-        ("(eq (quote (1 2 3)) (quote (1 2 3)))", "true"),
-        ("(eq (quote (1 2)) (quote (1 3)))", "false"),
-        ("(eq (quote (1 2)) (quote (1 2 3)))", "false"),
-        ("(eq (quote ((1) (2))) (quote ((1) (2))))", "true")
+        ("(eq 'a 'a)", "true"),
+        ("(eq 'a 'b)", "false"),
+        ("(eq '(1 2 3) '(1 2 3))", "true"),
+        ("(eq '(1 2) '(1 3))", "false"),
+        ("(eq '(1 2) '(1 2 3))", "false"),
+        ("(eq '((1) (2)) '((1) (2)))", "true")
     ] as [ValueCase])
     func equality(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -82,7 +83,7 @@ struct StandardComparisonTests {
     @Test("comparison errors", arguments: [
         ("(eq 1)", .unexpectedArity),
         ("(eq 1 1.0)", .typeMismatch),
-        ("(eq (quote (1)) (quote (1.0)))", .typeMismatch),
+        ("(eq '(1) '(1.0))", .typeMismatch),
         ("(gt 1)", .unexpectedArity),
         ("(gt 1 1.0)", .typeMismatch),
         ("(gt true false)", .incomparableTypes)
@@ -94,7 +95,7 @@ struct StandardComparisonTests {
     @Test("comparing nothing is inequatable")
     func comparingNothing() {
         expectFailure(
-            "(eq (head (quote ())) (head (quote ())))",
+            "(eq (head '()) (head '()))",
             reason: .inequatableTypes)
     }
 

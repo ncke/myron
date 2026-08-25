@@ -4,6 +4,7 @@ import Testing
 // MARK: - Mathematics
 
 @Suite("Standard Mathematics")
+
 struct StandardMathematicsTests {
 
     @Test("addition", arguments: [

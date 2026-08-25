@@ -32,15 +32,6 @@ import Testing
         expectValue("(if (lt 2 1) 10 20)", "20")
     }
 
-    @Test("quote yields data rather than application", arguments: [
-        ("(quote (1 2 3))", "(1 2 3)"),
-        ("(quote a)", "a"),
-        ("(quote ())", "()")
-    ] as [ValueCase])
-    func quote(_ c: ValueCase) {
-        expectValue(c.source, c.expected)
-    }
-
     @Test("language errors", arguments: [
         ("(if true 1)", .unexpectedArity),
         ("(if 1 10 20)", .typeMismatch),

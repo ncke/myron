@@ -4,6 +4,7 @@ import Testing
 // MARK: - Logic
 
 @Suite("Standard Logic")
+
 struct StandardLogicTests {
 
     @Test("and", arguments: [
