@@ -20,6 +20,9 @@ extension Evaluator {
         case "if":
             return try evalIf(expression, environment: environment)
 
+        case "lambda":
+            return try evalLambda(expression, environment: environment)
+
         case "quote":
             return try evalQuote(expression, environment: environment)
 
@@ -36,7 +39,7 @@ extension Evaluator {
 extension Evaluator {
 
     private static let specialFormNames: Set<String> = [
-        "if", "define", "quote"
+        "if", "define", "lambda", "quote"
     ]
 
     func getSpecialFormName(_ expression: Expression) -> String? {
@@ -62,14 +65,68 @@ extension Evaluator {
 
 }
 
+// MARK: - Lambda
+
+extension Evaluator {
+
+    func evalLambda(_ expression: Expression, environment: Environment) throws -> Value {
+        guard case let .list(elements, _) = expression else {
+            fatalError("evalLambda called with non-list expression")
+        }
+
+        guard elements.count == 3 else {
+            throw MyronError(.unexpectedArity, at: expression.getLocation())
+        }
+
+        guard case let .list(parameters, _) = elements[1] else {
+            throw MyronError(.typeMismatch, at: expression.getLocation())
+        }
+
+        let procedure = try makeProcedure(
+            parameters: parameters,
+            body: elements[2],
+            environment: environment)
+
+        return .procedure(procedure)
+    }
+
+}
+
 // MARK: - Define
 
 extension Evaluator {
 
-    func evalDefine(
-        _ expression: Expression,
-        environment: Environment
-    ) throws -> Value {
+    func makeProcedure(parameters: [Expression], body: Expression, environment: Environment) throws -> Procedure {
+        let parameterNames = try parameters.map { parameter in
+            guard
+                case let .atom(atom, _) = parameter,
+                case let .symbol(name) = atom
+            else {
+                throw MyronError(.typeMismatch, at: body.getLocation())
+            }
+
+            return name
+        }
+
+        let procedure: ([Value]) throws -> Value = { args in
+            guard args.count == parameterNames.count else {
+                throw MyronError(.unexpectedArity, at: body.getLocation())
+            }
+
+            let inner = Environment(outer: environment, registry: environment.registry)
+
+            for (name, value) in zip(parameterNames, args) {
+                inner.insert(name, value: value)
+            }
+
+            let value = try self.eval(body, environment: inner)
+            return value
+        }
+
+        return procedure
+    }
+
+    func evalDefine(_ expression: Expression, environment: Environment) throws -> Value {
         guard case let .list(elements, _) = expression else {
             fatalError("evalList called with non-list expression")
         }
@@ -82,9 +139,7 @@ extension Evaluator {
 
         if case .atom(let atom, _) = nameExpression {
             guard case .symbol(let name) = atom else {
-                throw MyronError(
-                    reason: .typeMismatch,
-                    location: expression.getLocation())
+                throw MyronError(.typeMismatch, at: expression.getLocation())
             }
 
             let value = try eval(elements[2], environment: environment)
@@ -104,33 +159,10 @@ extension Evaluator {
                 throw MyronError(.typeMismatch, at: expression.getLocation())
             }
 
-            let parameterNames = try parameters.dropFirst().map { parameter in
-                guard
-                    case let .atom(atom, _) = parameter,
-                    case let .symbol(name) = atom
-                else {
-                    throw MyronError(.typeMismatch, at: expression.getLocation())
-                }
-
-                return name
-            }
-
-            let expression = elements[2]
-
-            let procedure: ([Value]) throws -> Value = { args in
-                guard args.count == parameterNames.count else {
-                    throw MyronError(.typeMismatch, at: expression.getLocation())
-                }
-
-                let inner = Environment(outer: environment, registry: environment.registry)
-
-                for (name, value) in zip(parameterNames, args) {
-                    inner.insert(name, value: value)
-                }
-
-                let value = try self.eval(expression, environment: inner)
-                return value
-            }
+            let procedure = try makeProcedure(
+                parameters: Array(parameters.dropFirst()),
+                body: elements[2],
+                environment: environment)
 
             environment.insert(procedureName, value: .procedure(procedure))
             return .define(procedureName)
