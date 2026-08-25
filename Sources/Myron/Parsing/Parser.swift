@@ -51,11 +51,21 @@ extension Parser {
                 errors: &errors)
             return (progress, result)
         case .rightBracket:
-            let error = MyronError(
-                reason: .unmatchedParenthesis,
-                location: token.location)
+            let error = MyronError(.unmatchedParenthesis, at: token.location)
             errors.append(error)
             return (startIndex + 1, nil)
+        case .tick:
+            let incremented = startIndex + 1
+            guard incremented < tokens.count, tokens[incremented].kind != .rightBracket else {
+                let error = MyronError(.expectedExpressionAfterTick, at: token.location)
+                errors.append(error)
+                return (incremented, nil)
+            }
+            let (nextIndex, parsed) = parseExpression(from: startIndex + 1, errors: &errors)
+            guard let parsed = parsed else { return (nextIndex, nil) }
+            let syntheticQuote = Expression.atom(.symbol("quote"), metadata())
+            let quoted = Expression.list([syntheticQuote, parsed], metadata())
+            return (nextIndex, quoted)
         case .boolean(let value):
             return (startIndex + 1, .atom(.boolean(value), metadata()))
         case .double(let value):
@@ -82,10 +92,7 @@ extension Parser {
             token = tokens[cursor]
             if token?.kind == .rightBracket { break }
 
-            let (progress, expression) = parseExpression(
-                from: cursor,
-                errors: &errors)
-
+            let (progress, expression) = parseExpression(from: cursor, errors: &errors)
             if let expression { list.append(expression) }
             cursor = progress
         }
@@ -96,9 +103,7 @@ extension Parser {
         let location = start..<finish
 
         if token?.kind != .rightBracket {
-            let error = MyronError(
-                reason: .expectedRightBracket,
-                location: location)
+            let error = MyronError(.expectedRightBracket, at: location)
             errors.append(error)
         }
 

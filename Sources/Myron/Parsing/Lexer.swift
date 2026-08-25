@@ -12,6 +12,7 @@ struct Token {
         case boolean(Bool)
         case leftBracket
         case rightBracket
+        case tick
     }
 
     let kind: Kind
@@ -59,8 +60,9 @@ extension Lexer {
 
             let isBracket = character.isBracket
             let isSigning = character.isSign && !isPeekDigit()
+            let isTick = character.isTick
 
-            if isBracket || isSigning {
+            if isBracket || isSigning || isTick {
                 let progress = input.index(after: cursor)
                 emit(start: cursor, finish: progress)
                 cursor = progress
@@ -102,16 +104,10 @@ private extension Lexer {
         let finishOffset = input.distance(from: input.startIndex, to: finish)
         let location = startOffset..<finishOffset
 
-
-        func error(_ reason: MyronError.Reason) -> MyronError {
-            MyronError(reason: reason, location: location)
-        }
+        func error(_ reason: MyronError.Reason) -> MyronError { MyronError(reason, at: location) }
 
         func token(_ kind: Token.Kind) -> Token {
-            Token(
-                kind: kind,
-                sourceHandle: sourceHandle,
-                location: location)
+            Token(kind: kind, sourceHandle: sourceHandle, location: location)
         }
 
         switch text {
@@ -119,6 +115,7 @@ private extension Lexer {
         case Self.falseExpression: return .success(token(.boolean(false)))
         case Self.leftBracket: return .success(token(.leftBracket))
         case Self.rightBracket: return .success(token(.rightBracket))
+        case Self.tick: return .success(token(.tick))
         default: break
         }
 
@@ -187,9 +184,7 @@ private extension Lexer {
         if insideQuote {
             let errorStart = input.distance(from: input.startIndex, to: index)
             let errorFinish = input.distance(from: input.startIndex, to: cursor)
-            let error = MyronError(
-                reason: .expectedQuote,
-                location: errorStart..<errorFinish)
+            let error = MyronError(.expectedQuote, at: errorStart..<errorFinish)
             return (cursor, error)
         }
 
@@ -206,6 +201,7 @@ private extension Lexer {
     private static let falseExpression = "false"
     private static let leftBracket = "("
     private static let rightBracket = ")"
+    private static let tick = "'"
 }
 
 // MARK: - Character Helper
@@ -215,4 +211,5 @@ fileprivate extension Character {
     var isDigit: Bool { ("0"..."9").contains(self) }
     var isQuotation: Bool { self == "\"" }
     var isSign: Bool { self == "+" || self == "-" }
+    var isTick: Bool { self == "'" }
 }

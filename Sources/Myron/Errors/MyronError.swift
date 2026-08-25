@@ -8,6 +8,7 @@ public struct MyronError: Error, Sendable {
         case cannotBeNegative
         case divisionByZero
         case emptyApplication
+        case expectedExpressionAfterTick
         case expectedFunction(String)
         case expectedList
         case expectedProcedure
@@ -62,6 +63,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .cannotBeNegative: return "Cannot be negative"
         case .divisionByZero: return "Division by zero"
         case .emptyApplication: return "Empty application"
+        case .expectedExpressionAfterTick: return "Expected expression after tick"
         case .expectedFunction(let typeName): return "Expected function but got \(typeName)"
         case .expectedList: return "Expected list"
         case .expectedProcedure: return "Expected procedure"
