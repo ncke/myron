@@ -29,7 +29,7 @@ public struct MyronError: Error, Sendable {
     public let location: Range<Int>?
     public let message: String?
 
-    public init(
+    init(
         reason: Reason,
         location: Range<Int>?,
         message: String? = nil
@@ -38,6 +38,19 @@ public struct MyronError: Error, Sendable {
         self.location = location
         self.message = message
     }
+
+    init(_ reason: Reason, at location: Range<Int>?) {
+        self.reason = reason
+        self.location = location
+        self.message = nil
+    }
+
+    init(_ reason: Reason) {
+        self.reason = reason
+        self.location = nil
+        self.message = nil
+    }
+
 }
 
 // MARK: - Reason Description

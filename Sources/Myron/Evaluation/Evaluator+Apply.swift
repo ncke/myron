@@ -12,29 +12,14 @@ extension Evaluator {
         switch callable {
 
         case .primitive(let primitiveFunction):
-            let result = primitiveFunction(arguments)
-
-            if let errorReason = result.second() {
-                throw MyronError(
-                    reason: errorReason,
-                    location: location)
-            }
-
-            if let value = result.first() {
-                return value
-            }
-
-            throw MyronError(
-                reason: .internalError,
-                location: location)
+            let result = try primitiveFunction(arguments, Self.apply, location)
+            return result
 
         case .procedure(let procedure):
             return try procedure(arguments)
 
         default:
-            throw MyronError(
-                reason: .expectedFunction(callable.typeName),
-                location: location)
+            throw MyronError(.expectedFunction(callable.typeName), at: location)
         }
     }
 

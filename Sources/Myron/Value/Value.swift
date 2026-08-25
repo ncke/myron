@@ -2,11 +2,9 @@ import Foundation
 
 // MARK: - Value
 
-public typealias Primitive = ([Value]) -> Either<Value, MyronError.Reason>
+public typealias Primitive = ([Value], Applier, Range<Int>?) throws -> Value
 
-typealias Applier = (Value, [Value], Range<Int>?) throws -> Value
-
-typealias HigherPrimitive = (_ args: [Value], _ apply: Applier) throws -> Value
+public typealias Applier = (Value, [Value], Range<Int>?) throws -> Value
 
 public typealias Procedure = ([Value]) throws -> Value
 

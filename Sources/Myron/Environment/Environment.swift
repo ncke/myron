@@ -62,7 +62,7 @@ private extension Environment {
         case "*": return .primitive(StandardMathematics.mul)
         case "/": return .primitive(StandardMathematics.div)
         case "^": return .primitive(Self.unimplemented)
-        case "sqrt": return .primitive(Self.unimplemented)
+        case "sqrt": return .primitive(StandardMathematics.squareRoot)
         case "log": return .primitive(Self.unimplemented)
         case "ln": return .primitive(Self.unimplemented)
         case "sin": return .primitive(Self.unimplemented)
@@ -82,31 +82,19 @@ private extension Environment {
         case "empty": return .primitive(StandardLists.empty)
 
         // Higher-order lists.
-        case "map": return .primitive(adapt(StandardHigherLists.map))
+        case "map": return .primitive(StandardHigherLists.map)
 
         default:
             return nil
         }
     }
 
-    static func unimplemented(args: [Value]) -> Either<Value, MyronError.Reason> {
-        Either(.unimplementedFeature)
-    }
-
-    func adapt(_ higherPrimitive: @escaping HigherPrimitive) -> Primitive {
-        let lowerPrimitive: Primitive = { args in
-            do {
-                let result = try higherPrimitive(args, Evaluator.apply)
-                return Either(result)
-
-            } catch let error as MyronError {
-                return Either(error.reason)
-            } catch {
-                fatalError("Higher primitive must only throw MyronError")
-            }
-        }
-
-        return lowerPrimitive
+    static func unimplemented(
+        args: [Value],
+        applier: Applier,
+        location: Range<Int>?
+    ) throws -> Value {
+        throw MyronError(.unimplementedFeature, at: location)
     }
 
 }

@@ -8,14 +8,8 @@ extension Evaluator {
         _ expression: Expression,
         environment: Environment
     ) throws -> Value {
-        func makeUnimplementedFeatureError() -> MyronError {
-            MyronError(
-                reason: .unimplementedFeature,
-                location: expression.getLocation())
-        }
-
         guard let name = getSpecialFormName(expression) else {
-            throw makeUnimplementedFeatureError()
+            throw MyronError(.unimplementedFeature, at: expression.getLocation())
         }
 
         switch name {
@@ -30,7 +24,7 @@ extension Evaluator {
             return try evalQuote(expression, environment: environment)
 
         default:
-            throw makeUnimplementedFeatureError()
+            throw MyronError(.unimplementedFeature, at: expression.getLocation())
         }
 
     }
@@ -81,9 +75,7 @@ extension Evaluator {
         }
 
         guard elements.count == 3 else {
-            throw MyronError(
-                reason: .unexpectedArity,
-                location: expression.getLocation())
+            throw MyronError(.unexpectedArity, at: expression.getLocation())
         }
 
         let nameExpression = elements[1]
@@ -102,18 +94,14 @@ extension Evaluator {
 
         if case .list(let parameters, _) = nameExpression {
             guard parameters.count > 0 else {
-                throw MyronError(
-                    reason: .unexpectedArity,
-                    location: expression.getLocation())
+                throw MyronError(.unexpectedArity, at: expression.getLocation())
             }
 
             guard
                 case let .atom(atom, _) = parameters.first,
                 case .symbol(let procedureName) = atom
             else {
-                throw MyronError(
-                    reason: .typeMismatch,
-                    location: expression.getLocation())
+                throw MyronError(.typeMismatch, at: expression.getLocation())
             }
 
             let parameterNames = try parameters.dropFirst().map { parameter in
@@ -121,9 +109,7 @@ extension Evaluator {
                     case let .atom(atom, _) = parameter,
                     case let .symbol(name) = atom
                 else {
-                    throw MyronError(
-                        reason: .typeMismatch,
-                        location: expression.getLocation())
+                    throw MyronError(.typeMismatch, at: expression.getLocation())
                 }
 
                 return name
@@ -133,9 +119,7 @@ extension Evaluator {
 
             let procedure: ([Value]) throws -> Value = { args in
                 guard args.count == parameterNames.count else {
-                    throw MyronError(
-                        reason: .typeMismatch,
-                        location: expression.getLocation())
+                    throw MyronError(.typeMismatch, at: expression.getLocation())
                 }
 
                 let inner = Environment(outer: environment, registry: environment.registry)
@@ -170,9 +154,7 @@ private extension Evaluator {
         }
 
         guard elements.count == 4 else {
-            throw MyronError(
-                reason: .unexpectedArity,
-                location: expression.getLocation())
+            throw MyronError(.unexpectedArity, at: expression.getLocation())
         }
 
         let condition = elements[1]
@@ -186,9 +168,7 @@ private extension Evaluator {
             let branch = elements[3]
             return try eval(branch, environment: environment)
         default:
-            throw MyronError(
-                reason: .typeMismatch,
-                location: expression.getLocation())
+            throw MyronError(.typeMismatch, at: expression.getLocation())
         }
     }
 
@@ -207,16 +187,11 @@ extension Evaluator {
         }
 
         guard elements.count == 2 else {
-            throw MyronError(
-                reason: .unexpectedArity,
-                location: expression.getLocation())
+            throw MyronError(.unexpectedArity, at: expression.getLocation())
         }
 
         let quotation = elements[1]
-        return try eval(
-            quotation,
-            environment: environment,
-            inQuoteMode: true)
+        return try eval(quotation, environment: environment, inQuoteMode: true)
     }
 
 }

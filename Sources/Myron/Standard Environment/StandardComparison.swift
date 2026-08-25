@@ -4,131 +4,78 @@ import Foundation
 
 struct StandardComparison {
 
-    static func eq(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Either(.unexpectedArity) }
-        let fst = args[0]
-        let snd = args[1]
+    static func eq(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
 
         guard fst.typeName == snd.typeName else {
-            return Either(.typeMismatch)
+            throw MyronError(.typeMismatch, at: location)
         }
 
-        if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Either(.boolean(f == s))
-        }
+        if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f == s) }
+        if let f = fst.asDouble, let s = snd.asDouble { return .boolean(f == s) }
+        if let f = fst.asBoolean, let s = snd.asBoolean { return .boolean(f == s) }
+        if let f = fst.asString, let s = snd.asString { return .boolean(f == s) }
+        if let f = fst.asSymbol, let s = snd.asSymbol { return .boolean(f == s) }
 
-        if case .double(let f) = fst, case .double(let s) = snd {
-            return Either(.boolean(f == s))
-        }
-
-        if case .boolean(let f) = fst, case .boolean(let s) = snd {
-            return Either(.boolean(f == s))
-        }
-
-        if case .string(let f) = fst, case .string(let s) = snd {
-            return Either(.boolean(f == s))
-        }
-
-        if case .symbol(let f) = fst, case .symbol(let s) = snd {
-            return Either(.boolean(f == s))
-        }
-
-        if case .list(let f) = fst, case .list(let s) = snd {
-            if f.count != s.count { return Either(.boolean(false)) }
+        if let f = fst.asList, let s = snd.asList {
+            if f.count != s.count { return .boolean(false) }
 
             for (ef, es) in zip(f, s) {
-                let compare = eq(args: [ef, es])
-                if compare.second() != nil { return compare }
-                if  let result = compare.first(),
-                        case .boolean(let bool) = result,
-                        !bool
-                {
-                    return Either(.boolean(false))
-                }
+                let compare = try eq(args: [ef, es], apply: apply, location: location)
+                if try !compare.unwrapBoolean(location) { return .boolean(false) }
             }
 
-            return Either(.boolean(true))
+            return .boolean(true)
         }
 
-        return Either(.inequatableTypes)
+        throw MyronError(.inequatableTypes, at: location)
     }
 
-    static func neq(args: [Value]) -> Either<Value, MyronError.Reason> {
-        let compare = eq(args: args)
-        if compare.second() != nil { return compare }
-
-        if  let result = compare.first(),
-            case .boolean(let bool) = result
-        {
-            return Either(.boolean(!bool))
-        }
-
-        return Either(.internalError)
+    static func neq(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let compare = try eq(args: args, apply: apply, location: location)
+        if let bool = compare.asBoolean { return .boolean(!bool) }
+        throw MyronError(.internalError, at: location)
     }
 
-    static func gt(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Either(.unexpectedArity) }
-        let fst = args[0]
-        let snd = args[1]
+    static func gt(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
 
         guard fst.typeName == snd.typeName else {
-            return Either(.typeMismatch)
+            throw MyronError(.typeMismatch, at: location)
         }
 
-        if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Either(.boolean(f > s))
-        }
+        if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f > s) }
+        if let f = fst.asDouble, let s = snd.asDouble { return .boolean(f > s) }
+        if let f = fst.asString, let s = snd.asString { return .boolean(f > s) }
 
-        if case .double(let f) = fst, case .double(let s) = snd {
-            return Either(.boolean(f > s))
-        }
-
-        if case .string(let f) = fst, case .string(let s) = snd {
-            return Either(.boolean(f > s))
-        }
-
-        return Either(.incomparableTypes)
+        throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func gte(args: [Value]) -> Either<Value, MyronError.Reason> {
-        let greater = gt(args: args)
-        if greater.second() != nil { return greater }
-        if case let .boolean(bool) = greater.first(), bool { return greater }
-
-        let equal = eq(args: args)
+    static func gte(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let greater = try gt(args: args, apply: apply, location: location)
+        if try greater.unwrapBoolean(location) { return greater }
+        let equal = try eq(args: args, apply: apply, location: location)
         return equal
     }
 
-    static func lt(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Either(.unexpectedArity) }
-        let fst = args[0]
-        let snd = args[1]
+    static func lt(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
 
         guard fst.typeName == snd.typeName else {
-            return Either(.typeMismatch)
+            throw MyronError(.typeMismatch, at: location)
         }
 
-        if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Either(.boolean(f < s))
-        }
+        if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f < s) }
+        if let f = fst.asDouble, let s = snd.asDouble { return .boolean(f < s) }
+        if let f = fst.asString, let s = snd.asString { return .boolean(f < s) }
 
-        if case .double(let f) = fst, case .double(let s) = snd {
-            return Either(.boolean(f < s))
-        }
-
-        if case .string(let f) = fst, case .string(let s) = snd {
-            return Either(.boolean(f < s))
-        }
-
-        return Either(.incomparableTypes)
+        throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func lte(args: [Value]) -> Either<Value, MyronError.Reason> {
-        let lesser = lt(args: args)
-        if lesser.second() != nil { return lesser }
-        if case let .boolean(bool) = lesser.first(), bool { return lesser }
-
-        let equal = eq(args: args)
+    static func lte(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let lesser = try lt(args: args, apply: apply, location: location)
+        if try lesser.unwrapBoolean(location) { return lesser }
+        let equal = try eq(args: args, apply: apply, location: location)
         return equal
     }
 

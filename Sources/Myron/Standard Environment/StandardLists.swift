@@ -2,83 +2,52 @@ import Foundation
 
 struct StandardLists {
 
-    static func head(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Either(.unexpectedArity) }
-        guard case let .list(elements) = args[0] else {
-            return Either(.typeMismatch)
-        }
-
-        guard let head = elements.first else { return Either(.nothing) }
-        return Either(head)
+    static func head(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let elements = try args.unwrap1List(location)
+        guard let head = elements.first else { return .nothing }
+        return head
     }
 
-    static func tail(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Either(.unexpectedArity) }
-        guard case let .list(elements) = args[0] else {
-            return Either(.typeMismatch)
-        }
-
+    static func tail(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let elements = try args.unwrap1List(location)
         let tail = Array(elements.dropFirst())
-        return Either(.list(tail))
+        return .list(tail)
     }
 
-    static func last(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Either(.unexpectedArity) }
-        guard case let .list(elements) = args[0] else {
-            return Either(.typeMismatch)
-        }
-
-        guard let last = elements.last else { return Either(.nothing) }
-        return Either(last)
+    static func last(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let elements = try args.unwrap1List(location)
+        guard let last = elements.last else { return .nothing }
+        return last
     }
 
-    static func take(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Either(.unexpectedArity) }
-        guard
-            case let .integer(count) = args[0],
-            case let .list(elements) = args[1]
-        else {
-            return Either(.typeMismatch)
-        }
+    static func take(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
+        let count = try fst.unwrapInteger(location)
+        guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
 
-        guard count >= 0 else { return Either(.cannotBeNegative) }
-
+        let elements = try snd.unwrapList(location)
         let take = Array(elements.prefix(count))
-        return Either(.list(take))
+        return .list(take)
     }
 
-    static func drop(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Either(.unexpectedArity) }
-        guard
-            case let .integer(count) = args[0],
-            case let .list(elements) = args[1]
-        else {
-            return Either(.typeMismatch)
-        }
+    static func drop(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
+        let count = try fst.unwrapInteger(location)
+        guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
 
-        guard count >= 0 else { return Either(.cannotBeNegative) }
-
+        let elements = try snd.unwrapList(location)
         let drop = Array(elements.dropFirst(count))
-        return Either(.list(drop))
+        return .list(drop)
     }
 
-    static func length(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Either(.unexpectedArity) }
-        guard case let .list(elements) = args[0] else {
-            return Either(.typeMismatch)
-        }
-
-        let length = elements.count
-        return Either(.integer(length))
+    static func length(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let elements = try args.unwrap1List(location)
+        return .integer(elements.count)
     }
 
-    static func empty(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Either(.unexpectedArity) }
-        guard case let .list(elements) = args[0] else {
-            return Either(.typeMismatch)
-        }
-
-        return Either(.boolean(elements.isEmpty))
+    static func empty(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let n = try length(args: args, apply: apply, location: location).unwrapInteger(location)
+        return .boolean(n == 0)
     }
 
 }

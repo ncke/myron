@@ -1,0 +1,126 @@
+import Foundation
+
+// MARK: - Arguments Unwrapping
+
+extension Collection where Element == Value {
+
+    func mustHaveAtLeast(_ n: Int, _ location: Range<Int>?) throws {
+        if count < n { throw MyronError(.unexpectedArity, at: location) }
+    }
+
+    func hasArity(_ n: Int) -> Bool { count == n }
+
+    func unwrap1(_ location: Range<Int>?) throws -> Value {
+        guard count == 1 else { throw MyronError(.unexpectedArity, at: location) }
+        return self[startIndex]
+    }
+
+    func unwrap1List(_ location: Range<Int>?) throws -> [Value] {
+        guard count == 1 else { throw MyronError(.unexpectedArity, at: location) }
+        return try self[startIndex].unwrapList(location)
+    }
+
+    func unwrap2(_ location: Range<Int>?) throws -> (Value, Value) {
+        guard count == 2 else { throw MyronError(.unexpectedArity, at: location) }
+        return (self[startIndex], self[index(startIndex, offsetBy: 1)])
+    }
+
+
+    func unwrapFirst(_ location: Range<Int>?) throws -> Value {
+        guard let v = first else { throw MyronError(.unexpectedArity, at: location) }
+        return v
+    }
+
+    func unwrapSecond(_ location: Range<Int>?) throws -> Value {
+        guard count > 1 else { throw MyronError(.unexpectedArity, at: location) }
+        return self[index(startIndex, offsetBy: 1)]
+    }
+
+}
+
+// MARK: - Value Unwrapping
+
+extension Value {
+
+    func unwrapBoolean(_ location: Range<Int>?) throws -> Bool {
+        guard let b = asBoolean else { throw MyronError(.typeMismatch, at: location) }
+        return b
+    }
+
+    func unwrapInteger(_ location: Range<Int>?) throws -> Int {
+        guard let n = asInteger else { throw MyronError(.typeMismatch, at: location) }
+        return n
+    }
+
+    func unwrapDouble(_ location: Range<Int>?) throws -> Double {
+        guard let n = asDouble else { throw MyronError(.typeMismatch, at: location) }
+        return n
+    }
+
+    func unwrapList(_ location: Range<Int>?) throws -> [Value] {
+        guard let l = asList else { throw MyronError(.expectedList, at: location) }
+        return l
+    }
+
+    func unwrapString(_ location: Range<Int>?) throws -> String {
+        guard let s = asString else { throw MyronError(.typeMismatch, at: location) }
+        return s
+    }
+
+    func unwrapSymbol(_ location: Range<Int>?) throws -> String {
+        guard let s = asSymbol else { throw MyronError(.expectedSymbol, at: location) }
+        return s
+    }
+
+}
+
+// MARK: - Value Probing
+
+extension Value {
+
+    var asBoolean: Bool? {
+        if case .boolean(let b) = self { return b }
+        return nil
+    }
+
+    var asInteger: Int? {
+        if case .integer(let n) = self { return n }
+        return nil
+    }
+
+    var asDouble: Double? {
+        if case .double(let n) = self { return n }
+        return nil
+    }
+
+    var asList: [Value]? {
+        if case .list(let l) = self { return l }
+        return nil
+    }
+
+    var asString: String? {
+        if case .string(let s) = self { return s }
+        return nil
+    }
+
+    var asSymbol: String? {
+        if case .symbol(let s) = self { return s }
+        return nil
+    }
+
+    var asPrimitive: Primitive? {
+        if case .primitive(let p) = self { return p }
+        return nil
+    }
+
+    var asProcedure: Procedure? {
+        if case .procedure(let p) = self { return p }
+        return nil
+    }
+
+    var asDefine: String? {
+        if case .define(let d) = self { return d }
+        return nil
+    }
+
+}

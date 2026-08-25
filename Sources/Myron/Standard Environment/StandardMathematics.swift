@@ -4,122 +4,89 @@ import Foundation
 
 struct StandardMathematics {
 
-    static func add(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Either(.unexpectedArity) }
-        let fst = args[0]
+    static func add(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        try args.mustHaveAtLeast(2, location)
 
-        if case .integer(var sum) = fst {
-            for arg in args.dropFirst() {
-                if case .integer(let n) = arg {
-                    sum += n
-                } else {
-                    return Either(.typeMismatch)
-                }
-            }
+        let fst = try args.unwrapFirst(location)
+        let tail = args.dropFirst()
 
-            return Either(.integer(sum))
+        if var sum = fst.asInteger {
+            for arg in tail { sum += try arg.unwrapInteger(location) }
+            return .integer(sum)
         }
 
-        if case .double(var sum) = fst {
-            for arg in args.dropFirst() {
-                if case .double(let n) = arg {
-                    sum += n
-                } else {
-                    return Either(.typeMismatch)
-                }
-            }
-
-            return Either(.double(sum))
+        if var sum = fst.asDouble {
+            for arg in tail { sum += try arg.unwrapDouble(location) }
+            return .double(sum)
         }
 
-        return Either(.typeMismatch)
+        throw MyronError(.typeMismatch, at: location)
     }
 
-    static func sub(args: [Value]) -> Either<Value, MyronError.Reason> {
-        if args.count == 1 {
-            return negation(args: args)
+    static func sub(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        if args.hasArity(1) {
+            return try negation(args: args, apply: apply, location: location)
         }
 
-        guard args.count == 2 else { return Either(.unexpectedArity) }
-        let fst = args[0]
-        let snd = args[1]
+        let (fst, snd) = try args.unwrap2(location)
+        if let f = fst.asInteger, let s = snd.asInteger { return .integer(f - s) }
+        if let f = fst.asDouble, let s = snd.asDouble { return .double(f - s) }
 
-        if case .integer(let f) = fst, case .integer(let s) = snd {
-            return Either(.integer(f - s))
-        }
-
-        if case .double(let f) = fst, case .double(let s) = snd {
-            return Either(.double(f - s))
-        }
-
-        return Either(.typeMismatch)
+        throw MyronError(.typeMismatch, at: location)
     }
 
     private static func negation(
-        args: [Value]
-    ) -> Either<Value, MyronError.Reason> {
-        guard args.count == 1 else { return Either(.unexpectedArity) }
-        let number = args[0]
+        args: [Value],
+        apply: Applier,
+        location: Range<Int>?
+    ) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let i = number.asInteger { return .integer(-i) }
+        if let d = number.asDouble { return .double(-d) }
 
-        if case .integer(let i) = number {
-            return Either(.integer(-i))
-        }
-
-        if case .double(let d) = number {
-            return Either(.double(-d))
-        }
-
-        return Either(.typeMismatch)
+        throw MyronError(.typeMismatch, at: location)
     }
 
-    static func mul(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count >= 2 else { return Either(.unexpectedArity) }
-        let fst = args[0]
+    static func mul(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        try args.mustHaveAtLeast(2, location)
+        let fst = try args.unwrapFirst(location)
+        let tail = args.dropFirst()
 
-        if case .integer(var prod) = fst {
-            for arg in args.dropFirst() {
-                if case .integer(let n) = arg {
-                    prod *= n
-                } else {
-                    return Either(.typeMismatch)
-                }
-            }
-
-            return Either(.integer(prod))
+        if var prod = fst.asInteger {
+            for arg in tail { prod *= try arg.unwrapInteger(location) }
+            return .integer(prod)
         }
 
-        if case .double(var prod) = fst {
-            for arg in args.dropFirst() {
-                if case .double(let n) = arg {
-                    prod *= n
-                } else {
-                    return Either(.typeMismatch)
-                }
-            }
-
-            return Either(.double(prod))
+        if var prod = fst.asDouble {
+            for arg in tail { prod *= try arg.unwrapDouble(location) }
+            return .double(prod)
         }
 
-        return Either(.typeMismatch)
+        throw MyronError(.typeMismatch, at: location)
     }
 
-    static func div(args: [Value]) -> Either<Value, MyronError.Reason> {
-        guard args.count == 2 else { return Either(.unexpectedArity) }
-        let fst = args[0]
-        let snd = args[1]
+    static func div(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
 
-        if case .integer(let f) = fst, case .integer(let s) = snd {
-            if s == 0 { return Either(.divisionByZero) }
-            return Either(.integer(f / s))
+        if let f = fst.asInteger, let s = snd.asInteger {
+            if s == Int.zero { throw MyronError(.divisionByZero, at: location) }
+            return .integer(f / s)
         }
 
-        if case .double(let f) = fst, case .double(let s) = snd {
-            if s == Double.zero { return Either(.divisionByZero) }
-            return Either(.double(f / s))
+        if let f = fst.asDouble, let s = snd.asDouble {
+            if s == Double.zero { throw MyronError(.divisionByZero, at: location) }
+            return .double(f / s)
         }
 
-        return Either(.typeMismatch)
+        throw MyronError(.typeMismatch, at: location)
+    }
+
+    static func squareRoot(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let number = try args.unwrap1(location)
+
+        if let n = number.asInteger { return .double(sqrt(Double(n))) }
+        if let n = number.asDouble { return .double(sqrt(n)) }
+        throw MyronError(.typeMismatch, at: location)
     }
 
 }
-

@@ -26,9 +26,7 @@ extension Evaluator {
         }
 
         guard let head = values.first else {
-            throw MyronError(
-                reason: .emptyApplication,
-                location: expression.getLocation())
+            throw MyronError(.emptyApplication, at: expression.getLocation())
         }
 
         let tail = Array(values.dropFirst())

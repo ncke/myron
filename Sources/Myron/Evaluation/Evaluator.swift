@@ -22,9 +22,7 @@ class Evaluator {
         if case .atom(let atom, _) = expression {
             if !inQuoteMode, case .symbol(let name) = atom {
                 guard let value = environment.lookup(name) else {
-                    throw MyronError(
-                        reason: .unrecognisedSymbol,
-                        location: expression.getLocation())
+                    throw MyronError(.unrecognisedSymbol, at: expression.getLocation())
                 }
 
                 return value
@@ -41,9 +39,7 @@ class Evaluator {
             )
         }
 
-        throw MyronError(
-            reason: .unimplementedFeature,
-            location: expression.getLocation())
+        throw MyronError(.unimplementedFeature, at: expression.getLocation())
     }
 
 }
