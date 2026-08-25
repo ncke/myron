@@ -81,6 +81,9 @@ private extension Environment {
         case "length": return .primitive(StandardLists.length)
         case "empty": return .primitive(StandardLists.empty)
 
+        // Higher-order lists.
+        case "map": return .primitive(adapt(StandardHigherLists.map))
+
         default:
             return nil
         }
@@ -88,6 +91,22 @@ private extension Environment {
 
     static func unimplemented(args: [Value]) -> Either<Value, MyronError.Reason> {
         Either(.unimplementedFeature)
+    }
+
+    func adapt(_ higherPrimitive: @escaping HigherPrimitive) -> Primitive {
+        let lowerPrimitive: Primitive = { args in
+            do {
+                let result = try higherPrimitive(args, Evaluator.apply)
+                return Either(result)
+
+            } catch let error as MyronError {
+                return Either(error.reason)
+            } catch {
+                fatalError("Higher primitive must only throw MyronError")
+            }
+        }
+
+        return lowerPrimitive
     }
 
 }

@@ -34,7 +34,7 @@ extension Evaluator {
         let tail = Array(values.dropFirst())
         let location = expression.getLocation()
 
-        let result = try apply(head, to: tail, at: location)
+        let result = try Evaluator.apply(head, to: tail, at: location)
         return result
     }
 

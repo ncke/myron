@@ -1,10 +1,10 @@
 import Foundation
 
-typealias Applier = (Value, [Value], Expression) throws -> Value
+// MARK: - Apply
 
 extension Evaluator {
 
-    func apply(
+    static func apply(
         _ callable: Value,
         to arguments: [Value],
         at location: Range<Int>?

@@ -4,6 +4,10 @@ import Foundation
 
 public typealias Primitive = ([Value]) -> Either<Value, MyronError.Reason>
 
+typealias Applier = (Value, [Value], Range<Int>?) throws -> Value
+
+typealias HigherPrimitive = (_ args: [Value], _ apply: Applier) throws -> Value
+
 public typealias Procedure = ([Value]) throws -> Value
 
 public enum Value {

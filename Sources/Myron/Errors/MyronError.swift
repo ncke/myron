@@ -9,6 +9,8 @@ public struct MyronError: Error, Sendable {
         case divisionByZero
         case emptyApplication
         case expectedFunction(String)
+        case expectedList
+        case expectedProcedure
         case expectedQuote
         case expectedRightBracket
         case expectedSymbol
@@ -48,6 +50,8 @@ extension MyronError.Reason: CustomStringConvertible {
         case .divisionByZero: return "Division by zero"
         case .emptyApplication: return "Empty application"
         case .expectedFunction(let typeName): return "Expected function but got \(typeName)"
+        case .expectedList: return "Expected list"
+        case .expectedProcedure: return "Expected procedure"
         case .expectedQuote: return "Expected quote"
         case .expectedRightBracket: return "Expected right bracket"
         case .expectedSymbol: return "Expected symbol"
