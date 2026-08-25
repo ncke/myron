@@ -25,6 +25,14 @@ extension Collection where Element == Value {
         return (self[startIndex], self[index(startIndex, offsetBy: 1)])
     }
 
+    func unwrap3(_ location: Range<Int>?) throws -> (Value, Value, Value) {
+        guard count == 3 else { throw MyronError(.unexpectedArity, at: location) }
+        let i0 = startIndex
+        let i1 = index(startIndex, offsetBy: 1)
+        let i2 = index(startIndex, offsetBy: 2)
+        
+        return (self[i0], self[i1], self[i2])
+    }
 
     func unwrapFirst(_ location: Range<Int>?) throws -> Value {
         guard let v = first else { throw MyronError(.unexpectedArity, at: location) }

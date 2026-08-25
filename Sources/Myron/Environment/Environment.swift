@@ -83,6 +83,8 @@ private extension Environment {
 
         // Higher-order lists.
         case "map": return .primitive(StandardHigherLists.map)
+        case "filter": return .primitive(StandardHigherLists.filter)
+        case "reduce": return .primitive(StandardHigherLists.reduce)
 
         default:
             return nil
