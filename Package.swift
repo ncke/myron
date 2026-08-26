@@ -11,12 +11,20 @@ let package = Package(
             name: "Myron",
             targets: ["Myron"]
         ),
+        .executable(
+            name: "myron-repl",
+            targets: ["myron-repl"]
+        ),
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "Myron"
+        ),
+        .executableTarget(
+            name: "myron-repl",
+            dependencies: ["Myron"]
         ),
         .testTarget(
             name: "MyronTests",
