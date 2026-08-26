@@ -2,13 +2,7 @@ import Foundation
 
 // MARK: - Evaluator
 
-class Evaluator {
-
-    private weak var registry: EnvironmentRegistry?
-
-    init(registry: EnvironmentRegistry) {
-        self.registry = registry
-    }
+final class Evaluator {
 
     func eval(
         _ expression: Expression,

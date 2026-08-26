@@ -13,7 +13,7 @@ public final class Environment {
         self.registry?.register(self)
     }
 
-    public func shutdown() {
+    func shutdown() {
         mappings = [:]
     }
 

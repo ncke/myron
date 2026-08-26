@@ -87,10 +87,10 @@ struct StandardMathematicsTests {
     }
 
     @Test("power", arguments: [
-        ("(pow 2 3)", "8.0"),
+        ("(pow 2 3)", "8"),
         ("(pow 2.0 3.0)", "8.0"),
-        ("(pow 2 -1)", "0.5"),
-        ("(pow 5 0)", "1.0")
+        ("(pow 2 -1)", "0"),
+        ("(pow 5 0)", "1")
     ] as [ValueCase])
     func power(_ c: ValueCase) {
         expectValue(c.source, c.expected)

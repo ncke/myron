@@ -30,7 +30,7 @@ public final class MyronSession {
         self.configuration = configuration
         self.environmentRegistry = EnvironmentRegistry()
         self.environment = Environment(registry: environmentRegistry)
-        self.evaluator = Evaluator(registry: environmentRegistry)
+        self.evaluator = Evaluator()
     }
 
     deinit {
@@ -68,9 +68,7 @@ public final class MyronSession {
                 return .failure([adornedError])
 
             } catch {
-                let error = MyronError(
-                    reason: .unimplementedFeature,
-                    location: form.getLocation())
+                let error = MyronError(.internalError, at: form.getLocation())
                 let adornedError = adornErrorIfNecessary(error, in: expression)
                 return .failure([adornedError])
             }
