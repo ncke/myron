@@ -86,4 +86,90 @@ struct StandardMathematicsTests {
         expectFailure(c.source, reason: c.reason)
     }
 
+    @Test("power", arguments: [
+        ("(pow 2 3)", "8.0"),
+        ("(pow 2.0 3.0)", "8.0"),
+        ("(pow 2 -1)", "0.5"),
+        ("(pow 5 0)", "1.0")
+    ] as [ValueCase])
+    func power(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("modulo is floored", arguments: [
+        ("(mod 7 3)", "1"),
+        ("(mod 6 3)", "0"),
+        ("(mod -7 3)", "2"),
+        ("(mod 7 -3)", "-2"),
+        ("(mod 5 0)", "5")
+    ] as [ValueCase])
+    func modulo(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("minimum and maximum", arguments: [
+        ("(min 3 1 2)", "1"),
+        ("(max 3 1 2)", "3"),
+        ("(min 5)", "5"),
+        ("(max 1.5 2.5 0.5)", "2.5"),
+        ("(min -1 -2 -3)", "-3")
+    ] as [ValueCase])
+    func minMax(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("floor, ceil, round", arguments: [
+        ("(floor 3.7)", "3.0"),
+        ("(floor -1.5)", "-2.0"),
+        ("(ceil 3.2)", "4.0"),
+        ("(ceil -1.5)", "-1.0"),
+        ("(round 3.5)", "4.0"),
+        ("(round -2.5)", "-3.0"),
+        ("(round 2.4)", "2.0")
+    ] as [ValueCase])
+    func rounding(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("absolute value", arguments: [
+        ("(abs -5)", "5"),
+        ("(abs 5)", "5"),
+        ("(abs -5.0)", "5.0"),
+        ("(abs 0)", "0")
+    ] as [ValueCase])
+    func absoluteValue(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("logarithms and trigonometry", arguments: [
+        ("(ln 1.0)", "0.0"),
+        ("(log 1.0)", "0.0"),
+        ("(sin 0.0)", "0.0"),
+        ("(cos 0.0)", "1.0"),
+        ("(tan 0.0)", "0.0"),
+        ("(asin 0.0)", "0.0"),
+        ("(acos 1.0)", "0.0"),
+        ("(atan 0.0)", "0.0"),
+        ("(atan2 0.0 1.0)", "0.0")
+    ] as [ValueCase])
+    func transcendental(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("extended arithmetic errors", arguments: [
+        ("(pow 2)", .unexpectedArity),
+        ("(pow 2 \"x\")", .typeMismatch),
+        ("(mod 7.0 3.0)", .typeMismatch),
+        ("(min)", .unexpectedArity),
+        ("(min 1 2.0)", .typeMismatch),
+        ("(floor 3)", .typeMismatch),
+        ("(round 3)", .typeMismatch),
+        ("(log 100)", .typeMismatch),
+        ("(sin 0)", .typeMismatch),
+        ("(atan2 1.0)", .unexpectedArity)
+    ] as [FailureCase])
+    func extendedErrors(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
 }
