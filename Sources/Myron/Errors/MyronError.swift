@@ -19,6 +19,7 @@ public struct MyronError: Error, Sendable {
         case inequatableTypes
         case internalError
         case invalidNumber
+        case subscriptOutOfBounds(Int, Int)
         case typeMismatch
         case unexpectedArity
         case unimplementedFeature
@@ -74,6 +75,8 @@ extension MyronError.Reason: CustomStringConvertible {
         case .inequatableTypes: return "Inequatable types"
         case .internalError: return "Internal error"
         case .invalidNumber: return "Invalid number"
+        case .subscriptOutOfBounds(let got, let length):
+            return "Subscript out of bounds: got \(got) for list of length \(length)"
         case .typeMismatch: return "Type mismatch"
         case .unexpectedArity: return "Unexpected arity"
         case .unimplementedFeature: return "Unimplemented feature"

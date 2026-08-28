@@ -61,10 +61,10 @@ struct StandardListsTests {
         expectValue(c.source, c.expected)
     }
 
-    @Test("empty", arguments: [
-        ("(empty '())", "true"),
-        ("(empty '(1))", "false"),
-        ("(empty '(1 2 3))", "false")
+    @Test("empty?", arguments: [
+        ("(empty? '())", "true"),
+        ("(empty? '(1))", "false"),
+        ("(empty? '(1 2 3))", "false")
     ] as [ValueCase])
     func empty(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -75,7 +75,7 @@ struct StandardListsTests {
         ("(tail 5)", .expectedList),
         ("(last 5)", .expectedList),
         ("(length 5)", .expectedList),
-        ("(empty 5)", .expectedList),
+        ("(empty? 5)", .expectedList),
         ("(head '(1) '(2))", .unexpectedArity),
         ("(take -1 '(1 2))", .cannotBeNegative),
         ("(drop -1 '(1 2))", .cannotBeNegative),

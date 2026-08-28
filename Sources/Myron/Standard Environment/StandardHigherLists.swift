@@ -42,4 +42,36 @@ struct StandardHigherLists {
         return accumulator
     }
 
+    static func all(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
+
+        guard fst.isCallable else {
+            throw MyronError(.expectedFunction(fst.typeName), at: location)
+        }
+
+        let list = try snd.unwrapList(location)
+        for value in list {
+            let result = try apply(fst, [value], location).unwrapBoolean(location)
+            if !result { return .boolean(false) }
+        }
+
+        return .boolean(true)
+    }
+
+    static func any(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
+
+        guard fst.isCallable else {
+            throw MyronError(.expectedFunction(fst.typeName), at: location)
+        }
+
+        let list = try snd.unwrapList(location)
+        for value in list {
+            let result = try apply(fst, [value], location).unwrapBoolean(location)
+            if result { return .boolean(true) }
+        }
+
+        return .boolean(false)
+    }
+
 }

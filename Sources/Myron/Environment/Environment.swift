@@ -50,6 +50,15 @@ private extension Environment {
         case "lte": return .primitive(StandardComparison.lte)
         case "<=": return .primitive(StandardComparison.lte)
 
+        // Predicates.
+        case "nothing?": return .primitive(StandardPredicates.isNothing)
+        case "number?": return .primitive(StandardPredicates.isNumber)
+        case "integer?": return .primitive(StandardPredicates.isInteger)
+        case "double?": return .primitive(StandardPredicates.isDouble)
+        case "string?": return .primitive(StandardPredicates.isString)
+        case "boolean?": return .primitive(StandardPredicates.isBoolean)
+        case "list?": return .primitive(StandardPredicates.isList)
+
         // Logic.
         case "and": return .primitive(StandardLogic.and)
         case "or": return .primitive(StandardLogic.or)
@@ -83,16 +92,25 @@ private extension Environment {
         // Lists.
         case "head": return .primitive(StandardLists.head)
         case "tail": return .primitive(StandardLists.tail)
+        case "init": return .primitive(StandardLists.initial)
         case "last": return .primitive(StandardLists.last)
         case "take": return .primitive(StandardLists.take)
         case "drop": return .primitive(StandardLists.drop)
         case "length": return .primitive(StandardLists.length)
-        case "empty": return .primitive(StandardLists.empty)
+        case "empty?": return .primitive(StandardLists.empty)
+        case "cons": return .primitive(StandardLists.cons)
+        case "list": return .primitive(StandardLists.list)
+        case "append": return .primitive(StandardLists.append)
+        case "reverse": return .primitive(StandardLists.reverse)
+        case "nth": return .primitive(StandardLists.nth)
+        case "contains": return .primitive(StandardLists.contains)
 
         // Higher-order lists.
         case "map": return .primitive(StandardHigherLists.map)
         case "filter": return .primitive(StandardHigherLists.filter)
         case "reduce": return .primitive(StandardHigherLists.reduce)
+        case "all": return .primitive(StandardHigherLists.all)
+        case "any": return .primitive(StandardHigherLists.any)
 
         default:
             return nil

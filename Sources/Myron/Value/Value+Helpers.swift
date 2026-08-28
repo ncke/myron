@@ -86,6 +86,18 @@ extension Value {
 
 extension Value {
 
+    var isNothing: Bool {
+        if case .nothing = self { return true }
+        return false
+    }
+
+    var isCallable: Bool {
+        switch self {
+        case .primitive, .procedure: return true
+        default: return false
+        }
+    }
+
     var asBoolean: Bool? {
         if case .boolean(let b) = self { return b }
         return nil
