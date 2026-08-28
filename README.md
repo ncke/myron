@@ -19,7 +19,9 @@ Myron is a small Lisp-like language implemented in Swift.
 - Classic s-expression syntax with `quote` and the `'` tick abbreviation.
 - Lexically scoped closures with currying through `lambda`.
 - A standard environment of comparison, logic, mathematics, list, and
-  higher-order primitives (`map`, `filter`, `reduce`).
+  higher-order primitives (`map`, `filter`, `reduce`, `all`, `any`).
+- Lists that can be built as well as taken apart (`cons`, `list`, `append`).
+- Type predicates (`nothing?`, `number?`, `list?`, and friends).
 - Strict, coercion-free numerics: integers and doubles never mix silently.
 - Error reporting with source locations and caret diagnostics.
 - No dependencies.

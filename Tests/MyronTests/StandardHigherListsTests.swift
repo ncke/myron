@@ -56,11 +56,56 @@ struct StandardHigherListsTests {
             "60")
     }
 
+    @Test("all is true when every element satisfies the predicate")
+    func all() {
+        expectValue("(all (lambda (x) (> x 0)) '(1 2 3))", "true")
+        expectValue("(all (lambda (x) (> x 1)) '(1 2 3))", "false")
+    }
+
+    @Test("all over the empty list is true")
+    func allEmpty() {
+        expectValue("(all (lambda (x) (> x 0)) '())", "true")
+    }
+
+    @Test("any is true when some element satisfies the predicate")
+    func any() {
+        expectValue("(any (lambda (x) (> x 2)) '(1 2 3))", "true")
+        expectValue("(any (lambda (x) (> x 9)) '(1 2 3))", "false")
+    }
+
+    @Test("any over the empty list is false")
+    func anyEmpty() {
+        expectValue("(any (lambda (x) (> x 0)) '())", "false")
+    }
+
+    @Test("all and any accept a named procedure")
+    func allAnyProcedure() {
+        expectValue(
+            "(define (positive x) (gt x 0)) (all positive '(1 2 3))",
+            "true")
+        expectValue(
+            "(define (positive x) (gt x 0)) (any positive '(-1 -2 3))",
+            "true")
+    }
+
+    @Test("all and any reject a non-function even over the empty list")
+    func allAnyRejectNonFunction() {
+        expectFailure("(all 5 '())", reason: .expectedFunction("integer"))
+        expectFailure("(any 5 '())", reason: .expectedFunction("integer"))
+    }
+
     @Test("higher-order errors", arguments: [
         ("(map 5 '(1 2))", .expectedFunction("integer")),
         ("(map sqrt 5)", .expectedList),
         ("(filter sqrt '(1.0))", .typeMismatch),
-        ("(reduce + 0 5)", .expectedList)
+        ("(reduce + 0 5)", .expectedList),
+        ("(all 5 '(1 2))", .expectedFunction("integer")),
+        ("(any 5 '(1 2))", .expectedFunction("integer")),
+        ("(all sqrt 5)", .expectedList),
+        ("(any sqrt 5)", .expectedList),
+        ("(all (lambda (x) x) '(1))", .typeMismatch),
+        ("(any (lambda (x) x) '(1))", .typeMismatch),
+        ("(all (lambda (x) x))", .unexpectedArity)
     ] as [FailureCase])
     func higherOrderErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
