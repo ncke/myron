@@ -92,6 +92,11 @@ private extension Environment {
         case "acos": return .primitive(StandardMathematics.trigAcos)
         case "atan": return .primitive(StandardMathematics.trigAtan)
         case "atan2": return .primitive(StandardMathematics.trigAtan2)
+        case "integer": return .primitive(StandardMathematics.castToInteger)
+        case "double": return .primitive(StandardMathematics.castToDouble)
+
+        // Sequences.
+        case "length": return .primitive(StandardSequence.length)
 
         // Lists.
         case "head": return .primitive(StandardLists.head)
@@ -100,7 +105,7 @@ private extension Environment {
         case "last": return .primitive(StandardLists.last)
         case "take": return .primitive(StandardLists.take)
         case "drop": return .primitive(StandardLists.drop)
-        case "length": return .primitive(StandardLists.length)
+
         case "empty?": return .primitive(StandardLists.empty)
         case "cons": return .primitive(StandardLists.cons)
         case "list": return .primitive(StandardLists.list)

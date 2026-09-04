@@ -184,7 +184,8 @@ struct StandardMathematicsTests {
         ("(pow 2 1024)", .overflow),
         ("(pow -2 64)", .overflow),
         ("(pow 3 40)", .overflow),
-        ("(pow 0 -1)", .divisionByZero)
+        ("(pow 0 -1)", .divisionByZero),
+        ("(integer 9223372036854775807.0)", .invalidNumber)
     ] as [FailureCase])
     func integerOverflow(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
@@ -201,6 +202,32 @@ struct StandardMathematicsTests {
     @Test("double arithmetic does not overflow to an error")
     func doubleArithmeticSaturates() {
         expectValue("(* 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0)", "inf")
+    }
+
+    @Test("casts to integer", arguments: [
+        ("(integer -20.0)", "-20"),
+        ("(integer 10.0)", "10"),
+        ("(integer 238.9)", "238"),
+        ("(integer 238.2)", "238"),
+        ("(integer 0.0)", "0"),
+        ("(integer -85.8)", "-85"),
+        ("(integer -85.2)", "-85"),
+        ("(integer -77)", "-77"),
+        ("(integer 77)", "77")
+    ] as [ValueCase])
+    func castsToInteger(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("casts to double", arguments: [
+        ("(double -20)", "-20.0"),
+        ("(double 10)", "10.0"),
+        ("(double 0.0)", "0.0"),
+        ("(double -85.8)", "-85.8"),
+        ("(double -85.2)", "-85.2")
+    ] as [ValueCase])
+    func castsToDouble(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
     }
 
     @Test("minimum and maximum", arguments: [

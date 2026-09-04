@@ -124,68 +124,45 @@ extension StandardMathematics {
 
 }
 
-// MARK: - Overflow Helpers
+// MARK: - Numeric Type Conversion
 
-private extension StandardMathematics {
+extension StandardMathematics {
 
-    static func addOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
-        let (result, isOverflow) = lhs.addingReportingOverflow(rhs)
-        if isOverflow { throw MyronError(.overflow, at: location) }
-        return result
-    }
+    static func castToInteger(
+        args: [Value],
+        apply: Applier,
+        location: Range<Int>?
+    ) throws -> Value {
+        let arg = try args.unwrap1(location)
 
-    static func subOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
-        let (result, isOverflow) = lhs.subtractingReportingOverflow(rhs)
-        if isOverflow { throw MyronError(.overflow, at: location) }
-        return result
-    }
-
-    static func mulOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
-        let (result, isOverflow) = lhs.multipliedReportingOverflow(by: rhs)
-        if isOverflow { throw MyronError(.overflow, at: location) }
-        return result
-    }
-
-    static func divOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
-        let (result, isOverflow) = lhs.dividedReportingOverflow(by: rhs)
-        if isOverflow { throw MyronError(.overflow, at: location) }
-        return result
-    }
-
-    static func remainderOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
-        if rhs == -1 { return Int.zero }
-        let (result, isOverflow) = lhs.remainderReportingOverflow(dividingBy: rhs)
-        if isOverflow { throw MyronError(.overflow, at: location) }
-        return result
-    }
-
-    static func negateOverflow(_ value: Int, at location: Range<Int>?) throws -> Int {
-        try subOverflow(Int.zero, value, at: location)
-    }
-
-    static func powOverflow(_ base: Int, _ exponent: Int, at location: Range<Int>?) throws -> Int {
-        if exponent < 0 {
-            switch base {
-            case 0: throw MyronError(.divisionByZero, at: location)
-            case 1: return 1
-            case -1: return exponent.isMultiple(of: 2) ? 1 : -1
-            default: return 0
+        if let d = arg.asDouble {
+            guard let i = Int(exactly: d.rounded(.towardZero)) else {
+                throw MyronError(.invalidNumber, at: location)
             }
+
+            return .integer(i)
         }
 
-        var result = 1
-        var square = base
-        var remaining = exponent
-        while remaining > 0 {
-            if remaining & 1 == 1 { result = try mulOverflow(result, square, at: location) }
-            remaining >>= 1
-            if remaining > 0 { square = try mulOverflow(square, square, at: location) }
-        }
+        if arg.asInteger != nil { return arg }
 
-        return result
+        throw MyronError(.typeMismatch, at: location)
+    }
+
+    static func castToDouble(
+        args: [Value],
+        apply: Applier,
+        location: Range<Int>?
+    ) throws -> Value {
+        let arg = try args.unwrap1(location)
+
+        if let i = arg.asInteger { return .double(Double(i)) }
+        if arg.asDouble != nil { return arg }
+
+        throw MyronError(.typeMismatch, at: location)
     }
 
 }
+
 
 // MARK: - Minimum and Maxiumum
 
@@ -372,6 +349,69 @@ extension StandardMathematics {
         let (y, x) = try args.unwrap2(location)
         if let y = y.asDouble, let x = x.asDouble { return .double(atan2(y, x)) }
         throw MyronError(.typeMismatch, at: location)
+    }
+
+}
+
+// MARK: - Overflow Helpers
+
+private extension StandardMathematics {
+
+    static func addOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.addingReportingOverflow(rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func subOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.subtractingReportingOverflow(rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func mulOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.multipliedReportingOverflow(by: rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func divOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.dividedReportingOverflow(by: rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func remainderOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        if rhs == -1 { return Int.zero }
+        let (result, isOverflow) = lhs.remainderReportingOverflow(dividingBy: rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func negateOverflow(_ value: Int, at location: Range<Int>?) throws -> Int {
+        try subOverflow(Int.zero, value, at: location)
+    }
+
+    static func powOverflow(_ base: Int, _ exponent: Int, at location: Range<Int>?) throws -> Int {
+        if exponent < 0 {
+            switch base {
+            case 0: throw MyronError(.divisionByZero, at: location)
+            case 1: return 1
+            case -1: return exponent.isMultiple(of: 2) ? 1 : -1
+            default: return 0
+            }
+        }
+
+        var result = 1
+        var square = base
+        var remaining = exponent
+        while remaining > 0 {
+            if remaining & 1 == 1 { result = try mulOverflow(result, square, at: location) }
+            remaining >>= 1
+            if remaining > 0 { square = try mulOverflow(square, square, at: location) }
+        }
+
+        return result
     }
 
 }

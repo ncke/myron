@@ -155,7 +155,6 @@ struct StandardListsTests {
         ("(head 5)", .expectedList),
         ("(tail 5)", .expectedList),
         ("(last 5)", .expectedList),
-        ("(length 5)", .expectedList),
         ("(empty? 5)", .expectedList),
         ("(head '(1) '(2))", .unexpectedArity),
         ("(take -1 '(1 2))", .cannotBeNegative),

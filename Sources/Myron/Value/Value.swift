@@ -49,6 +49,53 @@ extension Value {
 
 extension Value {
 
+    public enum Kind: Equatable, CustomStringConvertible, Sendable {
+        case boolean
+        case double
+        case integer
+        case list
+        case nothing
+        case string
+        case symbol
+        case primitive
+        case procedure
+        case define
+
+        public var description: String {
+            switch self {
+            case .boolean: return "boolean"
+            case .double: return "double"
+            case .integer: return "integer"
+            case .list: return "list"
+            case .nothing: return "nothing"
+            case .string: return "string"
+            case .symbol: return "symbol"
+            case .primitive: return "primitive"
+            case .procedure: return "procedure"
+            case .define: return "define"
+            }
+        }
+    }
+
+    public var kind: Kind {
+        switch self {
+        case .boolean: return .boolean
+        case .double: return .double
+        case .integer: return .integer
+        case .list: return .list
+        case .nothing: return .nothing
+        case .string: return .string
+        case .symbol: return .symbol
+        case .primitive: return .primitive
+        case .procedure: return .procedure
+        case .define: return .define
+        }
+    }
+
+}
+
+extension Value {
+
     static func makeValue(from atom: Atom) -> Value {
         switch atom {
         case .boolean(let boolean): .boolean(boolean)
@@ -73,7 +120,7 @@ extension Value: CustomStringConvertible {
         case .list(let list):
             "(" + list.map(\.description).joined(separator: " ") + ")"
         case .nothing: "<nothing>"
-        case .string(let string): "\(string)"
+        case .string(let string): "\"\(string)\""
         case .symbol(let symbol): "\(symbol)"
         case .primitive: "<primitive>"
         case .procedure: "<procedure>"

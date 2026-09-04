@@ -23,6 +23,7 @@ public struct MyronError: Error, Sendable {
         case subscriptOutOfBounds(Int, Int)
         case typeMismatch
         case unexpectedArity
+        case unexpectedType(Value.Kind?, Set<Value.Kind>)
         case unimplementedFeature
         case unmatchedParenthesis
         case unrecognisedSymbol
@@ -81,6 +82,17 @@ extension MyronError.Reason: CustomStringConvertible {
             return "Subscript out of bounds: got \(got) for list of length \(length)"
         case .typeMismatch: return "Type mismatch"
         case .unexpectedArity: return "Unexpected arity"
+        case .unexpectedType(let got, let expected):
+            let expectedString = expected
+                .map(\Value.Kind.description)
+                .sorted()
+                .joined(separator: ", ")
+            switch (got, expectedString) {
+            case (nil, ""): return "Unexpected type"
+            case (.some(let g), ""): return "Unexpected type, got \(g)"
+            case (nil, let e): return "Unexpected type, expected \(e)"
+            case (.some(let g), let e): return "Unexpected type, got \(g), expected \(e)"
+            }
         case .unimplementedFeature: return "Unimplemented feature"
         case .unmatchedParenthesis: return "Unmatched parenthesis"
         case .unrecognisedSymbol: return "Unrecognised symbol"
