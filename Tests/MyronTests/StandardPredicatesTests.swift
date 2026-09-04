@@ -71,10 +71,73 @@ struct StandardPredicatesTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("positive?", arguments: [
+        ("(positive? 0)", "false"),
+        ("(positive? -1)", "false"),
+        ("(positive? 1)", "true"),
+        ("(positive? 0.0)", "false"),
+        ("(positive? -1.0)", "false"),
+        ("(positive? 1.0)", "true")
+    ] as [ValueCase])
+    func isPositive(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("negative?", arguments: [
+        ("(negative? 0)", "false"),
+        ("(negative? -1)", "true"),
+        ("(negative? 1)", "false"),
+        ("(negative? 0.0)", "false"),
+        ("(negative? -1.0)", "true"),
+        ("(negative? 1.0)", "false")
+    ] as [ValueCase])
+    func isNegative(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("zero?", arguments: [
+        ("(zero? 0)", "true"),
+        ("(zero? -1)", "false"),
+        ("(zero? 1)", "false"),
+        ("(zero? 0.0)", "true"),
+        ("(zero? -0.0)", "true"),
+        ("(zero? -1.0)", "false"),
+        ("(zero? 1.0)", "false")
+    ] as [ValueCase])
+    func isZero(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("predicates are false for functions rather than failing")
     func predicatesOverFunctions() {
         expectValue("(list? sqrt)", "false")
         expectValue("(number? sqrt)", "false")
+        expectValue("(positive? sqrt)", "false")
+        expectValue("(negative? sqrt)", "false")
+        expectValue("(zero? sqrt)", "false")
+    }
+
+    @Test("sign predicates are false for non-numbers rather than failing", arguments: [
+        ("(positive? \"1\")", "false"),
+        ("(negative? \"-1\")", "false"),
+        ("(zero? \"0\")", "false"),
+        ("(positive? true)", "false"),
+        ("(zero? '())", "false"),
+        ("(zero? (head '()))", "false")
+    ] as [ValueCase])
+    func signPredicatesOverNonNumbers(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("sign predicates partition the integers", arguments: [
+        ("(positive? 9223372036854775807)", "true"),
+        ("(negative? -9223372036854775808)", "true"),
+        ("(zero? (- 5 5))", "true"),
+        ("(or (positive? 3) (negative? 3) (zero? 3))", "true"),
+        ("(and (not (positive? 0)) (not (negative? 0)))", "true")
+    ] as [ValueCase])
+    func signPredicatesPartition(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
     }
 
     @Test("nothing? makes an empty head observable")
@@ -91,7 +154,10 @@ struct StandardPredicatesTests {
         ("(nothing? 1 2)", .unexpectedArity),
         ("(number?)", .unexpectedArity),
         ("(integer? 1 2)", .unexpectedArity),
-        ("(list? 1 2)", .unexpectedArity)
+        ("(list? 1 2)", .unexpectedArity),
+        ("(positive? 1 2)", .unexpectedArity),
+        ("(negative? 1 2)", .unexpectedArity),
+        ("(zero? 1 2)", .unexpectedArity)
     ] as [FailureCase])
     func predicateErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

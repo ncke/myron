@@ -58,6 +58,9 @@ private extension Environment {
         case "string?": return .primitive(StandardPredicates.isString)
         case "boolean?": return .primitive(StandardPredicates.isBoolean)
         case "list?": return .primitive(StandardPredicates.isList)
+        case "positive?": return .primitive(StandardPredicates.isPositive)
+        case "negative?": return .primitive(StandardPredicates.isNegative)
+        case "zero?": return .primitive(StandardPredicates.isZero)
 
         // Logic.
         case "and": return .primitive(StandardLogic.and)
@@ -72,6 +75,7 @@ private extension Environment {
         case "/": return .primitive(StandardMathematics.div)
         case "pow": return .primitive(StandardMathematics.power)
         case "mod": return .primitive(StandardMathematics.mod)
+        case "rem": return .primitive(StandardMathematics.rem)
         case "min": return .primitive(StandardMathematics.minimum)
         case "max": return .primitive(StandardMathematics.maximum)
         case "floor": return .primitive(StandardMathematics.floored)

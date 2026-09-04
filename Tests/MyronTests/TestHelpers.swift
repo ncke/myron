@@ -42,7 +42,7 @@ func expectFailure(
     case .failure(let errors):
         guard let reason else { return }
         #expect(
-            errors.contains { $0.reason.description == reason.description },
+            errors.map(\.reason).contains(reason),
             "\(source) got \(errors.map(\.reason)) (expected \(reason))",
             sourceLocation: sourceLocation)
 

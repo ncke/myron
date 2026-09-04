@@ -80,7 +80,9 @@ struct StandardMathematicsTests {
         ("(/ 1 2.0)", .typeMismatch),
         ("(/ 1 2 3)", .unexpectedArity),
         ("(sqrt \"x\")", .typeMismatch),
-        ("(sqrt 1 2)", .unexpectedArity)
+        ("(sqrt 1 2)", .unexpectedArity),
+        ("(rem 5 0)", .divisionByZero),
+        ("(mod 5 0)", .divisionByZero)
     ] as [FailureCase])
     func arithmeticErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
@@ -90,7 +92,17 @@ struct StandardMathematicsTests {
         ("(pow 2 3)", "8"),
         ("(pow 2.0 3.0)", "8.0"),
         ("(pow 2 -1)", "0"),
-        ("(pow 5 0)", "1")
+        ("(pow 5 0)", "1"),
+        ("(pow 0 0)", "1"),
+        ("(pow 0 5)", "0"),
+        ("(pow -2 3)", "-8"),
+        ("(pow -2 4)", "16"),
+        ("(pow 1 -5)", "1"),
+        ("(pow -1 -5)", "-1"),
+        ("(pow -1 -4)", "1"),
+        ("(pow 10 18)", "1000000000000000000"),
+        ("(pow 2 62)", "4611686018427387904"),
+        ("(pow -2 63)", "-9223372036854775808")
     ] as [ValueCase])
     func power(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -99,12 +111,96 @@ struct StandardMathematicsTests {
     @Test("modulo is floored", arguments: [
         ("(mod 7 3)", "1"),
         ("(mod 6 3)", "0"),
+        ("(mod -7 -3)", "-1"),
         ("(mod -7 3)", "2"),
         ("(mod 7 -3)", "-2"),
-        ("(mod 5 0)", "5")
+        ("(mod -6 3)", "0"),
+        ("(mod 6 -3)", "0"),
+        ("(mod 0 3)", "0"),
+        ("(mod 0 -3)", "0")
     ] as [ValueCase])
     func modulo(_ c: ValueCase) {
         expectValue(c.source, c.expected)
+    }
+
+    @Test("remainder truncates toward zero", arguments: [
+        ("(rem 7 3)", "1"),
+        ("(rem 7 -3)", "1"),
+        ("(rem -7 3)", "-1"),
+        ("(rem -7 -3)", "-1"),
+        ("(rem -6 3)", "0"),
+        ("(rem 0 3)", "0")
+    ] as [ValueCase])
+    func remainder(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("remainder errors", arguments: [
+        ("(rem 5 0)", .divisionByZero),
+        ("(rem 5)", .unexpectedArity),
+        ("(rem 5.0 2.0)", .typeMismatch),
+        ("(rem 5 2.0)", .typeMismatch)
+    ] as [FailureCase])
+    func remainderErrors(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
+    @Test("integer arithmetic reaches the limits without overflowing", arguments: [
+        ("(+ 9223372036854775806 1)", "9223372036854775807"),
+        ("(- -9223372036854775807 1)", "-9223372036854775808"),
+        ("(* -4611686018427387904 2)", "-9223372036854775808"),
+        ("(* 4611686018427387903 2)", "9223372036854775806"),
+        ("(/ -9223372036854775808 1)", "-9223372036854775808"),
+        ("(/ -9223372036854775808 2)", "-4611686018427387904"),
+        ("(- 9223372036854775807)", "-9223372036854775807"),
+        ("(abs -9223372036854775807)", "9223372036854775807"),
+        ("(mod 9223372036854775807 2)", "1"),
+        ("(mod -9223372036854775808 3)", "1"),
+        ("(mod -9223372036854775808 -1)", "0"),
+        ("(rem -9223372036854775808 -1)", "0"),
+        ("(rem -9223372036854775808 3)", "-2"),
+        ("(min -9223372036854775808 9223372036854775807)", "-9223372036854775808"),
+        ("(max -9223372036854775808 9223372036854775807)", "9223372036854775807")
+    ] as [ValueCase])
+    func integerLimits(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("integer overflow is an error rather than a crash", arguments: [
+        ("(+ 9223372036854775807 1)", .overflow),
+        ("(+ 1 1 9223372036854775807)", .overflow),
+        ("(+ -9223372036854775808 -1)", .overflow),
+        ("(- -9223372036854775808 1)", .overflow),
+        ("(- 9223372036854775807 -1)", .overflow),
+        ("(* 9223372036854775807 2)", .overflow),
+        ("(* 2 2 4611686018427387904)", .overflow),
+        ("(* 4611686018427387904 2)", .overflow),
+        ("(* -9223372036854775808 -1)", .overflow),
+        ("(/ -9223372036854775808 -1)", .overflow),
+        ("(- -9223372036854775808)", .overflow),
+        ("(abs -9223372036854775808)", .overflow),
+        ("(pow 2 63)", .overflow),
+        ("(pow 2 64)", .overflow),
+        ("(pow 2 1024)", .overflow),
+        ("(pow -2 64)", .overflow),
+        ("(pow 3 40)", .overflow),
+        ("(pow 0 -1)", .divisionByZero)
+    ] as [FailureCase])
+    func integerOverflow(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
+    @Test("an integer literal beyond the machine range is an invalid number", arguments: [
+        "9223372036854775808",
+        "-9223372036854775809"
+    ])
+    func integerLiteralRange(_ source: String) {
+        expectFailure(source, reason: .invalidNumber)
+    }
+
+    @Test("double arithmetic does not overflow to an error")
+    func doubleArithmeticSaturates() {
+        expectValue("(* 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0 1000000000000000000.0)", "inf")
     }
 
     @Test("minimum and maximum", arguments: [

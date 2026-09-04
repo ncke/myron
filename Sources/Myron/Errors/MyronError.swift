@@ -4,7 +4,7 @@ import Foundation
 
 public struct MyronError: Error, Sendable {
 
-    public enum Reason: Sendable {
+    public enum Reason: Sendable, Equatable {
         case cannotBeNegative
         case divisionByZero
         case emptyApplication
@@ -19,6 +19,7 @@ public struct MyronError: Error, Sendable {
         case inequatableTypes
         case internalError
         case invalidNumber
+        case overflow
         case subscriptOutOfBounds(Int, Int)
         case typeMismatch
         case unexpectedArity
@@ -75,6 +76,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .inequatableTypes: return "Inequatable types"
         case .internalError: return "Internal error"
         case .invalidNumber: return "Invalid number"
+        case .overflow: return "Overflow"
         case .subscriptOutOfBounds(let got, let length):
             return "Subscript out of bounds: got \(got) for list of length \(length)"
         case .typeMismatch: return "Type mismatch"

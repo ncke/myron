@@ -35,4 +35,25 @@ struct StandardPredicates {
         return .boolean(try args.unwrap1(location).asList != nil)
     }
 
+    static func isPositive(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let i = number.asInteger { return .boolean(i > 0) }
+        if let d = number.asDouble { return .boolean(d > 0) }
+        return .boolean(false)
+    }
+
+    static func isNegative(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let i = number.asInteger { return .boolean(i < 0) }
+        if let d = number.asDouble { return .boolean(d < 0) }
+        return .boolean(false)
+    }
+
+    static func isZero(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let i = number.asInteger { return .boolean(i == Int.zero) }
+        if let d = number.asDouble { return .boolean(d == Double.zero) }
+        return .boolean(false)
+    }
+
 }

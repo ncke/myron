@@ -2,6 +2,8 @@ import Foundation
 
 // MARK: - Standard Mathematics
 
+// MARK: - Arithmetic
+
 struct StandardMathematics {
 
     static func add(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
@@ -11,7 +13,10 @@ struct StandardMathematics {
         let tail = args.dropFirst()
 
         if var sum = fst.asInteger {
-            for arg in tail { sum += try arg.unwrapInteger(location) }
+            for arg in tail {
+                let num = try arg.unwrapInteger(location)
+                sum = try addOverflow(sum, num, at: location)
+            }
             return .integer(sum)
         }
 
@@ -29,20 +34,12 @@ struct StandardMathematics {
         }
 
         let (fst, snd) = try args.unwrap2(location)
-        if let f = fst.asInteger, let s = snd.asInteger { return .integer(f - s) }
+
+        if let f = fst.asInteger, let s = snd.asInteger {
+            return .integer(try subOverflow(f, s, at: location))
+        }
+
         if let f = fst.asDouble, let s = snd.asDouble { return .double(f - s) }
-
-        throw MyronError(.typeMismatch, at: location)
-    }
-
-    private static func negation(
-        args: [Value],
-        apply: Applier,
-        location: Range<Int>?
-    ) throws -> Value {
-        let number = try args.unwrap1(location)
-        if let i = number.asInteger { return .integer(-i) }
-        if let d = number.asDouble { return .double(-d) }
 
         throw MyronError(.typeMismatch, at: location)
     }
@@ -53,7 +50,11 @@ struct StandardMathematics {
         let tail = args.dropFirst()
 
         if var prod = fst.asInteger {
-            for arg in tail { prod *= try arg.unwrapInteger(location) }
+            for arg in tail {
+                let num = try arg.unwrapInteger(location)
+                prod = try mulOverflow(prod, num, at: location)
+            }
+
             return .integer(prod)
         }
 
@@ -70,7 +71,7 @@ struct StandardMathematics {
 
         if let f = fst.asInteger, let s = snd.asInteger {
             if s == Int.zero { throw MyronError(.divisionByZero, at: location) }
-            return .integer(f / s)
+            return .integer(try divOverflow(f, s, at: location))
         }
 
         if let f = fst.asDouble, let s = snd.asDouble {
@@ -81,32 +82,114 @@ struct StandardMathematics {
         throw MyronError(.typeMismatch, at: location)
     }
 
-    static func power(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
-        let (fst, snd) = try args.unwrap2(location)
-        
-        if let f = fst.asInteger, let s = snd.asInteger {
-            return .integer(Int(pow(Double(f), Double(s))))
-        }
+}
 
-        if let f = fst.asDouble, let s = snd.asDouble {
-            return .double(pow(f, s))
-        }
+// MARK: - Modulo and Remainder
 
-        throw MyronError(.typeMismatch, at: location)
-    }
+extension StandardMathematics {
 
     static func mod(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        
+
         if let f = fst.asInteger, let s = snd.asInteger {
-            if s == Int.zero { return fst }
-            let quotient = floor(Double(f) / Double(s))
-            let remainder = f - s * Int(quotient)
+            if s == Int.zero {
+                throw MyronError(.divisionByZero, at: location)
+            }
+
+            var remainder = try remainderOverflow(f, s, at: location)
+            if remainder != Int.zero, (remainder < 0) != (s < 0) {
+                remainder += s
+            }
+
             return .integer(remainder)
         }
 
         throw MyronError(.typeMismatch, at: location)
     }
+
+    static func rem(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
+
+        if let f = fst.asInteger, let s = snd.asInteger {
+            if s == Int.zero {
+                throw MyronError(.divisionByZero, at: location)
+            }
+
+            let remainder = try remainderOverflow(f, s, at: location)
+            return .integer(remainder)
+        }
+
+        throw MyronError(.typeMismatch, at: location)
+    }
+
+}
+
+// MARK: - Overflow Helpers
+
+private extension StandardMathematics {
+
+    static func addOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.addingReportingOverflow(rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func subOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.subtractingReportingOverflow(rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func mulOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.multipliedReportingOverflow(by: rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func divOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        let (result, isOverflow) = lhs.dividedReportingOverflow(by: rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func remainderOverflow(_ lhs: Int, _ rhs: Int, at location: Range<Int>?) throws -> Int {
+        if rhs == -1 { return Int.zero }
+        let (result, isOverflow) = lhs.remainderReportingOverflow(dividingBy: rhs)
+        if isOverflow { throw MyronError(.overflow, at: location) }
+        return result
+    }
+
+    static func negateOverflow(_ value: Int, at location: Range<Int>?) throws -> Int {
+        try subOverflow(Int.zero, value, at: location)
+    }
+
+    static func powOverflow(_ base: Int, _ exponent: Int, at location: Range<Int>?) throws -> Int {
+        if exponent < 0 {
+            switch base {
+            case 0: throw MyronError(.divisionByZero, at: location)
+            case 1: return 1
+            case -1: return exponent.isMultiple(of: 2) ? 1 : -1
+            default: return 0
+            }
+        }
+
+        var result = 1
+        var square = base
+        var remaining = exponent
+        while remaining > 0 {
+            if remaining & 1 == 1 { result = try mulOverflow(result, square, at: location) }
+            remaining >>= 1
+            if remaining > 0 { square = try mulOverflow(square, square, at: location) }
+        }
+
+        return result
+    }
+
+}
+
+// MARK: - Minimum and Maxiumum
+
+extension StandardMathematics {
 
     static func minimum(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         try args.mustHaveAtLeast(1, location)
@@ -118,7 +201,7 @@ struct StandardMathematics {
             for arg in tail { minimum = min(minimum, try arg.unwrapInteger(location)) }
             return .integer(minimum)
         }
-        
+
         if var minimum = fst.asDouble {
             for arg in tail { minimum = min(minimum, try arg.unwrapDouble(location)) }
             return .double(minimum)
@@ -146,6 +229,39 @@ struct StandardMathematics {
         throw MyronError(.typeMismatch, at: location)
     }
 
+}
+
+// MARK: - Signs
+
+extension StandardMathematics {
+
+    private static func negation(
+        args: [Value],
+        apply: Applier,
+        location: Range<Int>?
+    ) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let i = number.asInteger { return .integer(try negateOverflow(i, at: location)) }
+        if let d = number.asDouble { return .double(-d) }
+
+        throw MyronError(.typeMismatch, at: location)
+    }
+
+    static func absolute(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let n = number.asInteger {
+            return .integer(n < 0 ? try negateOverflow(n, at: location) : n)
+        }
+        if let n = number.asDouble { return .double(abs(n)) }
+        throw MyronError(.typeMismatch, at: location)
+    }
+
+}
+
+// MARK: - Rounding
+
+extension StandardMathematics {
+
     static func floored(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(floor(n)) }
@@ -164,10 +280,23 @@ struct StandardMathematics {
         throw MyronError(.typeMismatch, at: location)
     }
 
-    static func absolute(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
-        let number = try args.unwrap1(location)
-        if let n = number.asInteger { return .integer(abs(n)) }
-        if let n = number.asDouble { return .double(abs(n)) }
+}
+
+// MARK: - Power and Root
+
+extension StandardMathematics {
+
+    static func power(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
+
+        if let f = fst.asInteger, let s = snd.asInteger {
+            return .integer(try powOverflow(f, s, at: location))
+        }
+
+        if let f = fst.asDouble, let s = snd.asDouble {
+            return .double(pow(f, s))
+        }
+
         throw MyronError(.typeMismatch, at: location)
     }
 
@@ -178,6 +307,12 @@ struct StandardMathematics {
         if let n = number.asDouble { return .double(sqrt(n)) }
         throw MyronError(.typeMismatch, at: location)
     }
+
+}
+
+// MARK: - Logarithms
+
+extension StandardMathematics {
 
     static func logged(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let number = try args.unwrap1(location)
@@ -190,6 +325,12 @@ struct StandardMathematics {
         if let n = number.asDouble { return .double(log(n)) }
         throw MyronError(.typeMismatch, at: location)
     }
+
+}
+
+// MARK: - Trigonometry
+
+extension StandardMathematics {
 
     static func trigSin(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let number = try args.unwrap1(location)
