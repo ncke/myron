@@ -19,7 +19,7 @@ extension Evaluator {
             return try procedure(arguments)
 
         default:
-            throw MyronError(.expectedFunction(callable.typeName), at: location)
+            throw MyronError(.expectedFunction(callable.kind), at: location)
         }
     }
 

@@ -46,7 +46,7 @@ struct StandardHigherLists {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.isCallable else {
-            throw MyronError(.expectedFunction(fst.typeName), at: location)
+            throw MyronError(.expectedFunction(fst.kind), at: location)
         }
 
         let list = try snd.unwrapList(location)
@@ -62,7 +62,7 @@ struct StandardHigherLists {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.isCallable else {
-            throw MyronError(.expectedFunction(fst.typeName), at: location)
+            throw MyronError(.expectedFunction(fst.kind), at: location)
         }
 
         let list = try snd.unwrapList(location)

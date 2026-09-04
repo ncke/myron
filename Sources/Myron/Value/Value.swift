@@ -21,6 +21,8 @@ public enum Value {
     case define(String)
 }
 
+// MARK: - Atomic Type Helper
+
 extension Value {
 
     var isAtomicType: Bool {
@@ -30,22 +32,19 @@ extension Value {
         }
     }
 
-    var typeName: String {
-        switch self {
-        case .boolean: return "boolean"
-        case .double: return "double"
-        case .integer: return "integer"
-        case .list: return "list"
-        case .nothing: return "nothing"
-        case .string: return "string"
-        case .symbol: return "symbol"
-        case .primitive: return "primitive"
-        case .procedure: return "procedure"
-        case .define: return "define"
+    static func makeValue(from atom: Atom) -> Value {
+        switch atom {
+        case .boolean(let boolean): .boolean(boolean)
+        case .double(let double): .double(double)
+        case .integer(let integer): .integer(integer)
+        case .string(let string): .string(string)
+        case .symbol(let symbol): .symbol(symbol)
         }
     }
 
 }
+
+// MARK: - Kind
 
 extension Value {
 
@@ -89,20 +88,6 @@ extension Value {
         case .primitive: return .primitive
         case .procedure: return .procedure
         case .define: return .define
-        }
-    }
-
-}
-
-extension Value {
-
-    static func makeValue(from atom: Atom) -> Value {
-        switch atom {
-        case .boolean(let boolean): .boolean(boolean)
-        case .double(let double): .double(double)
-        case .integer(let integer): .integer(integer)
-        case .string(let string): .string(string)
-        case .symbol(let symbol): .symbol(symbol)
         }
     }
 

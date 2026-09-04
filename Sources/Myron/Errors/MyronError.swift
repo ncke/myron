@@ -9,7 +9,7 @@ public struct MyronError: Error, Sendable {
         case divisionByZero
         case emptyApplication
         case expectedExpressionAfterTick
-        case expectedFunction(String)
+        case expectedFunction(Value.Kind)
         case expectedList
         case expectedProcedure
         case expectedQuote
@@ -67,7 +67,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .divisionByZero: return "Division by zero"
         case .emptyApplication: return "Empty application"
         case .expectedExpressionAfterTick: return "Expected expression after tick"
-        case .expectedFunction(let typeName): return "Expected function but got \(typeName)"
+        case .expectedFunction(let kind): return "Expected function but got \(kind)"
         case .expectedList: return "Expected list"
         case .expectedProcedure: return "Expected procedure"
         case .expectedQuote: return "Expected quote"

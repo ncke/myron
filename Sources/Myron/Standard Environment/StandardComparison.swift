@@ -7,7 +7,7 @@ struct StandardComparison {
     static func eq(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
-        guard fst.typeName == snd.typeName else {
+        guard fst.kind == snd.kind else {
             throw MyronError(.typeMismatch, at: location)
         }
 
@@ -40,7 +40,7 @@ struct StandardComparison {
     static func gt(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
-        guard fst.typeName == snd.typeName else {
+        guard fst.kind == snd.kind else {
             throw MyronError(.typeMismatch, at: location)
         }
 
@@ -61,7 +61,7 @@ struct StandardComparison {
     static func lt(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
-        guard fst.typeName == snd.typeName else {
+        guard fst.kind == snd.kind else {
             throw MyronError(.typeMismatch, at: location)
         }
 

@@ -90,17 +90,17 @@ struct StandardHigherListsTests {
 
     @Test("all and any reject a non-function even over the empty list")
     func allAnyRejectNonFunction() {
-        expectFailure("(all 5 '())", reason: .expectedFunction("integer"))
-        expectFailure("(any 5 '())", reason: .expectedFunction("integer"))
+        expectFailure("(all 5 '())", reason: .expectedFunction(.integer))
+        expectFailure("(any 5 '())", reason: .expectedFunction(.integer))
     }
 
     @Test("higher-order errors", arguments: [
-        ("(map 5 '(1 2))", .expectedFunction("integer")),
+        ("(map 5 '(1 2))", .expectedFunction(.integer)),
         ("(map sqrt 5)", .expectedList),
         ("(filter sqrt '(1.0))", .typeMismatch),
         ("(reduce + 0 5)", .expectedList),
-        ("(all 5 '(1 2))", .expectedFunction("integer")),
-        ("(any 5 '(1 2))", .expectedFunction("integer")),
+        ("(all 5 '(1 2))", .expectedFunction(.integer)),
+        ("(any 5 '(1 2))", .expectedFunction(.integer)),
         ("(all sqrt 5)", .expectedList),
         ("(any sqrt 5)", .expectedList),
         ("(all (lambda (x) x) '(1))", .typeMismatch),
