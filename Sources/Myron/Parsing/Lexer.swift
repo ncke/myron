@@ -58,6 +58,14 @@ extension Lexer {
         while cursor < input.endIndex {
             let character = input[cursor]
 
+            if character.isSemicolon {
+                let (progress, _) = scanUntil(from: cursor, ignoreQuotedContent: false) {
+                    ch in ch.isNewline
+                }
+                cursor = progress
+                continue
+            }
+
             let isBracket = character.isBracket
             let isSigning = character.isSign && !isPeekDigit()
             let isTick = character.isTick
@@ -74,7 +82,7 @@ extension Lexer {
             ? scanUntil(
                 from: cursor,
                 ignoreQuotedContent: false) { ch in !ch.isWhitespace }
-            : scanUntil(from: cursor) { ch in ch.isWhitespace || ch.isBracket }
+            : scanUntil(from: cursor) { ch in ch.isWhitespace || ch.isBracket || ch.isSemicolon }
 
             if let error {
                 errors.append(error)
@@ -210,6 +218,7 @@ fileprivate extension Character {
     var isBracket: Bool { self == "(" || self == ")" }
     var isDigit: Bool { ("0"..."9").contains(self) }
     var isQuotation: Bool { self == "\"" }
+    var isSemicolon: Bool { self == ";" }
     var isSign: Bool { self == "+" || self == "-" }
     var isTick: Bool { self == "'" }
 }
