@@ -2,6 +2,8 @@ import Foundation
 
 // MARK: - Standard Lists
 
+// MARK: - Sequence
+
 struct StandardLists {
 
     static func head(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
@@ -58,17 +60,6 @@ struct StandardLists {
         return .boolean(n == 0)
     }
 
-    static func cons(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
-        let (fst, snd) = try args.unwrap2(location)
-        let list = try snd.unwrapList(location)
-        let result = [fst] + list
-        return .list(result)
-    }
-
-    static func list(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
-        return .list(args)
-    }
-
     static func append(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         try args.mustHaveAtLeast(1, location)
         var result = [Value]()
@@ -107,15 +98,32 @@ struct StandardLists {
         return .boolean(isContained)
     }
 
-    // TODO: range
-    // TODO: foldr
-    // TODO: take-while
-    // TODO: drop-while
-    // TODO: zip
-    // TODO: flatten
-    // TODO: sort
+}
+
+// MARK: - Native Lists
+
+extension StandardLists {
+
+    static func cons(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        let (fst, snd) = try args.unwrap2(location)
+        let list = try snd.unwrapList(location)
+        let result = [fst] + list
+        return .list(result)
+    }
+
+    static func list(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+        return .list(args)
+    }
 
 }
+
+// TODO: range
+// TODO: foldr
+// TODO: take-while
+// TODO: drop-while
+// TODO: zip
+// TODO: flatten
+// TODO: sort
 
 // MARK: - Helpers
 

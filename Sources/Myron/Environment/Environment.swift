@@ -63,8 +63,6 @@ private extension Environment {
         case "zero?": return .primitive(StandardPredicates.isZero)
 
         // Logic.
-        case "and": return .primitive(StandardLogic.and)
-        case "or": return .primitive(StandardLogic.or)
         case "not": return .primitive(StandardLogic.not)
 
         // Mathematics.

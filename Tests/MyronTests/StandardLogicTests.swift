@@ -37,11 +37,42 @@ struct StandardLogicTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("and and or accept a single term", arguments: [
+        ("(and true)", "true"),
+        ("(and false)", "false"),
+        ("(or true)", "true"),
+        ("(or false)", "false")
+    ] as [ValueCase])
+    func singleTerm(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("and and or short-circuit", arguments: [
+        ("(and false (/ 1 0))", "false"),
+        ("(or true (/ 1 0))", "true"),
+        ("(and true false undefined)", "false"),
+        ("(or false true undefined)", "true"),
+        ("(define (safe-head xs) (and (not (empty? xs)) (> (head xs) 0))) (safe-head '())", "false")
+    ] as [ValueCase])
+    func shortCircuit(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("and and or still evaluate every term when needed", arguments: [
+        ("(and true (/ 1 0))", .divisionByZero),
+        ("(or false (/ 1 0))", .divisionByZero),
+        ("(and true undefined)", .unrecognisedSymbol)
+    ] as [FailureCase])
+    func evaluatesLaterTerms(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
     @Test("logic errors", arguments: [
-        ("(and true)", .unexpectedArity),
-        ("(or false)", .unexpectedArity),
-        ("(and true 1)", .typeMismatch),
-        ("(or false \"x\")", .typeMismatch),
+        ("(and)", .unexpectedArity),
+        ("(or)", .unexpectedArity),
+        ("(and true 1)", .unexpectedType(.integer, [.boolean])),
+        ("(or false \"x\")", .unexpectedType(.string, [.boolean])),
+        ("(and 1 (/ 1 0))", .unexpectedType(.integer, [.boolean])),
         ("(not 1)", .typeMismatch),
         ("(not true false)", .unexpectedArity)
     ] as [FailureCase])
