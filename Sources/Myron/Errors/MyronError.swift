@@ -17,7 +17,7 @@ public struct MyronError: Error, Sendable {
         case expectedSymbol
         case incomparableTypes
         case inequatableTypes
-        case internalError
+        case internalError(String)
         case invalidNumber
         case overflow
         case subscriptOutOfBounds(Int, Int)
@@ -75,7 +75,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .expectedSymbol: return "Expected symbol"
         case .incomparableTypes: return "Incomparable types"
         case .inequatableTypes: return "Inequatable types"
-        case .internalError: return "Internal error"
+        case .internalError(let message): return "Internal error: \(message)"
         case .invalidNumber: return "Invalid number"
         case .overflow: return "Overflow"
         case .subscriptOutOfBounds(let got, let length):

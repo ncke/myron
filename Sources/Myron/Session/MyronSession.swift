@@ -68,7 +68,8 @@ public final class MyronSession {
                 return .failure([adornedError])
 
             } catch {
-                let error = MyronError(.internalError, at: form.getLocation())
+                let message = "unhandled error type: \(error)"
+                let error = MyronError(.internalError(message), at: form.getLocation())
                 let adornedError = adornErrorIfNecessary(error, in: expression)
                 return .failure([adornedError])
             }

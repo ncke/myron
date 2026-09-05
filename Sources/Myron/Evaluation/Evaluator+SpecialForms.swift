@@ -4,6 +4,7 @@ import Foundation
 
 extension Evaluator {
 
+    static private let nameBegin = "begin"
     static private let nameDefine = "define"
     static private let nameIf = "if"
     static private let nameLambda = "lambda"
@@ -26,6 +27,9 @@ extension Evaluator {
         }
 
         switch name {
+
+        case Self.nameBegin:
+            return try evalBegin(expression, environment: environment)
 
         case Self.nameDefine:
             return try evalDefine(expression, environment: environment)
@@ -57,7 +61,7 @@ extension Evaluator {
 extension Evaluator {
 
     private static let specialFormNames: Set<String> = [
-        nameIf, nameDefine, nameLambda, nameQuote, nameAnd, nameOr
+        nameBegin, nameDefine, nameIf, nameLambda, nameQuote, nameAnd, nameOr
     ]
 
     func getSpecialFormName(_ expression: Expression) -> String? {
@@ -83,16 +87,29 @@ extension Evaluator {
 
 }
 
+// MARK: - Eval Sequence
+
+extension Evaluator {
+
+    func evalSequence(_ body: ArraySlice<Expression>, environment: Environment) throws -> Value {
+        var result = Value.nothing
+        for expression in body {
+            result = try eval(expression, environment: environment)
+        }
+
+        return result
+    }
+
+}
+
 // MARK: - Lambda
 
 extension Evaluator {
 
     func evalLambda(_ expression: Expression, environment: Environment) throws -> Value {
-        guard case let .list(elements, _) = expression else {
-            fatalError("evalLambda called with non-list expression")
-        }
+        let (elements, _) = try expression.unwrapList(#function)
 
-        guard elements.count == 3 else {
+        guard elements.count >= 3 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
         }
 
@@ -102,10 +119,26 @@ extension Evaluator {
 
         let procedure = try makeProcedure(
             parameters: parameters,
-            body: elements[2],
-            environment: environment)
+            bodies: elements[2...],
+            environment: environment,
+            location: expression.getLocation())
 
         return .procedure(procedure)
+    }
+
+}
+
+// MARK: - Begin
+
+extension Evaluator {
+
+    func evalBegin(_ expression: Expression, environment: Environment) throws -> Value {
+        let (subexpressions, _) = try expression.unwrapList(#function)
+        guard subexpressions.count > 1 else {
+            throw MyronError(.unexpectedArity, at: expression.getLocation())
+        }
+
+        return try evalSequence(subexpressions[1...], environment: environment)
     }
 
 }
@@ -114,48 +147,21 @@ extension Evaluator {
 
 extension Evaluator {
 
-    func makeProcedure(parameters: [Expression], body: Expression, environment: Environment) throws -> Procedure {
-        let parameterNames = try parameters.map { parameter in
-            guard
-                case let .atom(atom, _) = parameter,
-                case let .symbol(name) = atom
-            else {
-                throw MyronError(.typeMismatch, at: body.getLocation())
-            }
-
-            return name
-        }
-
-        let procedure: ([Value]) throws -> Value = { args in
-            guard args.count == parameterNames.count else {
-                throw MyronError(.unexpectedArity, at: body.getLocation())
-            }
-
-            let inner = Environment(outer: environment, registry: environment.registry)
-
-            for (name, value) in zip(parameterNames, args) {
-                inner.insert(name, value: value)
-            }
-
-            let value = try self.eval(body, environment: inner)
-            return value
-        }
-
-        return procedure
-    }
-
     func evalDefine(_ expression: Expression, environment: Environment) throws -> Value {
-        guard case let .list(elements, _) = expression else {
-            fatalError("evalList called with non-list expression")
-        }
-
-        guard elements.count == 3 else {
+        let (elements, _) = try expression.unwrapList(#function)
+        guard elements.count >= 3 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
         }
 
         let nameExpression = elements[1]
 
-        if case .atom(let atom, _) = nameExpression {
+        switch nameExpression {
+
+        case .atom(let atom, _):
+            guard elements.count == 3 else {
+                throw MyronError(.unexpectedArity, at: expression.getLocation())
+            }
+
             guard case .symbol(let name) = atom else {
                 throw MyronError(.typeMismatch, at: expression.getLocation())
             }
@@ -163,9 +169,8 @@ extension Evaluator {
             let value = try eval(elements[2], environment: environment)
             environment.insert(name, value: value)
             return .define(name)
-        }
 
-        if case .list(let parameters, _) = nameExpression {
+        case .list(let parameters, _):
             guard parameters.count > 0 else {
                 throw MyronError(.unexpectedArity, at: expression.getLocation())
             }
@@ -179,14 +184,48 @@ extension Evaluator {
 
             let procedure = try makeProcedure(
                 parameters: Array(parameters.dropFirst()),
-                body: elements[2],
-                environment: environment)
+                bodies: elements[2...],
+                environment: environment,
+                location: expression.getLocation())
 
             environment.insert(procedureName, value: .procedure(procedure))
             return .define(procedureName)
         }
+    }
 
-        fatalError("evalDefine called with unexpected expression")
+    func makeProcedure(
+        parameters: [Expression],
+        bodies: ArraySlice<Expression>,
+        environment: Environment,
+        location: Range<Int>?
+    ) throws -> Procedure {
+        let parameterNames = try parameters.map { parameter in
+            guard
+                case let .atom(atom, _) = parameter,
+                case let .symbol(name) = atom
+            else {
+                throw MyronError(.typeMismatch, at: parameter.getLocation())
+            }
+
+            return name
+        }
+
+        let procedure: ([Value]) throws -> Value = { args in
+            guard args.count == parameterNames.count else {
+                throw MyronError(.unexpectedArity, at: location)
+            }
+
+            let inner = Environment(outer: environment, registry: environment.registry)
+
+            for (name, value) in zip(parameterNames, args) {
+                inner.insert(name, value: value)
+            }
+
+            let value = try self.evalSequence(bodies, environment: inner)
+            return value
+        }
+
+        return procedure
     }
 
 }
@@ -199,9 +238,7 @@ private extension Evaluator {
         _ expression: Expression,
         environment: Environment
     ) throws -> Value {
-        guard case let .list(elements, _) = expression else {
-            fatalError("evalList called with non-list expression")
-        }
+        let (elements, _) = try expression.unwrapList(#function)
 
         guard elements.count == 4 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
@@ -232,9 +269,7 @@ extension Evaluator {
         _ expression: Expression,
         environment: Environment
     ) throws -> Value {
-        guard case let .list(elements, _) = expression else {
-            fatalError("evalQuote called with non-list expression")
-        }
+        let (elements, _) = try expression.unwrapList(#function)
 
         guard elements.count == 2 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
@@ -254,9 +289,7 @@ extension Evaluator {
         _ expression: Expression,
         environment: Environment
     ) throws -> Value {
-        guard case let .list(terms, _) = expression else {
-            fatalError("evalAnd called with non-list expression")
-        }
+        let (terms, _) = try expression.unwrapList(#function)
 
         guard terms.count > 1 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
@@ -280,9 +313,7 @@ extension Evaluator {
         _ expression: Expression,
         environment: Environment
     ) throws -> Value {
-        guard case let .list(terms, _) = expression else {
-            fatalError("evalOr called with non-list expression")
-        }
+        let (terms, _) = try expression.unwrapList(#function)
 
         guard terms.count > 1 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())

@@ -34,7 +34,9 @@ struct StandardComparison {
     static func neq(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
         let compare = try eq(args: args, apply: apply, location: location)
         if let bool = compare.asBoolean { return .boolean(!bool) }
-        throw MyronError(.internalError, at: location)
+
+        let message = "'neq' expects \(compare.kind) as a boolean"
+        throw MyronError(.internalError(message), at: location)
     }
 
     static func gt(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {

@@ -52,11 +52,27 @@ struct LambdaTests {
         expectValue("(define x 1) ((lambda (x) x) 99)", "99")
     }
 
+    @Test("a lambda body may contain several expressions", arguments: [
+        ("((lambda (x) (define y 2) (+ x y)) 1)", "3"),
+        ("((lambda () 1 2 3))", "3"),
+        ("((lambda (x) (define (sq n) (* n n)) (sq x)) 4)", "16")
+    ] as [ValueCase])
+    func multiExpressionBody(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a lambda's internal defines do not escape")
+    func internalDefinesAreLocal() {
+        expectFailure("((lambda () (define y 2) y)) y", reason: .unrecognisedSymbol)
+    }
+
     @Test("arity is enforced at definition and application", arguments: [
         ("(lambda)", .unexpectedArity),
         ("(lambda (x))", .unexpectedArity),
         ("((lambda (x) x) 1 2)", .unexpectedArity),
-        ("((lambda (x y) x) 1)", .unexpectedArity)
+        ("((lambda (x y) x) 1)", .unexpectedArity),
+        ("((lambda () 1) 2)", .unexpectedArity),
+        ("(lambda (1) 1)", .typeMismatch)
     ] as [FailureCase])
     func arityErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

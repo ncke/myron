@@ -9,9 +9,7 @@ extension Evaluator {
         environment: Environment,
         inQuoteMode: Bool
     ) throws -> Value {
-        guard case let .list(elements, _) = expression else {
-            fatalError("evalList called with non-list expression")
-        }
+        let (elements, _) = try expression.unwrapList(#function)
 
         let values = try elements.map { element in
             let value = try eval(
