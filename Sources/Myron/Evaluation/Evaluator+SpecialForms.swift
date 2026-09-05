@@ -8,6 +8,7 @@ extension Evaluator {
     static private let nameDefine = "define"
     static private let nameIf = "if"
     static private let nameLambda = "lambda"
+    static private let nameLet = "let"
     static private let nameQuote = "quote"
     static private let nameAnd = "and"
     static private let nameOr = "or"
@@ -40,6 +41,9 @@ extension Evaluator {
         case Self.nameLambda:
             return try evalLambda(expression, environment: environment)
 
+        case Self.nameLet:
+            return try evalLet(expression, environment: environment)
+
         case Self.nameQuote:
             return try evalQuote(expression, environment: environment)
 
@@ -61,7 +65,7 @@ extension Evaluator {
 extension Evaluator {
 
     private static let specialFormNames: Set<String> = [
-        nameBegin, nameDefine, nameIf, nameLambda, nameQuote, nameAnd, nameOr
+        nameBegin, nameDefine, nameIf, nameLambda, nameLet, nameQuote, nameAnd, nameOr
     ]
 
     func getSpecialFormName(_ expression: Expression) -> String? {
@@ -139,6 +143,42 @@ extension Evaluator {
         }
 
         return try evalSequence(subexpressions[1...], environment: environment)
+    }
+
+}
+
+// MARK: - Let
+
+extension Evaluator {
+
+    func evalLet(_ expression: Expression, environment: Environment) throws -> Value {
+        let (subexpressions, _) = try expression.unwrapList(#function)
+        guard subexpressions.count > 2 else {
+            throw MyronError(.unexpectedArity, at: expression.getLocation())
+        }
+
+        guard case let .list(bindings, _) = subexpressions[1] else {
+            throw MyronError(.expectedBindingsForLet, at: subexpressions[1].getLocation())
+        }
+
+        let scoped = Environment(outer: environment, registry: environment.registry)
+
+        for binding in bindings {
+            guard
+                case let .list(pair, _) = binding,
+                pair.count == 2,
+                case let .atom(nameAtom, _) = pair[0],
+                case let .symbol(bindingName) = nameAtom
+            else {
+                throw MyronError(.invalidBindingForLet, at: binding.getLocation())
+            }
+
+            let value = try eval(pair[1], environment: scoped)
+            scoped.insert(bindingName, value: value)
+        }
+
+        let result = try evalSequence(subexpressions[2...], environment: scoped)
+        return result
     }
 
 }

@@ -91,6 +91,66 @@ import Testing
             "8")
     }
 
+    @Test("let binds names for the extent of its body", arguments: [
+        ("(let ((x 5) (y 6)) (* x y))", "30"),
+        ("(let ((x 5)) x)", "5"),
+        ("(let () 1 2 3)", "3"),
+        ("(let ((x 1)) (define y 2) (+ x y))", "3"),
+        ("(let ((f (lambda (n) (* n n)))) (f 4))", "16"),
+        ("(let ((x (head '()))) (nothing? x))", "true"),
+        ("(let ((xs '(1 2 3))) (map (lambda (x) (* x x)) xs))", "(1 4 9)")
+    ] as [ValueCase])
+    func letBindings(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("let bindings are sequential: later bindings see earlier ones", arguments: [
+        ("(let ((x 5) (y (* x 2))) y)", "10"),
+        ("(let ((x 1) (x (+ x 1)) (x (* x 10))) x)", "20"),
+        ("(define x 1) (let ((x (+ x 1))) x)", "2")
+    ] as [ValueCase])
+    func letSequential(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("let scope does not escape or clobber", arguments: [
+        ("(define x 1) (let ((x 2)) x) x", "1"),
+        ("(define x 1) (let ((y 2)) (define x 3) x) x", "1"),
+        ("(define counter (let ((n 5)) (lambda () n))) (counter)", "5")
+    ] as [ValueCase])
+    func letScope(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("names bound or defined in a let are unbound afterwards", arguments: [
+        "(let ((x 1)) x) x",
+        "(let ((x 1)) (define y 2) y) y",
+        "(let () (define z 1) z) z"
+    ])
+    func letNamesDoNotEscape(_ source: String) {
+        expectFailure(source, reason: .unrecognisedSymbol)
+    }
+
+    @Test("let errors", arguments: [
+        ("(let)", .unexpectedArity),
+        ("(let ())", .unexpectedArity),
+        ("(let ((x 1)))", .unexpectedArity),
+        ("(let x 1)", .expectedBindingsForLet),
+        ("(let 5 1)", .expectedBindingsForLet),
+        ("(let \"x\" 1)", .expectedBindingsForLet),
+        ("(let ((x)) x)", .invalidBindingForLet),
+        ("(let ((x 1 2)) x)", .invalidBindingForLet),
+        ("(let ((1 2)) 1)", .invalidBindingForLet),
+        ("(let (x 1) x)", .invalidBindingForLet),
+        ("(let (x) x)", .invalidBindingForLet),
+        ("(let ((x undefined)) x)", .unrecognisedSymbol),
+        ("(let ((x 1)) undefined)", .unrecognisedSymbol),
+        ("(let ((x (/ 1 0))) x)", .divisionByZero)
+    ] as [FailureCase])
+    func letErrors(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
     @Test("language errors", arguments: [
         ("(if true 1)", .unexpectedArity),
         ("(if 1 10 20)", .typeMismatch),

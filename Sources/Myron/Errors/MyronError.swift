@@ -8,6 +8,7 @@ public struct MyronError: Error, Sendable {
         case cannotBeNegative
         case divisionByZero
         case emptyApplication
+        case expectedBindingsForLet
         case expectedExpressionAfterTick
         case expectedFunction(Value.Kind)
         case expectedList
@@ -18,6 +19,7 @@ public struct MyronError: Error, Sendable {
         case incomparableTypes
         case inequatableTypes
         case internalError(String)
+        case invalidBindingForLet
         case invalidNumber
         case overflow
         case subscriptOutOfBounds(Int, Int)
@@ -66,6 +68,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .cannotBeNegative: return "Cannot be negative"
         case .divisionByZero: return "Division by zero"
         case .emptyApplication: return "Empty application"
+        case .expectedBindingsForLet: return "Expected bindings for let"
         case .expectedExpressionAfterTick: return "Expected expression after tick"
         case .expectedFunction(let kind): return "Expected function but got \(kind)"
         case .expectedList: return "Expected list"
@@ -76,6 +79,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .incomparableTypes: return "Incomparable types"
         case .inequatableTypes: return "Inequatable types"
         case .internalError(let message): return "Internal error: \(message)"
+        case .invalidBindingForLet: return "Invalid binding for let"
         case .invalidNumber: return "Invalid number"
         case .overflow: return "Overflow"
         case .subscriptOutOfBounds(let got, let length):
