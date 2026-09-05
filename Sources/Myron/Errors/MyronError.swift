@@ -79,7 +79,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .invalidNumber: return "Invalid number"
         case .overflow: return "Overflow"
         case .subscriptOutOfBounds(let got, let length):
-            return "Subscript out of bounds: got \(got) for list of length \(length)"
+            return "Subscript out of bounds: got \(got) for length \(length)"
         case .typeMismatch: return "Type mismatch"
         case .unexpectedArity: return "Unexpected arity"
         case .unexpectedType(let got, let expected):

@@ -145,6 +145,19 @@ extension StandardMathematics {
 
         if arg.asInteger != nil { return arg }
 
+        if let s = arg.asString?.trimmingCharacters(in: .whitespacesAndNewlines) {
+            if let i = Int(s) { return .integer(i) }
+
+            guard
+                let d = Double(s),
+                let i = Int(exactly: d.rounded(.towardZero))
+            else {
+                throw MyronError(.invalidNumber, at: location)
+            }
+
+            return .integer(i)
+        }
+
         throw MyronError(.typeMismatch, at: location)
     }
 
@@ -156,7 +169,16 @@ extension StandardMathematics {
         let arg = try args.unwrap1(location)
 
         if let i = arg.asInteger { return .double(Double(i)) }
+
         if arg.asDouble != nil { return arg }
+
+        if let s = arg.asString?.trimmingCharacters(in: .whitespacesAndNewlines) {
+            guard let d = Double(s) else {
+                throw MyronError(.invalidNumber, at: location)
+            }
+
+            return .double(d)
+        }
 
         throw MyronError(.typeMismatch, at: location)
     }

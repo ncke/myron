@@ -152,27 +152,27 @@ struct StandardListsTests {
     }
 
     @Test("list errors", arguments: [
-        ("(head 5)", .expectedList),
-        ("(tail 5)", .expectedList),
-        ("(last 5)", .expectedList),
-        ("(empty? 5)", .expectedList),
+        ("(head 5)", .unexpectedType(.integer, [.string, .list])),
+        ("(tail 5)", .unexpectedType(.integer, [.string, .list])),
+        ("(last 5)", .unexpectedType(.integer, [.string, .list])),
+        ("(empty? 5)", .unexpectedType(.integer, [.string, .list])),
         ("(head '(1) '(2))", .unexpectedArity),
         ("(take -1 '(1 2))", .cannotBeNegative),
         ("(drop -1 '(1 2))", .cannotBeNegative),
         ("(take \"x\" '(1))", .typeMismatch),
-        ("(take 1 5)", .expectedList),
-        ("(init 5)", .expectedList),
-        ("(reverse 5)", .expectedList),
+        ("(take 1 5)", .unexpectedType(.integer, [.string, .list])),
+        ("(init 5)", .unexpectedType(.integer, [.string, .list])),
+        ("(reverse 5)", .unexpectedType(.integer, [.string, .list])),
         ("(cons 1 2)", .expectedList),
         ("(cons 1)", .unexpectedArity),
-        ("(append 5)", .expectedList),
+        ("(append 5)", .unexpectedType(.integer, [.string, .list])),
         ("(append)", .unexpectedArity),
-        ("(nth 0 5)", .expectedList),
+        ("(nth 0 5)", .unexpectedType(.integer, [.string, .list])),
         ("(nth \"a\" '(1))", .typeMismatch),
         ("(nth 5 '(1 2))", .subscriptOutOfBounds(5, 2)),
         ("(nth -1 '(1 2))", .subscriptOutOfBounds(-1, 2)),
         ("(nth 0 '())", .subscriptOutOfBounds(0, 0)),
-        ("(contains 1 5)", .expectedList),
+        ("(contains 1 5)", .unexpectedType(.integer, [.string, .list])),
         ("(contains 1)", .unexpectedArity)
     ] as [FailureCase])
     func listErrors(_ c: FailureCase) {

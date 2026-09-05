@@ -230,6 +230,60 @@ struct StandardMathematicsTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("casts parse strings", arguments: [
+        ("(integer \"42\")", "42"),
+        ("(integer \"-42\")", "-42"),
+        ("(integer \"+42\")", "42"),
+        ("(integer \"0\")", "0"),
+        ("(integer \"42.9\")", "42"),
+        ("(integer \"-42.9\")", "-42"),
+        ("(integer \"1e3\")", "1000"),
+        ("(integer \"9223372036854775807\")", "9223372036854775807"),
+        ("(integer \"-9223372036854775808\")", "-9223372036854775808"),
+        ("(integer \"9007199254740993\")", "9007199254740993"),
+        ("(double \"1.5\")", "1.5"),
+        ("(double \"-1.5\")", "-1.5"),
+        ("(double \"42\")", "42.0"),
+        ("(double \"1e3\")", "1000.0"),
+        ("(double \"0\")", "0.0"),
+        ("(integer \" 42\")", "42"),
+        ("(double \" 1.5\")", "1.5")
+    ] as [ValueCase])
+    func castsFromStrings(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("casts round-trip through string")
+    func castsRoundTrip() {
+        expectValue("(integer (string 42))", "42")
+        expectValue("(double (string 1.5))", "1.5")
+        expectValue("(integer (string -9223372036854775808))", "-9223372036854775808")
+    }
+
+    @Test("cast errors", arguments: [
+        ("(integer \"abc\")", .invalidNumber),
+        ("(integer \"\")", .invalidNumber),
+        ("(integer \"42abc\")", .invalidNumber),
+        ("(integer \"1.2.3\")", .invalidNumber),
+        ("(integer \"nan\")", .invalidNumber),
+        ("(integer \"inf\")", .invalidNumber),
+        ("(integer \"9223372036854775808\")", .invalidNumber),
+        ("(integer \"1e19\")", .invalidNumber),
+        ("(double \"abc\")", .invalidNumber),
+        ("(double \"\")", .invalidNumber),
+        ("(integer true)", .typeMismatch),
+        ("(integer '(1))", .typeMismatch),
+        ("(double true)", .typeMismatch),
+        ("(double '(1))", .typeMismatch),
+        ("(integer)", .unexpectedArity),
+        ("(integer 1 2)", .unexpectedArity),
+        ("(double)", .unexpectedArity),
+        ("(double 1 2)", .unexpectedArity)
+    ] as [FailureCase])
+    func castErrors(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
     @Test("minimum and maximum", arguments: [
         ("(min 3 1 2)", "1"),
         ("(max 3 1 2)", "3"),

@@ -96,23 +96,32 @@ private extension Environment {
         case "double": return .primitive(StandardMathematics.castToDouble)
 
         // Sequences.
+        case "head": return .primitive(StandardSequence.head)
+        case "tail": return .primitive(StandardSequence.tail)
+        case "init": return .primitive(StandardSequence.initial)
+        case "last": return .primitive(StandardSequence.last)
+        case "take": return .primitive(StandardSequence.take)
+        case "drop": return .primitive(StandardSequence.drop)
         case "length": return .primitive(StandardSequence.length)
+        case "empty?": return .primitive(StandardSequence.empty)
+        case "append": return .primitive(StandardSequence.append)
+        case "reverse": return .primitive(StandardSequence.reverse)
+        case "nth": return .primitive(StandardSequence.nth)
+        case "contains": return .primitive(StandardSequence.contains)
 
-        // Lists.
-        case "head": return .primitive(StandardLists.head)
-        case "tail": return .primitive(StandardLists.tail)
-        case "init": return .primitive(StandardLists.initial)
-        case "last": return .primitive(StandardLists.last)
-        case "take": return .primitive(StandardLists.take)
-        case "drop": return .primitive(StandardLists.drop)
+        // Native String.
+        case "explode": return .primitive(StandardStrings.explode)
+        case "implode": return .primitive(StandardStrings.implode)
+        case "string": return .primitive(StandardStrings.string)
+        case "lowercase": return .primitive(StandardStrings.lowercase)
+        case "uppercase": return .primitive(StandardStrings.uppercase)
+        case "trim": return .primitive(StandardStrings.trim)
+        case "lines": return .primitive(StandardStrings.lines)
+        case "words": return .primitive(StandardStrings.words)
 
-        case "empty?": return .primitive(StandardLists.empty)
+        // Native Lists.
         case "cons": return .primitive(StandardLists.cons)
         case "list": return .primitive(StandardLists.list)
-        case "append": return .primitive(StandardLists.append)
-        case "reverse": return .primitive(StandardLists.reverse)
-        case "nth": return .primitive(StandardLists.nth)
-        case "contains": return .primitive(StandardLists.contains)
 
         // Higher-order lists.
         case "map": return .primitive(StandardHigherLists.map)

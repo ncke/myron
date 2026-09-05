@@ -22,7 +22,7 @@ struct Dispatcher: @unchecked Sendable {
         self.patterns = patterns
     }
 
-    func dispatch(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    func dispatch(_ args: [Value], _ apply: Applier, _ location: Range<Int>?) throws -> Value {
         var arityMet = false
         var gotKinds = Set<Value.Kind>()
 

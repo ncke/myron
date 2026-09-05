@@ -7,11 +7,107 @@ import Testing
 
 struct StandardSequenceTests {
 
-    @Test("sequence errors", arguments: [
-        ("(length 5)", .unexpectedType(.integer, [.list, .string])),
+    private static let sequenceKinds: Set<Value.Kind> = [.list, .string]
+
+    @Test("a shared name works over either sequence type", arguments: [
+        ("(head '(1 2 3))", "1"),
+        ("(head \"abc\")", "\"a\""),
+        ("(tail '(1 2 3))", "(2 3)"),
+        ("(tail \"abc\")", "\"bc\""),
+        ("(init '(1 2 3))", "(1 2)"),
+        ("(init \"abc\")", "\"ab\""),
+        ("(last '(1 2 3))", "3"),
+        ("(last \"abc\")", "\"c\""),
+        ("(take 2 '(1 2 3))", "(1 2)"),
+        ("(take 2 \"abc\")", "\"ab\""),
+        ("(drop 2 '(1 2 3))", "(3)"),
+        ("(drop 2 \"abc\")", "\"c\""),
+        ("(length '(1 2 3))", "3"),
+        ("(length \"abc\")", "3"),
+        ("(empty? '())", "true"),
+        ("(empty? \"\")", "true"),
+        ("(append '(1) '(2))", "(1 2)"),
+        ("(append \"a\" \"b\")", "\"ab\""),
+        ("(reverse '(1 2 3))", "(3 2 1)"),
+        ("(reverse \"abc\")", "\"cba\""),
+        ("(nth 1 '(1 2 3))", "2"),
+        ("(nth 1 \"abc\")", "\"b\""),
+        ("(contains 2 '(1 2 3))", "true"),
+        ("(contains \"b\" \"abc\")", "true")
+    ] as [ValueCase])
+    func sharedNames(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("dispatch inspects the sequence argument, not the first argument")
+    func dispatchOnSequencePosition() {
+        expectValue("(take 1 \"abc\")", "\"a\"")
+        expectValue("(drop 1 \"abc\")", "\"bc\"")
+        expectValue("(nth 0 \"abc\")", "\"a\"")
+        expectValue("(contains \"a\" \"abc\")", "true")
+        expectValue("(contains \"a\" '(\"a\"))", "true")
+    }
+
+    @Test("a non-sequence reports the kind found and the kinds expected", arguments: [
+        ("(head 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(tail 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(init 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(last 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(take 1 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(drop 1 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(length 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(empty? 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(append 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(reverse 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(nth 0 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(contains 1 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(length 1.5)", .unexpectedType(.double, sequenceKinds)),
+        ("(length true)", .unexpectedType(.boolean, sequenceKinds)),
+        ("(length 'sym)", .unexpectedType(.symbol, sequenceKinds)),
+        ("(length (head '()))", .unexpectedType(.nothing, sequenceKinds)),
+        ("(length sqrt)", .unexpectedType(.primitive, sequenceKinds)),
+        ("(length (lambda (x) x))", .unexpectedType(.procedure, sequenceKinds)),
+        ("(length (define x 1))", .unexpectedType(.define, sequenceKinds))
     ] as [FailureCase])
-    func listErrors(_ c: FailureCase) {
+    func unexpectedType(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
+    }
+
+    @Test("a missing sequence argument is an arity error", arguments: [
+        "(head)", "(tail)", "(init)", "(last)", "(length)", "(empty?)",
+        "(append)", "(reverse)", "(take)", "(take 1)", "(drop)", "(drop 1)",
+        "(nth)", "(nth 0)", "(contains)", "(contains 1)"
+    ])
+    func missingSequence(_ source: String) {
+        expectFailure(source, reason: .unexpectedArity)
+    }
+
+    @Test("surplus arguments are still an arity error", arguments: [
+        "(head '(1) '(2))", "(head \"a\" \"b\")", "(length '(1) 2)",
+        "(length \"a\" \"b\")", "(reverse \"a\" \"b\")", "(take 1 \"ab\" 3)",
+        "(nth 0 \"ab\" 3)"
+    ])
+    func surplusArguments(_ source: String) {
+        expectFailure(source, reason: .unexpectedArity)
+    }
+
+    @Test("append does not mix sequence types")
+    func appendDoesNotMix() {
+        expectFailure("(append \"a\" '(1))", reason: .typeMismatch)
+        expectFailure("(append '(1) \"a\")", reason: .expectedList)
+    }
+
+    @Test("the type error message lists expectations in a stable order")
+    func unexpectedTypeMessage() {
+        let session = MyronSession()
+        for _ in 0..<5 {
+            guard case .failure(let errors) = session.eval("(length 5)") else {
+                Issue.record("(length 5) did not fail")
+                return
+            }
+            #expect(errors.first?.message?.hasPrefix(
+                "ERROR: Unexpected type, got integer, expected list, string") == true)
+        }
     }
 
 }
