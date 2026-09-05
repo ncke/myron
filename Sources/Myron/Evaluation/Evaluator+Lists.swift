@@ -7,6 +7,7 @@ extension Evaluator {
     func evalList(
         _ expression: Expression,
         environment: Environment,
+        context: EvaluationContext,
         inQuoteMode: Bool
     ) throws -> Value {
         let (elements, _) = try expression.unwrapList(#function)
@@ -15,6 +16,7 @@ extension Evaluator {
             let value = try eval(
                 element,
                 environment: environment,
+                context: context.deeper(),
                 inQuoteMode: inQuoteMode)
             return value
         }
@@ -30,7 +32,7 @@ extension Evaluator {
         let tail = Array(values.dropFirst())
         let location = expression.getLocation()
 
-        let result = try Evaluator.apply(head, to: tail, at: location)
+        let result = try Evaluator.apply(head, to: tail, in: context, at: location)
         return result
     }
 

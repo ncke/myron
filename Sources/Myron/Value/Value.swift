@@ -6,7 +6,7 @@ public typealias Primitive = ([Value], Applier, Range<Int>?) throws -> Value
 
 public typealias Applier = (Value, [Value], Range<Int>?) throws -> Value
 
-public typealias Procedure = ([Value]) throws -> Value
+public typealias Procedure = ([Value], EvaluationContext) throws -> Value
 
 public enum Value {
     case boolean(Bool)

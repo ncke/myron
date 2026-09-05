@@ -22,6 +22,7 @@ public struct MyronError: Error, Sendable {
         case invalidBindingForLet
         case invalidNumber
         case overflow
+        case reachedMaximumRecursionDepth
         case subscriptOutOfBounds(Int, Int)
         case typeMismatch
         case unexpectedArity
@@ -82,6 +83,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .invalidBindingForLet: return "Invalid binding for let"
         case .invalidNumber: return "Invalid number"
         case .overflow: return "Overflow"
+        case .reachedMaximumRecursionDepth: return "Reached maximum recursion depth"
         case .subscriptOutOfBounds(let got, let length):
             return "Subscript out of bounds: got \(got) for length \(length)"
         case .typeMismatch: return "Type mismatch"

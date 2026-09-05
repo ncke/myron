@@ -21,7 +21,8 @@ extension Evaluator {
 
     func evalSpecialForm(
         _ expression: Expression,
-        environment: Environment
+        environment: Environment,
+        context: EvaluationContext
     ) throws -> Value {
         guard let name = getSpecialFormName(expression) else {
             throw MyronError(.unimplementedFeature, at: expression.getLocation())
@@ -30,28 +31,52 @@ extension Evaluator {
         switch name {
 
         case Self.nameBegin:
-            return try evalBegin(expression, environment: environment)
+            return try evalBegin(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         case Self.nameDefine:
-            return try evalDefine(expression, environment: environment)
+            return try evalDefine(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         case Self.nameIf:
-            return try evalIf(expression, environment: environment)
+            return try evalIf(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         case Self.nameLambda:
-            return try evalLambda(expression, environment: environment)
+            return try evalLambda(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         case Self.nameLet:
-            return try evalLet(expression, environment: environment)
+            return try evalLet(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         case Self.nameQuote:
-            return try evalQuote(expression, environment: environment)
+            return try evalQuote(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         case Self.nameAnd:
-            return try evalAnd(expression, environment: environment)
+            return try evalAnd(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         case Self.nameOr:
-            return try evalOr(expression, environment: environment)
+            return try evalOr(
+                expression,
+                environment: environment,
+                context: context.deeper())
 
         default:
             throw MyronError(.unimplementedFeature, at: expression.getLocation())
@@ -95,10 +120,17 @@ extension Evaluator {
 
 extension Evaluator {
 
-    func evalSequence(_ body: ArraySlice<Expression>, environment: Environment) throws -> Value {
+    func evalSequence(
+        _ body: ArraySlice<Expression>,
+        environment: Environment,
+        context: EvaluationContext
+    ) throws -> Value {
         var result = Value.nothing
         for expression in body {
-            result = try eval(expression, environment: environment)
+            result = try eval(
+                expression,
+                environment: environment,
+                context: context.deeper())
         }
 
         return result
@@ -110,7 +142,11 @@ extension Evaluator {
 
 extension Evaluator {
 
-    func evalLambda(_ expression: Expression, environment: Environment) throws -> Value {
+    func evalLambda(
+        _ expression: Expression,
+        environment: Environment,
+        context: EvaluationContext
+    ) throws -> Value {
         let (elements, _) = try expression.unwrapList(#function)
 
         guard elements.count >= 3 else {
@@ -136,13 +172,20 @@ extension Evaluator {
 
 extension Evaluator {
 
-    func evalBegin(_ expression: Expression, environment: Environment) throws -> Value {
+    func evalBegin(
+        _ expression: Expression,
+        environment: Environment,
+        context: EvaluationContext
+    ) throws -> Value {
         let (subexpressions, _) = try expression.unwrapList(#function)
         guard subexpressions.count > 1 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
         }
 
-        return try evalSequence(subexpressions[1...], environment: environment)
+        return try evalSequence(
+            subexpressions[1...],
+            environment: environment,
+            context: context.deeper())
     }
 
 }
@@ -151,7 +194,11 @@ extension Evaluator {
 
 extension Evaluator {
 
-    func evalLet(_ expression: Expression, environment: Environment) throws -> Value {
+    func evalLet(
+        _ expression: Expression,
+        environment: Environment,
+        context: EvaluationContext
+    ) throws -> Value {
         let (subexpressions, _) = try expression.unwrapList(#function)
         guard subexpressions.count > 2 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
@@ -173,11 +220,15 @@ extension Evaluator {
                 throw MyronError(.invalidBindingForLet, at: binding.getLocation())
             }
 
-            let value = try eval(pair[1], environment: scoped)
+            let value = try eval(pair[1], environment: scoped, context: context.deeper())
             scoped.insert(bindingName, value: value)
         }
 
-        let result = try evalSequence(subexpressions[2...], environment: scoped)
+        let result = try evalSequence(
+            subexpressions[2...],
+            environment: scoped,
+            context: context.deeper())
+
         return result
     }
 
@@ -187,7 +238,11 @@ extension Evaluator {
 
 extension Evaluator {
 
-    func evalDefine(_ expression: Expression, environment: Environment) throws -> Value {
+    func evalDefine(
+        _ expression: Expression,
+        environment: Environment,
+        context: EvaluationContext
+    ) throws -> Value {
         let (elements, _) = try expression.unwrapList(#function)
         guard elements.count >= 3 else {
             throw MyronError(.unexpectedArity, at: expression.getLocation())
@@ -206,7 +261,11 @@ extension Evaluator {
                 throw MyronError(.typeMismatch, at: expression.getLocation())
             }
 
-            let value = try eval(elements[2], environment: environment)
+            let value = try eval(
+                elements[2],
+                environment: environment,
+                context: context.deeper())
+
             environment.insert(name, value: value)
             return .define(name)
 
@@ -250,7 +309,7 @@ extension Evaluator {
             return name
         }
 
-        let procedure: ([Value]) throws -> Value = { args in
+        let procedure: ([Value], EvaluationContext) throws -> Value = { args, context in
             guard args.count == parameterNames.count else {
                 throw MyronError(.unexpectedArity, at: location)
             }
@@ -261,7 +320,11 @@ extension Evaluator {
                 inner.insert(name, value: value)
             }
 
-            let value = try self.evalSequence(bodies, environment: inner)
+            let value = try self.evalSequence(
+                bodies,
+                environment: inner,
+                context: context.deeper())
+
             return value
         }
 
@@ -276,7 +339,8 @@ private extension Evaluator {
 
     func evalIf(
         _ expression: Expression,
-        environment: Environment
+        environment: Environment,
+        context: EvaluationContext
     ) throws -> Value {
         let (elements, _) = try expression.unwrapList(#function)
 
@@ -285,15 +349,18 @@ private extension Evaluator {
         }
 
         let condition = elements[1]
-        let value = try eval(condition, environment: environment)
+        let value = try eval(
+            condition,
+            environment: environment,
+            context: context.deeper())
 
         switch value {
         case .boolean(true):
             let branch = elements[2]
-            return try eval(branch, environment: environment)
+            return try eval(branch, environment: environment, context: context.deeper())
         case .boolean(false):
             let branch = elements[3]
-            return try eval(branch, environment: environment)
+            return try eval(branch, environment: environment, context: context.deeper())
         default:
             throw MyronError(.typeMismatch, at: expression.getLocation())
         }
@@ -307,7 +374,8 @@ extension Evaluator {
 
     func evalQuote(
         _ expression: Expression,
-        environment: Environment
+        environment: Environment,
+        context: EvaluationContext
     ) throws -> Value {
         let (elements, _) = try expression.unwrapList(#function)
 
@@ -316,7 +384,12 @@ extension Evaluator {
         }
 
         let quotation = elements[1]
-        return try eval(quotation, environment: environment, inQuoteMode: true)
+
+        return try eval(
+            quotation,
+            environment: environment,
+            context: context.deeper(),
+            inQuoteMode: true)
     }
 
 }
@@ -327,7 +400,8 @@ extension Evaluator {
 
     func evalAnd(
         _ expression: Expression,
-        environment: Environment
+        environment: Environment,
+        context: EvaluationContext
     ) throws -> Value {
         let (terms, _) = try expression.unwrapList(#function)
 
@@ -336,7 +410,10 @@ extension Evaluator {
         }
 
         for term in terms[1...] {
-            let value = try eval(term, environment: environment)
+            let value = try eval(
+                term,
+                environment: environment,
+                context: context.deeper())
 
             guard case .boolean(let bool) = value else {
                 let reason = MyronError.Reason.unexpectedType(value.kind, [.boolean])
@@ -351,7 +428,8 @@ extension Evaluator {
 
     func evalOr(
         _ expression: Expression,
-        environment: Environment
+        environment: Environment,
+        context: EvaluationContext
     ) throws -> Value {
         let (terms, _) = try expression.unwrapList(#function)
 
@@ -360,7 +438,10 @@ extension Evaluator {
         }
 
         for term in terms[1...] {
-            let value = try eval(term, environment: environment)
+            let value = try eval(
+                term,
+                environment: environment,
+                context: context.deeper())
 
             guard case .boolean(let bool) = value else {
                 let reason = MyronError.Reason.unexpectedType(value.kind, [.boolean])

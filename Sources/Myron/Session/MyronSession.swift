@@ -30,7 +30,7 @@ public final class MyronSession {
         self.configuration = configuration
         self.environmentRegistry = EnvironmentRegistry()
         self.environment = Environment(registry: environmentRegistry)
-        self.evaluator = Evaluator()
+        self.evaluator = Evaluator(maximumRecursionDepth: configuration.maximumRecursionDepth)
     }
 
     deinit {
