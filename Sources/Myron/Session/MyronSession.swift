@@ -1,16 +1,5 @@
 import Foundation
 
-public extension MyronSession.Result {
-
-    var isFailure: Bool {
-        switch self {
-        case .failure: return true
-        default: return false
-        }
-    }
-
-}
-
 // MARK: - MyronSession
 
 public final class MyronSession {
@@ -84,6 +73,19 @@ public final class MyronSession {
 
         let result = caughtEval(lastForm)
         return result
+    }
+
+}
+
+// MARK: - Result Helper
+
+public extension MyronSession.Result {
+
+    var isFailure: Bool {
+        switch self {
+        case .failure: return true
+        default: return false
+        }
     }
 
 }

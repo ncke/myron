@@ -7,11 +7,23 @@ public final class Environment {
     private var outer: Environment?
     private(set) weak var registry: EnvironmentRegistry!
 
-    init(outer: Environment? = nil, registry: EnvironmentRegistry) {
-        self.outer = outer
+    init(registry: EnvironmentRegistry) {
+        self.outer = nil
         self.registry = registry
-        self.registry?.register(self)
+        self.registry.register(self)
     }
+
+    init(outer: Environment) {
+        self.outer = outer
+        self.registry = outer.registry
+        self.registry.register(self)
+    }
+
+//    init(outer: Environment? = nil, registry: EnvironmentRegistry) {
+//        self.outer = outer
+//        self.registry = registry
+//        self.registry?.register(self)
+//    }
 
     func shutdown() {
         mappings = [:]

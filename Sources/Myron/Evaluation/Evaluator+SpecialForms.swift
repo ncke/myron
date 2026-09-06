@@ -208,7 +208,7 @@ extension Evaluator {
             throw MyronError(.expectedBindingsForLet, at: subexpressions[1].getLocation())
         }
 
-        let scoped = Environment(outer: environment, registry: environment.registry)
+        let scoped = Environment(outer: environment)
 
         for binding in bindings {
             guard
@@ -314,7 +314,7 @@ extension Evaluator {
                 throw MyronError(.unexpectedArity, at: location)
             }
 
-            let inner = Environment(outer: environment, registry: environment.registry)
+            let inner = Environment(outer: environment)
 
             for (name, value) in zip(parameterNames, args) {
                 inner.insert(name, value: value)
