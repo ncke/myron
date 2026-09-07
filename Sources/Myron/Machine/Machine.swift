@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Machine
 
-class Machine {
+final class Machine {
     private let maximumStackDepth: Int?
     private let rootEnvironment: Environment
     private var stack = [Frame]()
@@ -16,10 +16,17 @@ class Machine {
         self.rootEnvironment = environment
     }
 
+}
+
+// MARK: - Frame and Control
+
+extension Machine {
+
     enum Frame {
         case arguments(ArraySlice<Expression>, [Value], Environment, Location?)
         case bind(String, ArraySlice<Expression>, ArraySlice<Expression>, Environment, Location?)
         case branch(Expression, Expression, Environment, Location?)
+        case condition(ArraySlice<Expression>, ArraySlice<Expression>, Environment, Location?)
         case conjunction(ArraySlice<Expression>, Environment, Location?)
         case define(String, Environment)
         case disjunction(ArraySlice<Expression>, Environment, Location?)
@@ -35,6 +42,12 @@ class Machine {
         case value(Value)
     }
 
+}
+
+// MARK: - Eval
+
+extension Machine {
+
     func eval(_ expression: Expression) throws -> Value {
         stack = []
         control = .eval(expression, rootEnvironment)
@@ -42,7 +55,7 @@ class Machine {
     }
 
     private func checkStackDepth(at location: @autoclosure () -> Location?) throws {
-        guard let limit = maximumStackDepth, stack.count <= limit else { return }
+        guard let limit = maximumStackDepth, stack.count > limit else { return }
 
         throw MyronError(
             .exceededMaximumStackDepth(stack.count),
@@ -64,6 +77,12 @@ class Machine {
         }
     }
 
+}
+
+// MARK: - Step
+
+extension Machine {
+
     private func step(expression: Expression, environment: Environment) throws {
         switch expression {
 
@@ -83,7 +102,7 @@ class Machine {
             }
             let tail = elements.dropFirst()
 
-            if let (frame, control) = try determineSpecialForm(
+            if let (frame, control) = try interpretSpecialForm(
                 head: head,
                 tail: tail,
                 meta: meta,
@@ -99,7 +118,13 @@ class Machine {
         }
     }
 
-    private func determineSpecialForm(
+}
+
+// MARK: - Special Forms
+
+extension Machine {
+
+    private func interpretSpecialForm(
         head: Expression,
         tail: ArraySlice<Expression>,
         meta: Expression.Metadata,
@@ -131,6 +156,22 @@ class Machine {
                 let control = Control.eval(tail[tail.startIndex], environment)
                 return (nil, control)
             }
+
+        case "cond":
+            guard tail.count >= 1 else {
+                throw MyronError(.unexpectedArity(tail.count, .atLeast(1)), at: meta.location)
+            }
+
+            let (headList, hmeta) = try tail[tail.startIndex].unwrapList()
+            guard headList.count >= 1 else {
+                throw MyronError(.unexpectedArity(headList.count, .atLeast(1)), at: hmeta.location)
+            }
+
+            let condition = headList[headList.startIndex]
+            let bodies = headList[headList.index(after: headList.startIndex)...]
+            let frame = Frame.condition(bodies, tail.dropFirst(), environment, meta.location)
+            let control = Control.eval(condition, environment)
+            return (frame, control)
 
         case "define":
             guard tail.count >= 2 else {
@@ -266,6 +307,12 @@ class Machine {
         }
     }
 
+}
+
+// MARK: - Kontinue
+
+extension Machine {
+
     private func kontinue(_ frame: Frame, with value: Value) throws {
         switch frame {
 
@@ -300,6 +347,33 @@ class Machine {
         case .branch(let thenClause, let elseClause, let environment, let location):
             let condition = try value.unwrapBoolean(location)
             control = .eval(condition ? thenClause : elseClause, environment)
+
+        case .condition(let bodies, let remaining, let environment, let location):
+            if try value.unwrapBoolean(location) == true {
+                if bodies.count > 1 {
+                    stack.append(.sequence(bodies.dropFirst(), environment, location))
+                }
+                if let firstBody = bodies.first {
+                    control = .eval(firstBody, environment)
+                } else {
+                    control = .value(.nothing)
+                }
+
+                return
+            }
+
+            if let (list, meta) = try remaining.first?.unwrapList() {
+                guard list.count >= 1 else {
+                    throw MyronError(.unexpectedArity(list.count, .atLeast(1)), at: meta.location)
+                }
+
+                let condition = list[list.startIndex]
+                let bodies = list[list.index(after: list.startIndex)...]
+                stack.append(.condition(bodies, remaining.dropFirst(), environment, location))
+                control = .eval(condition, environment)
+            } else {
+                control = .value(.nothing)
+            }
 
         case .conjunction(let remaining, let environment, let location):
             if try value.unwrapBoolean(location) == false {
@@ -390,6 +464,12 @@ class Machine {
 
         }
     }
+
+}
+
+// MARK: - Apply
+
+extension Machine {
 
     private func apply(
         _ value: Value,

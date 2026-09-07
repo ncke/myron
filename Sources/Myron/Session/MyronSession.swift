@@ -19,7 +19,9 @@ public final class MyronSession {
         self.configuration = configuration
         self.environmentRegistry = EnvironmentRegistry()
         self.environment = Environment(registry: environmentRegistry)
-        self.machine = Machine(environment: environment)
+        self.machine = Machine(
+            environment: environment,
+            maximumStackDepth: configuration.maximumStackDepth)
     }
 
     deinit {

@@ -18,7 +18,6 @@ public struct MyronError: Error, Sendable {
         case internalError(String)
         case invalidNumber
         case overflow
-        case reachedMaximumRecursionDepth
         case subscriptOutOfBounds(Int, Int)
         case unexpectedArity(Int, IntegerExpectation)
         case typeCastFailed(Value.Kind, Value.Kind)
@@ -101,7 +100,6 @@ extension MyronError.Reason: CustomStringConvertible {
         case .internalError(let message): return "Internal error: \(message)"
         case .invalidNumber: return "Invalid number"
         case .overflow: return "Overflow"
-        case .reachedMaximumRecursionDepth: return "Reached maximum recursion depth"
         case .subscriptOutOfBounds(let got, let length):
             return "Subscript out of bounds: got \(got) for length \(length)"
         case .unexpectedArity(let got, let expected):

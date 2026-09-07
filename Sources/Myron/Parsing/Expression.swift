@@ -2,8 +2,6 @@ import Foundation
 
 // MARK: - Expression
 
-///  A range expressing the character location of the expression in the source input.
-///  The raw type will be phased out as we migrate to the named alias.
 public typealias Location = Range<Int>
 
 indirect enum Expression {
@@ -61,10 +59,10 @@ extension Expression {
         return (name, expr)
     }
 
-    func unwrapList(_ function: String) throws -> ([Expression], Metadata) {
+    func unwrapList() throws -> ([Expression], Metadata) {
         guard case let .list(subexpressions, metadata) = self else {
-            let message = "'\(function)' expected a list"
-            throw MyronError(.internalError(message), at: getLocation())
+            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
+            throw MyronError(reason, at: self.getLocation())
         }
 
         return (subexpressions, metadata)
