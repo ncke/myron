@@ -93,11 +93,11 @@ extension Environment {
         case "list": return .primitive(StandardLists.list)
 
         // Higher-order lists.
-        case "map": return .primitive(StandardHigherLists.map)
-        case "filter": return .primitive(StandardHigherLists.filter)
-        case "reduce": return .primitive(StandardHigherLists.reduce)
-        case "all": return .primitive(StandardHigherLists.all)
-        case "any": return .primitive(StandardHigherLists.any)
+        case "map": return .higherOrder(.map)
+        case "filter": return .higherOrder(.filter)
+        case "reduce": return .higherOrder(.reduce)
+        case "all": return .higherProbe(.all)
+        case "any": return .higherProbe(.any)
 
         default:
             return nil

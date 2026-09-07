@@ -8,6 +8,10 @@ extension Collection where Element == Value {
         if count < n { throw MyronError(.unexpectedArity(count, .atLeast(n)), at: location) }
     }
 
+    func mustHaveExactly(_ n: Int, _ location: Location?) throws {
+        if count != n { throw MyronError(.unexpectedArity(count, .exactly(n)), at: location) }
+    }
+
     func hasArity(_ n: Int) -> Bool { count == n }
 
     func unwrap1(_ location: Location?) throws -> Value {
@@ -117,7 +121,7 @@ extension Value {
 
     var isCallable: Bool {
         switch self {
-        case .primitive, .procedure: return true
+        case .higherOrder, .primitive, .procedure: return true
         default: return false
         }
     }

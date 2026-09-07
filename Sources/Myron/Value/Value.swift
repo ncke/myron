@@ -8,6 +8,38 @@ public struct Procedure {
     let environment: Environment
 }
 
+// MARK: - Higher Order and Probe
+
+public enum HigherOrder {
+    case map, filter, reduce
+}
+
+public enum HigherProbe {
+    case all, any
+}
+
+extension HigherOrder: CustomStringConvertible {
+
+    public var description: String {
+        switch self {
+        case .map: return "map"
+        case .filter: return "filter"
+        case .reduce: return "reduce"
+        }
+    }
+
+}
+
+extension HigherProbe: CustomStringConvertible {
+
+    public var description: String {
+        switch self {
+        case .all: return "all"
+        case .any: return "any"
+        }
+    }
+}
+
 // MARK: - Value
 
 public typealias Primitive = ([Value], Applier, Location?) throws -> Value
@@ -17,6 +49,8 @@ public typealias Applier = (Value, [Value], Location?) throws -> Value
 public enum Value {
     case boolean(Bool)
     case double(Double)
+    case higherOrder(HigherOrder)
+    case higherProbe(HigherProbe)
     case integer(Int)
     case list([Value])
     case nothing
@@ -98,6 +132,8 @@ extension Value {
     public enum Kind: Equatable, CustomStringConvertible, Sendable {
         case boolean
         case double
+        case higherOrder
+        case higherProbe
         case integer
         case list
         case nothing
@@ -111,6 +147,8 @@ extension Value {
             switch self {
             case .boolean: return "boolean"
             case .double: return "double"
+            case .higherOrder: return "procedure"
+            case .higherProbe: return "procedure"
             case .integer: return "integer"
             case .list: return "list"
             case .nothing: return "nothing"
@@ -127,6 +165,8 @@ extension Value {
         switch self {
         case .boolean: return .boolean
         case .double: return .double
+        case .higherOrder: return .higherOrder
+        case .higherProbe: return .higherProbe
         case .integer: return .integer
         case .list: return .list
         case .nothing: return .nothing
@@ -148,6 +188,8 @@ extension Value: CustomStringConvertible {
         switch self {
         case .boolean(let boolean): "\(boolean)"
         case .double(let double): "\(double)"
+        case .higherOrder: "<procedure>"
+        case .higherProbe: "<procedure>"
         case .integer(let integer): "\(integer)"
         case .list(let list):
             "(" + list.map(\.description).joined(separator: " ") + ")"

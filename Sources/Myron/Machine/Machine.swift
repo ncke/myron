@@ -23,6 +23,10 @@ class Machine {
         case conjunction(ArraySlice<Expression>, Environment, Location?)
         case define(String, Environment)
         case disjunction(ArraySlice<Expression>, Environment, Location?)
+        case filtering(Value, Value, ArraySlice<Value>, [Value], Location?)
+        case mapping(Value, ArraySlice<Value>, [Value], Location?)
+        case probing(HigherProbe, Value, ArraySlice<Value>, Location?)
+        case reducing(Value, ArraySlice<Value>, Location?)
         case sequence(ArraySlice<Expression>, Environment, Location?)
     }
 
@@ -317,6 +321,59 @@ class Machine {
                 control = .value(.boolean(false))
             }
 
+        case .filtering(let function, let element, let remaining, var done, let location):
+            let include = try value.unwrapBoolean(location)
+            if include {
+                done.append(element)
+            }
+
+            if let next = remaining.first {
+                stack.append(.filtering(function, next, remaining.dropFirst(), done, location))
+                try apply(function, to: [next], at: location)
+                return
+            }
+
+            control = .value(.list(done))
+
+        case .mapping(let function, let remaining, var done, let location):
+            done.append(value)
+
+            if let next = remaining.first {
+                stack.append(.mapping(function, remaining.dropFirst(), done, location))
+                try apply(function, to: [next], at: location)
+                return
+            }
+
+            control = .value(.list(done))
+
+        case .probing(let higher, let function, let remaining, let location):
+            let result = try value.unwrapBoolean(location)
+
+            switch higher {
+            case .all: if !result { control = .value(.boolean(false)); return }
+            case .any: if result { control = .value(.boolean(true)); return }
+            }
+
+            if let next = remaining.first {
+                stack.append(.probing(higher, function, remaining.dropFirst(), location))
+                try apply(function, to: [next], at: location)
+                return
+            }
+
+            switch higher {
+            case .all: control = .value(.boolean(true))
+            case .any: control = .value(.boolean(false))
+            }
+
+        case .reducing(let function, let remaining, let location):
+            if let next = remaining.first {
+                stack.append(.reducing(function, remaining.dropFirst(), location))
+                try apply(function, to: [value, next], at: location)
+                return
+            }
+
+            control = .value(value)
+
         case .sequence(let remaining, let environment, let location):
             if let next = remaining.first {
                 if remaining.count > 1 {
@@ -340,6 +397,73 @@ class Machine {
         at location: Location?
     ) throws {
         switch value {
+
+        case .higherOrder(let higher):
+            switch higher {
+
+            case .map:
+                let (function, valueList) = try arguments.unwrap2(location)
+                guard function.isCallable else {
+                    throw MyronError(.expectedFunction(function.kind), at: location)
+                }
+                let values = try valueList.unwrapList(location)
+
+                if let headValue = values.first {
+                    stack.append(.mapping(function, values.dropFirst(), [], location))
+                    try apply(function, to: [headValue], at: location)
+                } else {
+                    control = .value(.list([]))
+                }
+
+            case .reduce:
+                let (function, partial, valueList) = try arguments.unwrap3(location)
+                guard function.isCallable else {
+                    throw MyronError(.expectedFunction(function.kind), at: location)
+                }
+                let values = try valueList.unwrapList(location)
+
+                if let headValue = values.first {
+                    stack.append(.reducing(function, values.dropFirst(), location))
+                    try apply(function, to: [partial, headValue], at: location)
+                } else {
+                    control = .value(partial)
+                }
+
+            case .filter:
+                let (function, valueList) = try arguments.unwrap2(location)
+                guard function.isCallable else {
+                    throw MyronError(.expectedFunction(function.kind), at: location)
+                }
+                let values = try valueList.unwrapList(location)
+
+                if let headValue = values.first {
+                    stack.append(.filtering(function, headValue, values.dropFirst(), [], location))
+                    try apply(function, to: [headValue], at: location)
+                } else {
+                    control = .value(.list([]))
+                }
+            }
+
+        case .higherProbe(let higher):
+            switch higher {
+
+            case .all, .any:
+                let (function, valueList) = try arguments.unwrap2(location)
+                guard function.isCallable else {
+                    throw MyronError(.expectedFunction(function.kind), at: location)
+                }
+                let values = try valueList.unwrapList(location)
+
+                if let headValue = values.first {
+                    stack.append(.probing(higher, function, values.dropFirst(), location))
+                    try apply(function, to: [headValue], at: location)
+                } else {
+                    switch higher {
+                    case .all: control = .value(.boolean(true))
+                    case .any: control = .value(.boolean(false))
+                    }
+                }
+            }
 
         case .primitive(let function):
             let result = try function(Array(arguments), Self.bogusApplier, location)
