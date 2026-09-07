@@ -8,6 +8,7 @@ public struct MyronError: Error, Sendable {
         case cannotBeNegative
         case divisionByZero
         case emptyApplication
+        case exceededMaximumStackDepth(Int)
         case expectedBindingsForLet
         case expectedExpressionAfterTick
         case expectedFunction(Value.Kind)
@@ -25,6 +26,10 @@ public struct MyronError: Error, Sendable {
         case reachedMaximumRecursionDepth
         case subscriptOutOfBounds(Int, Int)
         case typeMismatch
+        // .xunexpectedArity is an improved error case for arity that is able
+        // to express the given and expected arity. It will replace and take
+        // the name of the existing bare .unexpectedArity case.
+        case xunexpectedArity(Int, IntegerExpectation)
         case unexpectedArity
         case unexpectedType(Value.Kind?, Set<Value.Kind>)
         case unimplementedFeature
@@ -60,6 +65,30 @@ public struct MyronError: Error, Sendable {
 
 }
 
+// MARK: - Integer Expectation
+
+extension MyronError {
+
+    public enum IntegerExpectation: Sendable, Equatable {
+        case exactly(Int)
+        case atLeast(Int)
+        case atMost(Int)
+    }
+
+}
+
+extension MyronError.IntegerExpectation: CustomStringConvertible {
+
+    public var description: String {
+        switch self {
+        case .exactly(let count): return "\(count)"
+        case .atLeast(let count): return "at least \(count)"
+        case .atMost(let count): return "at most \(count)"
+        }
+    }
+
+}
+
 // MARK: - Reason Description
 
 extension MyronError.Reason: CustomStringConvertible {
@@ -69,6 +98,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .cannotBeNegative: return "Cannot be negative"
         case .divisionByZero: return "Division by zero"
         case .emptyApplication: return "Empty application"
+        case .exceededMaximumStackDepth(let depth): return "Exceeded maximum stack depth: \(depth)"
         case .expectedBindingsForLet: return "Expected bindings for let"
         case .expectedExpressionAfterTick: return "Expected expression after tick"
         case .expectedFunction(let kind): return "Expected function but got \(kind)"
@@ -88,6 +118,8 @@ extension MyronError.Reason: CustomStringConvertible {
             return "Subscript out of bounds: got \(got) for length \(length)"
         case .typeMismatch: return "Type mismatch"
         case .unexpectedArity: return "Unexpected arity"
+        case .xunexpectedArity(let got, let expected):
+            return "Unexpected arity: got \(got), expected \(expected)"
         case .unexpectedType(let got, let expected):
             let expectedString = expected
                 .map(\Value.Kind.description)

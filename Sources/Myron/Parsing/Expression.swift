@@ -2,18 +2,22 @@ import Foundation
 
 // MARK: - Expression
 
+///  A range expressing the character location of the expression in the source input.
+///  The raw type will be phased out as we migrate to the named alias.
+typealias Location = Range<Int>
+
 indirect enum Expression {
     case atom(Atom, Metadata)
     case list([Expression], Metadata)
 
     struct Metadata {
-        let location: Range<Int>?
+        let location: Location?
     }
 }
 
 extension Expression {
 
-    func getLocation() -> Range<Int>? {
+    func getLocation() -> Location? {
         switch self {
         case let .atom(_, metadata): return metadata.location
         case let .list(_, metadata): return metadata.location
@@ -40,6 +44,23 @@ extension Expression: CustomStringConvertible {
 
 extension Expression {
 
+    func unwrapBinding() throws -> (String, Expression) {
+        guard case let .list(subexprs, _) = self else {
+            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
+            throw MyronError(reason, at: self.getLocation())
+        }
+
+        guard subexprs.count == 2 else {
+            let reason = MyronError.Reason.xunexpectedArity(subexprs.count, .exactly(2))
+            throw MyronError(reason, at: self.getLocation())
+        }
+
+        let name = try subexprs[subexprs.startIndex].unwrapSymbolName()
+        let expr = subexprs[subexprs.startIndex + 1]
+
+        return (name, expr)
+    }
+
     func unwrapList(_ function: String) throws -> ([Expression], Metadata) {
         guard case let .list(subexpressions, metadata) = self else {
             let message = "'\(function)' expected a list"
@@ -47,6 +68,38 @@ extension Expression {
         }
 
         return (subexpressions, metadata)
+    }
+
+    func asValueKind() -> Value.Kind {
+        switch self {
+        case let .atom(atom, _): return atom.asValueKind()
+        case .list: return .list
+        }
+    }
+
+    func asList() -> [Expression]? {
+        guard case let .list(subexprs, _) = self else { return nil }
+        return subexprs
+    }
+
+    func asSymbolName() -> String? {
+        guard
+            case .atom(let atom, _) = self,
+            case .symbol(let name) = atom
+        else {
+            return nil
+        }
+
+        return name
+    }
+
+    func unwrapSymbolName() throws -> String {
+        guard let name = self.asSymbolName() else {
+            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.symbol])
+            throw MyronError(reason, at: self.getLocation())
+        }
+
+        return name
     }
 
 }
@@ -59,6 +112,27 @@ enum Atom {
     case integer(Int)
     case double(Double)
     case string(String)
+}
+
+extension Atom {
+
+    var isSymbol: Bool {
+        switch self {
+        case .symbol: return true
+        default: return false
+        }
+    }
+
+    func asValueKind() -> Value.Kind {
+        switch self {
+        case .boolean: return .boolean
+        case .integer: return .integer
+        case .double: return .double
+        case .string: return .string
+        case .symbol: return .symbol
+        }
+    }
+
 }
 
 extension Atom: CustomStringConvertible {

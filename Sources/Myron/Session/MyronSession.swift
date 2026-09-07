@@ -13,13 +13,15 @@ public final class MyronSession {
     let configuration: MyronSessionConfiguration
     let environment: Environment
     let environmentRegistry: EnvironmentRegistry
-    let evaluator: Evaluator
+    let evaluator: Evaluator // Will be replaced by the machine.
+    let machine: Machine
 
     public init(configuration: MyronSessionConfiguration = .standard) {
         self.configuration = configuration
         self.environmentRegistry = EnvironmentRegistry()
         self.environment = Environment(registry: environmentRegistry)
         self.evaluator = Evaluator(maximumRecursionDepth: configuration.maximumRecursionDepth)
+        self.machine = Machine(environment: environment)
     }
 
     deinit {
@@ -30,6 +32,8 @@ public final class MyronSession {
         _ expression: String,
         sourceHandle: Int? = nil
     ) -> Result {
+        defer { environmentRegistry.tidy() }
+        environmentRegistry.resetTidyTrigger()
         let lexer = Lexer(input: expression, sourceHandle: sourceHandle)
         let (tokens, lexingErrors) = lexer.tokenize()
         let parser = Parser(tokens: tokens)
@@ -47,9 +51,16 @@ public final class MyronSession {
             return .nothing
         }
 
+        let useMachine = true
+
         func caughtEval(_ form: Expression) -> Result {
             do {
-                let value = try evaluator.eval(form, environment: environment)
+                let value: Value
+                if useMachine {
+                    value = try machine.eval(form)
+                } else {
+                    value = try evaluator.eval(form, environment: environment)
+                }
                 return .success(value)
 
             } catch let error as MyronError {

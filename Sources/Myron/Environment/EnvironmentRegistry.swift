@@ -3,6 +3,8 @@ import Foundation
 // MARK: - EnvironmentRegistry
 
 final class EnvironmentRegistry {
+    static let defaultTidyTrigger = 120
+    private var tidyTrigger = EnvironmentRegistry.defaultTidyTrigger
 
     private class EnvironmentEntry {
         weak var environment: Environment?
@@ -17,7 +19,7 @@ final class EnvironmentRegistry {
     func register(_ environment: Environment) {
         let entry = EnvironmentEntry(environment: environment)
         register.append(entry)
-        tidy()
+        if register.count >= tidyTrigger { tidy() }
     }
 
     func shutdownAll() {
@@ -27,12 +29,13 @@ final class EnvironmentRegistry {
         }
     }
 
-    private func tidy() {
-        let survivors: [EnvironmentEntry] = register.filter {
-            entry in entry.environment != nil
-        }
+    func tidy() {
+        register = register.filter { reg in reg.environment != nil }
+        tidyTrigger = register.count < 100 ? 120 : Int(Double(register.count) * 1.2)
+    }
 
-        register = survivors
+    func resetTidyTrigger() {
+        tidyTrigger = EnvironmentRegistry.defaultTidyTrigger
     }
 
 }
