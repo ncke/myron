@@ -68,13 +68,13 @@ struct StandardLogicTests {
     }
 
     @Test("logic errors", arguments: [
-        ("(and)", .xunexpectedArity(0, .atLeast(1))),
-        ("(or)", .xunexpectedArity(0, .atLeast(1))),
-        ("(and true 1)", .typeMismatch),
-        ("(or false \"x\")", .typeMismatch),
-        ("(and 1 (/ 1 0))", .typeMismatch),
-        ("(not 1)", .typeMismatch),
-        ("(not true false)", .unexpectedArity)
+        ("(and)", .unexpectedArity(0, .atLeast(1))),
+        ("(or)", .unexpectedArity(0, .atLeast(1))),
+        ("(and true 1)", .unexpectedType(.integer, [.boolean])),
+        ("(or false \"x\")", .unexpectedType(.string, [.boolean])),
+        ("(and 1 (/ 1 0))", .unexpectedType(.integer, [.boolean])),
+        ("(not 1)", .unexpectedType(.integer, [.boolean])),
+        ("(not true false)", .unexpectedArity(2, .exactly(1)))
     ] as [FailureCase])
     func logicErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

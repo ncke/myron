@@ -138,14 +138,14 @@ struct StandardStringsTests {
     @Test("sequence errors over strings", arguments: [
         ("(take -1 \"ab\")", .cannotBeNegative),
         ("(drop -1 \"ab\")", .cannotBeNegative),
-        ("(take \"x\" \"ab\")", .typeMismatch),
-        ("(drop \"x\" \"ab\")", .typeMismatch),
-        ("(nth \"a\" \"abc\")", .typeMismatch),
+        ("(take \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
+        ("(drop \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
+        ("(nth \"a\" \"abc\")", .unexpectedType(.string, [.integer])),
         ("(nth 3 \"abc\")", .subscriptOutOfBounds(3, 3)),
         ("(nth -1 \"abc\")", .subscriptOutOfBounds(-1, 3)),
         ("(nth 0 \"\")", .subscriptOutOfBounds(0, 0)),
-        ("(contains 1 \"abc\")", .typeMismatch),
-        ("(append \"a\" 1)", .typeMismatch)
+        ("(contains 1 \"abc\")", .unexpectedType(.integer, [.string])),
+        ("(append \"a\" 1)", .unexpectedType(.integer, [.string]))
     ] as [FailureCase])
     func sequenceErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
@@ -285,29 +285,29 @@ struct StandardStringsTests {
     }
 
     @Test("native string errors", arguments: [
-        ("(explode 5)", .typeMismatch),
-        ("(explode)", .unexpectedArity),
-        ("(explode \"a\" \"b\")", .unexpectedArity),
-        ("(implode)", .unexpectedArity),
-        ("(implode \",\")", .unexpectedArity),
-        ("(implode '(\"a\") '(\"b\"))", .unexpectedArity),
-        ("(implode \",\" '(\"a\") '(\"b\"))", .unexpectedArity),
-        ("(implode 5)", .expectedList),
-        ("(implode \",\" 5)", .expectedList),
-        ("(implode \",\" \"a\")", .expectedList),
-        ("(string)", .unexpectedArity),
-        ("(string 1 2)", .unexpectedArity),
-        ("(lowercase 5)", .typeMismatch),
-        ("(uppercase 5)", .typeMismatch),
-        ("(trim 5)", .typeMismatch),
-        ("(lowercase)", .unexpectedArity),
-        ("(trim \"a\" \"b\")", .unexpectedArity),
-        ("(lines 5)", .typeMismatch),
-        ("(words 5)", .typeMismatch),
-        ("(lines)", .unexpectedArity),
-        ("(words)", .unexpectedArity),
-        ("(lines \"a\" \"b\")", .unexpectedArity),
-        ("(words \"a\" \"b\")", .unexpectedArity)
+        ("(explode 5)", .unexpectedType(.integer, [.string])),
+        ("(explode)", .unexpectedArity(0, .exactly(1))),
+        ("(explode \"a\" \"b\")", .unexpectedArity(2, .exactly(1))),
+        ("(implode)", .unexpectedArity(0, .atLeast(1))),
+        ("(implode \",\")", .unexpectedArity(1, .exactly(2))),
+        ("(implode '(\"a\") '(\"b\"))", .unexpectedArity(2, .exactly(1))),
+        ("(implode \",\" '(\"a\") '(\"b\"))", .unexpectedArity(3, .exactly(2))),
+        ("(implode 5)", .unexpectedType(.integer, [.list])),
+        ("(implode \",\" 5)", .unexpectedType(.integer, [.list])),
+        ("(implode \",\" \"a\")", .unexpectedType(.string, [.list])),
+        ("(string)", .unexpectedArity(0, .exactly(1))),
+        ("(string 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(lowercase 5)", .unexpectedType(.integer, [.string])),
+        ("(uppercase 5)", .unexpectedType(.integer, [.string])),
+        ("(trim 5)", .unexpectedType(.integer, [.string])),
+        ("(lowercase)", .unexpectedArity(0, .exactly(1))),
+        ("(trim \"a\" \"b\")", .unexpectedArity(2, .exactly(1))),
+        ("(lines 5)", .unexpectedType(.integer, [.string])),
+        ("(words 5)", .unexpectedType(.integer, [.string])),
+        ("(lines)", .unexpectedArity(0, .exactly(1))),
+        ("(words)", .unexpectedArity(0, .exactly(1))),
+        ("(lines \"a\" \"b\")", .unexpectedArity(2, .exactly(1))),
+        ("(words \"a\" \"b\")", .unexpectedArity(2, .exactly(1)))
     ] as [FailureCase])
     func nativeErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

@@ -151,13 +151,13 @@ struct StandardPredicatesTests {
     }
 
     @Test("predicate errors", arguments: [
-        ("(nothing? 1 2)", .unexpectedArity),
-        ("(number?)", .unexpectedArity),
-        ("(integer? 1 2)", .unexpectedArity),
-        ("(list? 1 2)", .unexpectedArity),
-        ("(positive? 1 2)", .unexpectedArity),
-        ("(negative? 1 2)", .unexpectedArity),
-        ("(zero? 1 2)", .unexpectedArity)
+        ("(nothing? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(number?)", .unexpectedArity(0, .exactly(1))),
+        ("(integer? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(list? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(positive? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(negative? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(zero? 1 2)", .unexpectedArity(2, .exactly(1)))
     ] as [FailureCase])
     func predicateErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

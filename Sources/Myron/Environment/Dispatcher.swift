@@ -22,7 +22,7 @@ struct Dispatcher: @unchecked Sendable {
         self.patterns = patterns
     }
 
-    func dispatch(_ args: [Value], _ apply: Applier, _ location: Range<Int>?) throws -> Value {
+    func dispatch(_ args: [Value], _ apply: Applier, _ location: Location?) throws -> Value {
         var arityMet = false
         var gotKinds = Set<Value.Kind>()
 
@@ -44,7 +44,7 @@ struct Dispatcher: @unchecked Sendable {
         }
 
         if !arityMet {
-            throw MyronError(.unexpectedArity, at: location)
+            throw MyronError(.unexpectedArity(args.count, .unspecified), at: location)
         }
 
         let got = gotKinds.count == 1 ? gotKinds.first : nil

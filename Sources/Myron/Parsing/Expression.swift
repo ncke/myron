@@ -4,7 +4,7 @@ import Foundation
 
 ///  A range expressing the character location of the expression in the source input.
 ///  The raw type will be phased out as we migrate to the named alias.
-typealias Location = Range<Int>
+public typealias Location = Range<Int>
 
 indirect enum Expression {
     case atom(Atom, Metadata)
@@ -51,7 +51,7 @@ extension Expression {
         }
 
         guard subexprs.count == 2 else {
-            let reason = MyronError.Reason.xunexpectedArity(subexprs.count, .exactly(2))
+            let reason = MyronError.Reason.unexpectedArity(subexprs.count, .exactly(2))
             throw MyronError(reason, at: self.getLocation())
         }
 

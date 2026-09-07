@@ -96,16 +96,16 @@ struct StandardHigherListsTests {
 
     @Test("higher-order errors", arguments: [
         ("(map 5 '(1 2))", .expectedFunction(.integer)),
-        ("(map sqrt 5)", .expectedList),
-        ("(filter sqrt '(1.0))", .typeMismatch),
-        ("(reduce + 0 5)", .expectedList),
+        ("(map sqrt 5)", .unexpectedType(.integer, [.list])),
+        ("(filter sqrt '(1.0))", .unexpectedType(.double, [.boolean])),
+        ("(reduce + 0 5)", .unexpectedType(.integer, [.list])),
         ("(all 5 '(1 2))", .expectedFunction(.integer)),
         ("(any 5 '(1 2))", .expectedFunction(.integer)),
-        ("(all sqrt 5)", .expectedList),
-        ("(any sqrt 5)", .expectedList),
-        ("(all (lambda (x) x) '(1))", .typeMismatch),
-        ("(any (lambda (x) x) '(1))", .typeMismatch),
-        ("(all (lambda (x) x))", .unexpectedArity)
+        ("(all sqrt 5)", .unexpectedType(.integer, [.list])),
+        ("(any sqrt 5)", .unexpectedType(.integer, [.list])),
+        ("(all (lambda (x) x) '(1))", .unexpectedType(.integer, [.boolean])),
+        ("(any (lambda (x) x) '(1))", .unexpectedType(.integer, [.boolean])),
+        ("(all (lambda (x) x))", .unexpectedArity(1, .exactly(2)))
     ] as [FailureCase])
     func higherOrderErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

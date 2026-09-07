@@ -4,7 +4,7 @@ import Foundation
 
 struct StandardHigherLists {
 
-    static func map(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func map(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (function, list) = try args.unwrap2(location)
         let elements = try list.unwrapList(location)
 
@@ -17,7 +17,7 @@ struct StandardHigherLists {
         return .list(mappings)
     }
 
-    static func filter(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func filter(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (function, list) = try args.unwrap2(location)
         let elements = try list.unwrapList(location)
 
@@ -30,7 +30,7 @@ struct StandardHigherLists {
         return .list(mappings)
     }
 
-    static func reduce(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func reduce(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (function, initial, list) = try args.unwrap3(location)
         var accumulator = initial
         let elements = try list.unwrapList(location)
@@ -42,7 +42,7 @@ struct StandardHigherLists {
         return accumulator
     }
 
-    static func all(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func all(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.isCallable else {
@@ -58,7 +58,7 @@ struct StandardHigherLists {
         return .boolean(true)
     }
 
-    static func any(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func any(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.isCallable else {

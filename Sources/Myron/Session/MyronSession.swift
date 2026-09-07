@@ -13,14 +13,12 @@ public final class MyronSession {
     let configuration: MyronSessionConfiguration
     let environment: Environment
     let environmentRegistry: EnvironmentRegistry
-    let evaluator: Evaluator // Will be replaced by the machine.
     let machine: Machine
 
     public init(configuration: MyronSessionConfiguration = .standard) {
         self.configuration = configuration
         self.environmentRegistry = EnvironmentRegistry()
         self.environment = Environment(registry: environmentRegistry)
-        self.evaluator = Evaluator(maximumRecursionDepth: configuration.maximumRecursionDepth)
         self.machine = Machine(environment: environment)
     }
 
@@ -51,16 +49,9 @@ public final class MyronSession {
             return .nothing
         }
 
-        let useMachine = true
-
         func caughtEval(_ form: Expression) -> Result {
             do {
-                let value: Value
-                if useMachine {
-                    value = try machine.eval(form)
-                } else {
-                    value = try evaluator.eval(form, environment: environment)
-                }
+                let value = try machine.eval(form)
                 return .success(value)
 
             } catch let error as MyronError {

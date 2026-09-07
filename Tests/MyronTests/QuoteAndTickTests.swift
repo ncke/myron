@@ -62,8 +62,8 @@ struct QuoteAndTickTests {
     }
 
     @Test("quote rejects the wrong arity", arguments: [
-        ("(quote)", .unexpectedArity),
-        ("(quote 1 2)", .unexpectedArity)
+        ("(quote)", .unexpectedArity(0, .exactly(1))),
+        ("(quote 1 2)", .unexpectedArity(2, .exactly(1)))
     ] as [FailureCase])
     func quoteArity(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

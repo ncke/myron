@@ -107,7 +107,7 @@ class Machine {
 
         case "and":
             guard let headClause = tail.first else {
-                throw MyronError(.xunexpectedArity(tail.count, .atLeast(1)), at: meta.location)
+                throw MyronError(.unexpectedArity(tail.count, .atLeast(1)), at: meta.location)
             }
 
             let frame = Frame.conjunction(tail.dropFirst(), environment, meta.location)
@@ -130,14 +130,14 @@ class Machine {
 
         case "define":
             guard tail.count >= 2 else {
-                throw MyronError(.xunexpectedArity(tail.count, .atLeast(2)), at: meta.location)
+                throw MyronError(.unexpectedArity(tail.count, .atLeast(2)), at: meta.location)
             }
 
             let signatureExpression = tail[tail.startIndex]
 
             if let name = signatureExpression.asSymbolName() {
                 guard tail.count == 2 else {
-                    throw MyronError(.xunexpectedArity(tail.count, .exactly(2)), at: meta.location)
+                    throw MyronError(.unexpectedArity(tail.count, .exactly(2)), at: meta.location)
                 }
 
                 let definition = tail[tail.startIndex + 1]
@@ -155,24 +155,24 @@ class Machine {
 
             guard let nameExpression = signature.first else {
                 throw MyronError(
-                    .xunexpectedArity(0, .atLeast(1)),
+                    .unexpectedArity(0, .atLeast(1)),
                     at: signatureExpression.getLocation())
             }
 
             let name = try nameExpression.unwrapSymbolName()
             let parameters = try signature.dropFirst().map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(tail.dropFirst())
-            let procedure = XProcedure(
+            let procedure = Procedure(
                 parameters: parameters,
                 bodies: bodies,
                 environment: environment)
             let frame = Frame.define(name, environment)
-            let control = Control.value(.xprocedure(procedure))
+            let control = Control.value(.procedure(procedure))
             return (frame, control)
 
         case "if":
             guard tail.count == 3 else {
-                throw MyronError(.xunexpectedArity(tail.count, .exactly(3)), at: meta.location)
+                throw MyronError(.unexpectedArity(tail.count, .exactly(3)), at: meta.location)
             }
 
             let condition = tail[tail.startIndex]
@@ -184,7 +184,7 @@ class Machine {
 
         case "lambda":
             guard tail.count >= 2 else {
-                throw MyronError(.xunexpectedArity(tail.count, .atLeast(2)), at: meta.location)
+                throw MyronError(.unexpectedArity(tail.count, .atLeast(2)), at: meta.location)
             }
 
             guard let parameterExpressions = tail[tail.startIndex].asList() else {
@@ -195,16 +195,16 @@ class Machine {
 
             let parameters = try parameterExpressions.map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(tail.dropFirst())
-            let procedure = XProcedure(
+            let procedure = Procedure(
                 parameters: parameters,
                 bodies: bodies,
                 environment: environment)
-            let control = Control.value(.xprocedure(procedure))
+            let control = Control.value(.procedure(procedure))
             return (nil, control)
 
         case "let":
             guard tail.count >= 2 else {
-                throw MyronError(.xunexpectedArity(tail.count, .atLeast(2)), at: meta.location)
+                throw MyronError(.unexpectedArity(tail.count, .atLeast(2)), at: meta.location)
             }
 
             guard let bindingExprs = tail[tail.startIndex].asList() else {
@@ -240,7 +240,7 @@ class Machine {
 
         case "or":
             guard let headClause = tail.first else {
-                throw MyronError(.xunexpectedArity(tail.count, .atLeast(1)), at: meta.location)
+                throw MyronError(.unexpectedArity(tail.count, .atLeast(1)), at: meta.location)
             }
 
             let frame = Frame.disjunction(tail.dropFirst(), environment, meta.location)
@@ -249,7 +249,7 @@ class Machine {
 
         case "quote":
             guard tail.count == 1 else {
-                throw MyronError(.xunexpectedArity(tail.count, .exactly(1)), at: meta.location)
+                throw MyronError(.unexpectedArity(tail.count, .exactly(1)), at: meta.location)
             }
 
             let quotation = tail[tail.startIndex]
@@ -345,11 +345,11 @@ class Machine {
             let result = try function(Array(arguments), Self.bogusApplier, location)
             control = .value(result)
 
-        case .xprocedure(let procedure):
+        case .procedure(let procedure):
             guard procedure.parameters.count == arguments.count else {
                 let got = arguments.count
                 let expected = procedure.parameters.count
-                let reason = MyronError.Reason.xunexpectedArity(got, .exactly(expected))
+                let reason = MyronError.Reason.unexpectedArity(got, .exactly(expected))
                 throw MyronError(reason, at: location)
             }
 

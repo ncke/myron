@@ -1,21 +1,18 @@
 import Foundation
 
-// MARK: - Value
+// MARK: - Procedure
 
-public typealias Primitive = ([Value], Applier, Range<Int>?) throws -> Value
-
-public typealias Applier = (Value, [Value], Range<Int>?) throws -> Value
-
-// todo: convert Procedure to a struct.
-public typealias Procedure = ([Value], EvaluationContext) throws -> Value
-
-public struct XProcedure {
+public struct Procedure {
     let parameters: [String]
     let bodies: [Expression]
     let environment: Environment
-
 }
 
+// MARK: - Value
+
+public typealias Primitive = ([Value], Applier, Location?) throws -> Value
+
+public typealias Applier = (Value, [Value], Location?) throws -> Value
 
 public enum Value {
     case boolean(Bool)
@@ -27,7 +24,6 @@ public enum Value {
     case symbol(String)
     case primitive(Primitive)
     case procedure(Procedure)
-    case xprocedure(XProcedure)
     case define(String)
 }
 
@@ -109,7 +105,6 @@ extension Value {
         case symbol
         case primitive
         case procedure
-        case xprocedure
         case define
 
         public var description: String {
@@ -123,7 +118,6 @@ extension Value {
             case .symbol: return "symbol"
             case .primitive: return "primitive"
             case .procedure: return "procedure"
-            case .xprocedure: return "Xprocedure"
             case .define: return "define"
             }
         }
@@ -140,7 +134,6 @@ extension Value {
         case .symbol: return .symbol
         case .primitive: return .primitive
         case .procedure: return .procedure
-        case .xprocedure: return .xprocedure
         case .define: return .define
         }
     }
@@ -163,7 +156,6 @@ extension Value: CustomStringConvertible {
         case .symbol(let symbol): "\(symbol)"
         case .primitive: "<primitive>"
         case .procedure: "<procedure>"
-        case .xprocedure: "<Xprocedure>"
         case .define(let name): "<define: \(name)>"
         }
     }

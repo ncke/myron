@@ -79,7 +79,7 @@ struct StandardSequenceTests {
         "(nth)", "(nth 0)", "(contains)", "(contains 1)"
     ])
     func missingSequence(_ source: String) {
-        expectFailure(source, reason: .unexpectedArity)
+        expectArityFailure(source)
     }
 
     @Test("surplus arguments are still an arity error", arguments: [
@@ -88,13 +88,13 @@ struct StandardSequenceTests {
         "(nth 0 \"ab\" 3)"
     ])
     func surplusArguments(_ source: String) {
-        expectFailure(source, reason: .unexpectedArity)
+        expectArityFailure(source)
     }
 
     @Test("append does not mix sequence types")
     func appendDoesNotMix() {
-        expectFailure("(append \"a\" '(1))", reason: .typeMismatch)
-        expectFailure("(append '(1) \"a\")", reason: .expectedList)
+        expectFailure("(append \"a\" '(1))", reason: .unexpectedType(.list, [.string]))
+        expectFailure("(append '(1) \"a\")", reason: .unexpectedType(.string, [.list]))
     }
 
     @Test("the type error message lists expectations in a stable order")

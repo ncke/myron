@@ -17,5 +17,5 @@ struct Token {
 
     let kind: Kind
     let sourceHandle: Int?
-    let location: Range<Int>
+    let location: Location
 }

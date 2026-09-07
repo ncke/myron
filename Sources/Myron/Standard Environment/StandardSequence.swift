@@ -4,51 +4,51 @@ import Foundation
 
 struct StandardSequence {
 
-    static func head(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func head(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.headDispatcher.dispatch(args, apply, location)
     }
 
-    static func tail(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func tail(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.tailDispatcher.dispatch(args, apply, location)
     }
 
-    static func initial(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func initial(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.initialDispatcher.dispatch(args, apply, location)
     }
 
-    static func last(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func last(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.lastDispatcher.dispatch(args, apply, location)
     }
 
-    static func take(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func take(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.takeDispatcher.dispatch(args, apply, location)
     }
 
-    static func drop(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func drop(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.dropDispatcher.dispatch(args, apply, location)
     }
 
-    static func length(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func length(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.lengthDispatcher.dispatch(args, apply, location)
     }
 
-    static func empty(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func empty(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.emptyDispatcher.dispatch(args, apply, location)
     }
 
-    static func append(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func append(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.appendDispatcher.dispatch(args, apply, location)
     }
 
-    static func reverse(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func reverse(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.reverseDispatcher.dispatch(args, apply, location)
     }
 
-    static func nth(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func nth(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.nthDispatcher.dispatch(args, apply, location)
     }
 
-    static func contains(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func contains(args: [Value], apply: Applier, location: Location?) throws -> Value {
         return try StandardSequence.containsDispatcher.dispatch(args, apply, location)
     }
 

@@ -68,19 +68,19 @@ struct StandardMathematicsTests {
     }
 
     @Test("arithmetic errors", arguments: [
-        ("(+ 1)", .unexpectedArity),
-        ("(+ 1 2.0)", .typeMismatch),
-        ("(+ 1 \"x\")", .typeMismatch),
-        ("(- 1 2 3)", .unexpectedArity),
-        ("(- 1 2.0)", .typeMismatch),
-        ("(* 2)", .unexpectedArity),
-        ("(* 1 2.0)", .typeMismatch),
+        ("(+ 1)", .unexpectedArity(1, .atLeast(2))),
+        ("(+ 1 2.0)", .unexpectedType(.double, [.integer])),
+        ("(+ 1 \"x\")", .unexpectedType(.string, [.integer])),
+        ("(- 1 2 3)", .unexpectedArity(3, .exactly(2))),
+        ("(- 1 2.0)", .unexpectedType(.integer, [.double, .integer])),
+        ("(* 2)", .unexpectedArity(1, .atLeast(2))),
+        ("(* 1 2.0)", .unexpectedType(.double, [.integer])),
         ("(/ 1 0)", .divisionByZero),
         ("(/ 1.0 0.0)", .divisionByZero),
-        ("(/ 1 2.0)", .typeMismatch),
-        ("(/ 1 2 3)", .unexpectedArity),
-        ("(sqrt \"x\")", .typeMismatch),
-        ("(sqrt 1 2)", .unexpectedArity),
+        ("(/ 1 2.0)", .unexpectedType(.integer, [.double, .integer])),
+        ("(/ 1 2 3)", .unexpectedArity(3, .exactly(2))),
+        ("(sqrt \"x\")", .unexpectedType(.string, [.double, .integer])),
+        ("(sqrt 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(rem 5 0)", .divisionByZero),
         ("(mod 5 0)", .divisionByZero)
     ] as [FailureCase])
@@ -137,9 +137,9 @@ struct StandardMathematicsTests {
 
     @Test("remainder errors", arguments: [
         ("(rem 5 0)", .divisionByZero),
-        ("(rem 5)", .unexpectedArity),
-        ("(rem 5.0 2.0)", .typeMismatch),
-        ("(rem 5 2.0)", .typeMismatch)
+        ("(rem 5)", .unexpectedArity(1, .exactly(2))),
+        ("(rem 5.0 2.0)", .unexpectedType(.double, [.integer])),
+        ("(rem 5 2.0)", .unexpectedType(.double, [.integer]))
     ] as [FailureCase])
     func remainderErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
@@ -271,14 +271,14 @@ struct StandardMathematicsTests {
         ("(integer \"1e19\")", .invalidNumber),
         ("(double \"abc\")", .invalidNumber),
         ("(double \"\")", .invalidNumber),
-        ("(integer true)", .typeMismatch),
-        ("(integer '(1))", .typeMismatch),
-        ("(double true)", .typeMismatch),
-        ("(double '(1))", .typeMismatch),
-        ("(integer)", .unexpectedArity),
-        ("(integer 1 2)", .unexpectedArity),
-        ("(double)", .unexpectedArity),
-        ("(double 1 2)", .unexpectedArity)
+        ("(integer true)", .typeCastFailed(.boolean, .integer)),
+        ("(integer '(1))", .typeCastFailed(.list, .integer)),
+        ("(double true)", .typeCastFailed(.boolean, .double)),
+        ("(double '(1))", .typeCastFailed(.list, .double)),
+        ("(integer)", .unexpectedArity(0, .exactly(1))),
+        ("(integer 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(double)", .unexpectedArity(0, .exactly(1))),
+        ("(double 1 2)", .unexpectedArity(2, .exactly(1)))
     ] as [FailureCase])
     func castErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
@@ -334,16 +334,16 @@ struct StandardMathematicsTests {
     }
 
     @Test("extended arithmetic errors", arguments: [
-        ("(pow 2)", .unexpectedArity),
-        ("(pow 2 \"x\")", .typeMismatch),
-        ("(mod 7.0 3.0)", .typeMismatch),
-        ("(min)", .unexpectedArity),
-        ("(min 1 2.0)", .typeMismatch),
-        ("(floor 3)", .typeMismatch),
-        ("(round 3)", .typeMismatch),
-        ("(log 100)", .typeMismatch),
-        ("(sin 0)", .typeMismatch),
-        ("(atan2 1.0)", .unexpectedArity)
+        ("(pow 2)", .unexpectedArity(1, .exactly(2))),
+        ("(pow 2 \"x\")", .unexpectedType(.integer, [.double, .integer])),
+        ("(mod 7.0 3.0)", .unexpectedType(.double, [.integer])),
+        ("(min)", .unexpectedArity(0, .atLeast(1))),
+        ("(min 1 2.0)", .unexpectedType(.double, [.integer])),
+        ("(floor 3)", .unexpectedType(.integer, [.double])),
+        ("(round 3)", .unexpectedType(.integer, [.double])),
+        ("(log 100)", .unexpectedType(.integer, [.double])),
+        ("(sin 0)", .unexpectedType(.integer, [.double])),
+        ("(atan2 1.0)", .unexpectedArity(1, .exactly(2)))
     ] as [FailureCase])
     func extendedErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

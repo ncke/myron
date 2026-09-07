@@ -107,7 +107,7 @@ extension Environment {
     static func unimplemented(
         args: [Value],
         applier: Applier,
-        location: Range<Int>?
+        location: Location?
     ) throws -> Value {
         throw MyronError(.unimplementedFeature, at: location)
     }

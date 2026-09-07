@@ -57,3 +57,32 @@ func expectFailure(
             sourceLocation: sourceLocation)
     }
 }
+
+func expectArityFailure(
+    _ source: String,
+    sourceLocation: SourceLocation = #_sourceLocation
+) {
+    switch MyronSession().eval(source) {
+
+    case .failure(let errors):
+        let reasons = errors.map(\.reason)
+        let isArity = reasons.contains {
+            if case .unexpectedArity = $0 { return true }
+            return false
+        }
+        #expect(
+            isArity,
+            "\(source) got \(reasons) (expected an arity error)",
+            sourceLocation: sourceLocation)
+
+    case .success(let value):
+        Issue.record(
+            "\(source) got \(value) (expected an arity error)",
+            sourceLocation: sourceLocation)
+
+    case .nothing:
+        Issue.record(
+            "\(source) got nothing (expected an arity error)",
+            sourceLocation: sourceLocation)
+    }
+}

@@ -9,28 +9,19 @@ public struct MyronError: Error, Sendable {
         case divisionByZero
         case emptyApplication
         case exceededMaximumStackDepth(Int)
-        case expectedBindingsForLet
         case expectedExpressionAfterTick
         case expectedFunction(Value.Kind)
-        case expectedList
-        case expectedProcedure
         case expectedQuote
         case expectedRightBracket
-        case expectedSymbol
         case incomparableTypes
         case inequatableTypes
         case internalError(String)
-        case invalidBindingForLet
         case invalidNumber
         case overflow
         case reachedMaximumRecursionDepth
         case subscriptOutOfBounds(Int, Int)
-        case typeMismatch
-        // .xunexpectedArity is an improved error case for arity that is able
-        // to express the given and expected arity. It will replace and take
-        // the name of the existing bare .unexpectedArity case.
-        case xunexpectedArity(Int, IntegerExpectation)
-        case unexpectedArity
+        case unexpectedArity(Int, IntegerExpectation)
+        case typeCastFailed(Value.Kind, Value.Kind)
         case unexpectedType(Value.Kind?, Set<Value.Kind>)
         case unimplementedFeature
         case unmatchedParenthesis
@@ -38,12 +29,12 @@ public struct MyronError: Error, Sendable {
     }
 
     public let reason: Reason
-    public let location: Range<Int>?
+    public let location: Location?
     public let message: String?
 
     init(
         reason: Reason,
-        location: Range<Int>?,
+        location: Location?,
         message: String? = nil
     ) {
         self.reason = reason
@@ -51,7 +42,7 @@ public struct MyronError: Error, Sendable {
         self.message = message
     }
 
-    init(_ reason: Reason, at location: Range<Int>?) {
+    init(_ reason: Reason, at location: Location?) {
         self.reason = reason
         self.location = location
         self.message = nil
@@ -73,6 +64,7 @@ extension MyronError {
         case exactly(Int)
         case atLeast(Int)
         case atMost(Int)
+        case unspecified
     }
 
 }
@@ -84,6 +76,7 @@ extension MyronError.IntegerExpectation: CustomStringConvertible {
         case .exactly(let count): return "\(count)"
         case .atLeast(let count): return "at least \(count)"
         case .atMost(let count): return "at most \(count)"
+        case .unspecified: return "unspecified"
         }
     }
 
@@ -99,27 +92,28 @@ extension MyronError.Reason: CustomStringConvertible {
         case .divisionByZero: return "Division by zero"
         case .emptyApplication: return "Empty application"
         case .exceededMaximumStackDepth(let depth): return "Exceeded maximum stack depth: \(depth)"
-        case .expectedBindingsForLet: return "Expected bindings for let"
         case .expectedExpressionAfterTick: return "Expected expression after tick"
         case .expectedFunction(let kind): return "Expected function but got \(kind)"
-        case .expectedList: return "Expected list"
-        case .expectedProcedure: return "Expected procedure"
         case .expectedQuote: return "Expected quote"
         case .expectedRightBracket: return "Expected right bracket"
-        case .expectedSymbol: return "Expected symbol"
         case .incomparableTypes: return "Incomparable types"
         case .inequatableTypes: return "Inequatable types"
         case .internalError(let message): return "Internal error: \(message)"
-        case .invalidBindingForLet: return "Invalid binding for let"
         case .invalidNumber: return "Invalid number"
         case .overflow: return "Overflow"
         case .reachedMaximumRecursionDepth: return "Reached maximum recursion depth"
         case .subscriptOutOfBounds(let got, let length):
             return "Subscript out of bounds: got \(got) for length \(length)"
-        case .typeMismatch: return "Type mismatch"
-        case .unexpectedArity: return "Unexpected arity"
-        case .xunexpectedArity(let got, let expected):
-            return "Unexpected arity: got \(got), expected \(expected)"
+        case .unexpectedArity(let got, let expected):
+            switch expected {
+            case .exactly, .atLeast, .atMost:
+                return "Unexpected arity: got \(got), expected \(expected)"
+            case .unspecified:
+                return "Unexpected arity: got \(got)"
+            }
+
+        case .typeCastFailed(let src, let dst):
+            return "Type cast failed: \(src) -> \(dst)"
         case .unexpectedType(let got, let expected):
             let expectedString = expected
                 .map(\Value.Kind.description)

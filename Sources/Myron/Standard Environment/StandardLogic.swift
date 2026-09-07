@@ -4,7 +4,7 @@ import Foundation
 
 struct StandardLogic {
 
-    static func not(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func not(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let bool = try args.unwrap1(location).unwrapBoolean(location)
         return .boolean(!bool)
     }

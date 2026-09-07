@@ -67,12 +67,12 @@ struct LambdaTests {
     }
 
     @Test("arity is enforced at definition and application", arguments: [
-        ("(lambda)", .unexpectedArity),
-        ("(lambda (x))", .unexpectedArity),
-        ("((lambda (x) x) 1 2)", .unexpectedArity),
-        ("((lambda (x y) x) 1)", .unexpectedArity),
-        ("((lambda () 1) 2)", .unexpectedArity),
-        ("(lambda (1) 1)", .typeMismatch)
+        ("(lambda)", .unexpectedArity(0, .atLeast(2))),
+        ("(lambda (x))", .unexpectedArity(1, .atLeast(2))),
+        ("((lambda (x) x) 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("((lambda (x y) x) 1)", .unexpectedArity(1, .exactly(2))),
+        ("((lambda () 1) 2)", .unexpectedArity(1, .exactly(0))),
+        ("(lambda (1) 1)", .unexpectedType(.integer, [.symbol]))
     ] as [FailureCase])
     func arityErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

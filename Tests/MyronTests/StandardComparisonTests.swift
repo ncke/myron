@@ -81,11 +81,11 @@ struct StandardComparisonTests {
     }
 
     @Test("comparison errors", arguments: [
-        ("(eq 1)", .unexpectedArity),
-        ("(eq 1 1.0)", .typeMismatch),
-        ("(eq '(1) '(1.0))", .typeMismatch),
-        ("(gt 1)", .unexpectedArity),
-        ("(gt 1 1.0)", .typeMismatch),
+        ("(eq 1)", .unexpectedArity(1, .exactly(2))),
+        ("(eq 1 1.0)", .unexpectedType(.double, [.integer])),
+        ("(eq '(1) '(1.0))", .unexpectedType(.double, [.integer])),
+        ("(gt 1)", .unexpectedArity(1, .exactly(2))),
+        ("(gt 1 1.0)", .unexpectedType(.double, [.integer])),
         ("(gt true false)", .incomparableTypes)
     ] as [FailureCase])
     func comparisonErrors(_ c: FailureCase) {

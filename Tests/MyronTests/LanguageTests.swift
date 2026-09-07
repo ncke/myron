@@ -33,6 +33,7 @@ import Testing
     }
 
     @Test("begin evaluates in order and yields the last value", arguments: [
+        ("(begin)", "<nothing>"),
         ("(begin 1 2 3)", "3"),
         ("(begin (define x 5) (define y 6) (* x y))", "30"),
         ("(begin (head '()))", "<nothing>"),
@@ -132,17 +133,17 @@ import Testing
     }
 
     @Test("let errors", arguments: [
-        ("(let)", .unexpectedArity),
-        ("(let ())", .unexpectedArity),
-        ("(let ((x 1)))", .unexpectedArity),
-        ("(let x 1)", .expectedBindingsForLet),
-        ("(let 5 1)", .expectedBindingsForLet),
-        ("(let \"x\" 1)", .expectedBindingsForLet),
-        ("(let ((x)) x)", .invalidBindingForLet),
-        ("(let ((x 1 2)) x)", .invalidBindingForLet),
-        ("(let ((1 2)) 1)", .invalidBindingForLet),
-        ("(let (x 1) x)", .invalidBindingForLet),
-        ("(let (x) x)", .invalidBindingForLet),
+        ("(let)", .unexpectedArity(0, .atLeast(2))),
+        ("(let ())", .unexpectedArity(1, .atLeast(2))),
+        ("(let ((x 1)))", .unexpectedArity(1, .atLeast(2))),
+        ("(let x 1)", .unexpectedType(.symbol, [.list])),
+        ("(let 5 1)", .unexpectedType(.integer, [.list])),
+        ("(let \"x\" 1)", .unexpectedType(.string, [.list])),
+        ("(let ((x)) x)", .unexpectedArity(1, .exactly(2))),
+        ("(let ((x 1 2)) x)", .unexpectedArity(3, .exactly(2))),
+        ("(let ((1 2)) 1)", .unexpectedType(.integer, [.symbol])),
+        ("(let (x 1) x)", .unexpectedType(.symbol, [.list])),
+        ("(let (x) x)", .unexpectedType(.symbol, [.list])),
         ("(let ((x undefined)) x)", .unrecognisedSymbol),
         ("(let ((x 1)) undefined)", .unrecognisedSymbol),
         ("(let ((x (/ 1 0))) x)", .divisionByZero)
@@ -152,16 +153,15 @@ import Testing
     }
 
     @Test("language errors", arguments: [
-        ("(if true 1)", .unexpectedArity),
-        ("(if 1 10 20)", .typeMismatch),
+        ("(if true 1)", .unexpectedArity(2, .exactly(3))),
+        ("(if 1 10 20)", .unexpectedType(.integer, [.boolean])),
         ("nonexistent", .unrecognisedSymbol),
         ("()", .emptyApplication),
-        ("(begin)", .unexpectedArity),
-        ("(define (f))", .unexpectedArity),
-        ("(define x 1 2)", .unexpectedArity),
-        ("(define (f 1) 1)", .typeMismatch),
-        ("(define (f x) 1) (f)", .unexpectedArity),
-        ("(define (f) 1) (f 1)", .unexpectedArity)
+        ("(define (f))", .unexpectedArity(1, .atLeast(2))),
+        ("(define x 1 2)", .unexpectedArity(3, .exactly(2))),
+        ("(define (f 1) 1)", .unexpectedType(.integer, [.symbol])),
+        ("(define (f x) 1) (f)", .unexpectedArity(0, .exactly(1))),
+        ("(define (f) 1) (f 1)", .unexpectedArity(1, .exactly(0)))
     ] as [FailureCase])
     func languageErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

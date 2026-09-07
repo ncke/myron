@@ -25,7 +25,7 @@ extension MyronError {
         return message
     }
 
-    private func extractText(from expression: String) -> (String, Range<Int>)? {
+    private func extractText(from expression: String) -> (String, Location)? {
         guard
             let location = self.location,
             location.lowerBound >= 0,

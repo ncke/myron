@@ -4,11 +4,11 @@ import Foundation
 
 struct StandardComparison {
 
-    static func eq(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func eq(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
-            throw MyronError(.typeMismatch, at: location)
+            throw MyronError(.unexpectedType(snd.kind, [fst.kind]), at: location)
         }
 
         if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f == s) }
@@ -31,7 +31,7 @@ struct StandardComparison {
         throw MyronError(.inequatableTypes, at: location)
     }
 
-    static func neq(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func neq(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let compare = try eq(args: args, apply: apply, location: location)
         if let bool = compare.asBoolean { return .boolean(!bool) }
 
@@ -39,11 +39,11 @@ struct StandardComparison {
         throw MyronError(.internalError(message), at: location)
     }
 
-    static func gt(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func gt(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
-            throw MyronError(.typeMismatch, at: location)
+            throw MyronError(.unexpectedType(snd.kind, [fst.kind]), at: location)
         }
 
         if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f > s) }
@@ -53,18 +53,18 @@ struct StandardComparison {
         throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func gte(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func gte(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let greater = try gt(args: args, apply: apply, location: location)
         if try greater.unwrapBoolean(location) { return greater }
         let equal = try eq(args: args, apply: apply, location: location)
         return equal
     }
 
-    static func lt(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func lt(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
-            throw MyronError(.typeMismatch, at: location)
+            throw MyronError(.unexpectedType(snd.kind, [fst.kind]), at: location)
         }
 
         if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f < s) }
@@ -74,7 +74,7 @@ struct StandardComparison {
         throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func lte(args: [Value], apply: Applier, location: Range<Int>?) throws -> Value {
+    static func lte(args: [Value], apply: Applier, location: Location?) throws -> Value {
         let lesser = try lt(args: args, apply: apply, location: location)
         if try lesser.unwrapBoolean(location) { return lesser }
         let equal = try eq(args: args, apply: apply, location: location)
