@@ -42,9 +42,7 @@ extension HigherProbe: CustomStringConvertible {
 
 // MARK: - Value
 
-public typealias Primitive = ([Value], Applier, Location?) throws -> Value
-
-public typealias Applier = (Value, [Value], Location?) throws -> Value
+public typealias Primitive = ([Value], Location?) throws -> Value
 
 public enum Value {
     case boolean(Bool)

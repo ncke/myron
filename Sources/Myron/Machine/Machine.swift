@@ -445,28 +445,24 @@ class Machine {
             }
 
         case .higherProbe(let higher):
-            switch higher {
+            let (function, valueList) = try arguments.unwrap2(location)
+            guard function.isCallable else {
+                throw MyronError(.expectedFunction(function.kind), at: location)
+            }
+            let values = try valueList.unwrapList(location)
 
-            case .all, .any:
-                let (function, valueList) = try arguments.unwrap2(location)
-                guard function.isCallable else {
-                    throw MyronError(.expectedFunction(function.kind), at: location)
-                }
-                let values = try valueList.unwrapList(location)
-
-                if let headValue = values.first {
-                    stack.append(.probing(higher, function, values.dropFirst(), location))
-                    try apply(function, to: [headValue], at: location)
-                } else {
-                    switch higher {
-                    case .all: control = .value(.boolean(true))
-                    case .any: control = .value(.boolean(false))
-                    }
+            if let headValue = values.first {
+                stack.append(.probing(higher, function, values.dropFirst(), location))
+                try apply(function, to: [headValue], at: location)
+            } else {
+                switch higher {
+                case .all: control = .value(.boolean(true))
+                case .any: control = .value(.boolean(false))
                 }
             }
 
         case .primitive(let function):
-            let result = try function(Array(arguments), Self.bogusApplier, location)
+            let result = try function(Array(arguments), location)
             control = .value(result)
 
         case .procedure(let procedure):
@@ -496,15 +492,6 @@ class Machine {
         default:
             throw MyronError(.expectedFunction(value.kind), at: location)
         }
-    }
-
-    static func bogusApplier(_ value: Value, _ args: [Value], _ location: Location?) throws -> Value {
-        // Allows us to provide an `Applier` to the existing primitives rather than
-        // attempt to convert the language wholesale to CEK in one iteration.
-        // The applier is only used by higher-order functions, so those primitives
-        // are out-of-bounds for now. This function will be removed once the primitive
-        // typealias has been finalised and the change has been chased through.
-        throw MyronError(.unimplementedFeature, at: location)
     }
 
 }

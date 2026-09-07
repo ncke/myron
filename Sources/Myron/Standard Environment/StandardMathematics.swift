@@ -6,7 +6,7 @@ import Foundation
 
 struct StandardMathematics {
 
-    static func add(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func add(args: [Value], location: Location?) throws -> Value {
         try args.mustHaveAtLeast(2, location)
 
         let fst = try args.unwrapFirst(location)
@@ -28,9 +28,9 @@ struct StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func sub(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func sub(args: [Value], location: Location?) throws -> Value {
         if args.hasArity(1) {
-            return try negation(args: args, apply: apply, location: location)
+            return try negation(args: args, location: location)
         }
 
         let (fst, snd) = try args.unwrap2(location)
@@ -44,7 +44,7 @@ struct StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func mul(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func mul(args: [Value], location: Location?) throws -> Value {
         try args.mustHaveAtLeast(2, location)
         let fst = try args.unwrapFirst(location)
         let tail = args.dropFirst()
@@ -66,7 +66,7 @@ struct StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func div(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func div(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -88,7 +88,7 @@ struct StandardMathematics {
 
 extension StandardMathematics {
 
-    static func mod(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func mod(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -108,7 +108,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(got, [.integer]), at: location)
     }
 
-    static func rem(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func rem(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -132,7 +132,6 @@ extension StandardMathematics {
 
     static func castToInteger(
         args: [Value],
-        apply: Applier,
         location: Location?
     ) throws -> Value {
         let arg = try args.unwrap1(location)
@@ -165,7 +164,6 @@ extension StandardMathematics {
 
     static func castToDouble(
         args: [Value],
-        apply: Applier,
         location: Location?
     ) throws -> Value {
         let arg = try args.unwrap1(location)
@@ -192,7 +190,7 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func minimum(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func minimum(args: [Value], location: Location?) throws -> Value {
         try args.mustHaveAtLeast(1, location)
 
         let fst = try args.unwrapFirst(location)
@@ -211,7 +209,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func maximum(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func maximum(args: [Value], location: Location?) throws -> Value {
         try args.mustHaveAtLeast(1, location)
 
         let fst = try args.unwrapFirst(location)
@@ -238,7 +236,6 @@ extension StandardMathematics {
 
     private static func negation(
         args: [Value],
-        apply: Applier,
         location: Location?
     ) throws -> Value {
         let number = try args.unwrap1(location)
@@ -248,7 +245,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(number.kind, [.integer, .double]), at: location)
     }
 
-    static func absolute(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func absolute(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asInteger {
             return .integer(n < 0 ? try negateOverflow(n, at: location) : n)
@@ -263,19 +260,19 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func floored(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func floored(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(floor(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func ceilinged(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func ceilinged(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(ceil(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func rounded(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func rounded(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(round(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
@@ -287,7 +284,7 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func power(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func power(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -301,7 +298,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func squareRoot(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func squareRoot(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
 
         if let n = number.asInteger { return .double(sqrt(Double(n))) }
@@ -315,13 +312,13 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func logged(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func logged(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(log10(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func lned(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func lned(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(log(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
@@ -333,43 +330,43 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func trigSin(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trigSin(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(sin(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigCos(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trigCos(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(cos(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigTan(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trigTan(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(tan(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAsin(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trigAsin(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(asin(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAcos(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trigAcos(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(acos(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAtan(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trigAtan(args: [Value], location: Location?) throws -> Value {
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(atan(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAtan2(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trigAtan2(args: [Value], location: Location?) throws -> Value {
         let (y, x) = try args.unwrap2(location)
         if let y = y.asDouble, let x = x.asDouble { return .double(atan2(y, x)) }
 

@@ -6,31 +6,31 @@ import Foundation
 
 struct StandardStrings {
 
-    static func head(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func head(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         guard let head = str.first else { return .nothing }
         return .string(String(head))
     }
 
-    static func tail(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func tail(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         let tail = String(str.dropFirst())
         return .string(tail)
     }
 
-    static func initial(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func initial(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         let result = String(str.dropLast())
         return .string(result)
     }
 
-    static func last(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func last(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         guard let last = str.last else { return .nothing }
         return .string(String(last))
     }
 
-    static func take(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func take(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
         let count = try fst.unwrapInteger(location)
         guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
@@ -40,7 +40,7 @@ struct StandardStrings {
         return .string(take)
     }
 
-    static func drop(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func drop(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
         let count = try fst.unwrapInteger(location)
         guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
@@ -50,17 +50,17 @@ struct StandardStrings {
         return .string(drop)
     }
 
-    static func length(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func length(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         return .integer(str.count)
     }
 
-    static func empty(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        let n = try length(args: args, apply: apply, location: location).unwrapInteger(location)
+    static func empty(args: [Value], location: Location?) throws -> Value {
+        let n = try length(args: args, location: location).unwrapInteger(location)
         return .boolean(n == 0)
     }
 
-    static func append(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func append(args: [Value], location: Location?) throws -> Value {
         try args.mustHaveAtLeast(1, location)
         var result = ""
         for arg in args {
@@ -70,12 +70,12 @@ struct StandardStrings {
         return .string(result)
     }
 
-    static func reverse(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func reverse(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         return .string(String(str.reversed()))
     }
 
-    static func nth(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func nth(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
         let index = try fst.unwrapInteger(location)
         let str = try snd.unwrapString(location)
@@ -88,7 +88,7 @@ struct StandardStrings {
         return .string(String(char))
     }
 
-    static func contains(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func contains(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
         let target = try fst.unwrapString(location)
         let str = try snd.unwrapString(location)
@@ -102,13 +102,13 @@ struct StandardStrings {
 
 extension StandardStrings {
 
-    static func explode(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func explode(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         let pieces = str.map { ch in Value.string(String(ch)) }
         return .list(pieces)
     }
 
-    static func implode(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func implode(args: [Value], location: Location?) throws -> Value {
         try args.mustHaveAtLeast(1, location)
         let sep: String
         let elements: [Value]
@@ -137,28 +137,28 @@ extension StandardStrings {
         return .string(descriptions.joined(separator: sep))
     }
 
-    static func string(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func string(args: [Value], location: Location?) throws -> Value {
         let src = try args.unwrap1(location)
         if src.kind == .string { return src }
         return .string(src.description)
     }
 
-    static func lowercase(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func lowercase(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         return .string(str.lowercased())
     }
 
-    static func uppercase(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func uppercase(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         return .string(str.uppercased())
     }
 
-    static func trim(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func trim(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         return .string(str.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    static func lines(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func lines(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         let lines = str
             .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
@@ -167,7 +167,7 @@ extension StandardStrings {
         return .list(lines)
     }
 
-    static func words(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func words(args: [Value], location: Location?) throws -> Value {
         let str = try args.unwrap1(location).unwrapString(location)
         let words = str
             .split(omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)

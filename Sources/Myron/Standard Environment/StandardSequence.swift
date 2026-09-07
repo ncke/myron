@@ -4,52 +4,52 @@ import Foundation
 
 struct StandardSequence {
 
-    static func head(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.headDispatcher.dispatch(args, apply, location)
+    static func head(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.headDispatcher.dispatch(args, location)
     }
 
-    static func tail(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.tailDispatcher.dispatch(args, apply, location)
+    static func tail(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.tailDispatcher.dispatch(args, location)
     }
 
-    static func initial(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.initialDispatcher.dispatch(args, apply, location)
+    static func initial(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.initialDispatcher.dispatch(args, location)
     }
 
-    static func last(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.lastDispatcher.dispatch(args, apply, location)
+    static func last(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.lastDispatcher.dispatch(args, location)
     }
 
-    static func take(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.takeDispatcher.dispatch(args, apply, location)
+    static func take(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.takeDispatcher.dispatch(args, location)
     }
 
-    static func drop(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.dropDispatcher.dispatch(args, apply, location)
+    static func drop(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.dropDispatcher.dispatch(args, location)
     }
 
-    static func length(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.lengthDispatcher.dispatch(args, apply, location)
+    static func length(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.lengthDispatcher.dispatch(args, location)
     }
 
-    static func empty(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.emptyDispatcher.dispatch(args, apply, location)
+    static func empty(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.emptyDispatcher.dispatch(args, location)
     }
 
-    static func append(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.appendDispatcher.dispatch(args, apply, location)
+    static func append(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.appendDispatcher.dispatch(args, location)
     }
 
-    static func reverse(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.reverseDispatcher.dispatch(args, apply, location)
+    static func reverse(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.reverseDispatcher.dispatch(args, location)
     }
 
-    static func nth(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.nthDispatcher.dispatch(args, apply, location)
+    static func nth(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.nthDispatcher.dispatch(args, location)
     }
 
-    static func contains(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        return try StandardSequence.containsDispatcher.dispatch(args, apply, location)
+    static func contains(args: [Value], location: Location?) throws -> Value {
+        return try StandardSequence.containsDispatcher.dispatch(args, location)
     }
 
 }

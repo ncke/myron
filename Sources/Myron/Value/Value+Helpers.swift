@@ -121,7 +121,7 @@ extension Value {
 
     var isCallable: Bool {
         switch self {
-        case .higherOrder, .primitive, .procedure: return true
+        case .higherOrder, .higherProbe, .primitive, .procedure: return true
         default: return false
         }
     }

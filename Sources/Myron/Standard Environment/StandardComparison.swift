@@ -4,7 +4,7 @@ import Foundation
 
 struct StandardComparison {
 
-    static func eq(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func eq(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
@@ -21,7 +21,7 @@ struct StandardComparison {
             if f.count != s.count { return .boolean(false) }
 
             for (ef, es) in zip(f, s) {
-                let compare = try eq(args: [ef, es], apply: apply, location: location)
+                let compare = try eq(args: [ef, es], location: location)
                 if try !compare.unwrapBoolean(location) { return .boolean(false) }
             }
 
@@ -31,15 +31,15 @@ struct StandardComparison {
         throw MyronError(.inequatableTypes, at: location)
     }
 
-    static func neq(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        let compare = try eq(args: args, apply: apply, location: location)
+    static func neq(args: [Value], location: Location?) throws -> Value {
+        let compare = try eq(args: args, location: location)
         if let bool = compare.asBoolean { return .boolean(!bool) }
 
         let message = "'neq' expects \(compare.kind) as a boolean"
         throw MyronError(.internalError(message), at: location)
     }
 
-    static func gt(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func gt(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
@@ -53,14 +53,14 @@ struct StandardComparison {
         throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func gte(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        let greater = try gt(args: args, apply: apply, location: location)
+    static func gte(args: [Value], location: Location?) throws -> Value {
+        let greater = try gt(args: args, location: location)
         if try greater.unwrapBoolean(location) { return greater }
-        let equal = try eq(args: args, apply: apply, location: location)
+        let equal = try eq(args: args, location: location)
         return equal
     }
 
-    static func lt(args: [Value], apply: Applier, location: Location?) throws -> Value {
+    static func lt(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
@@ -74,10 +74,10 @@ struct StandardComparison {
         throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func lte(args: [Value], apply: Applier, location: Location?) throws -> Value {
-        let lesser = try lt(args: args, apply: apply, location: location)
+    static func lte(args: [Value], location: Location?) throws -> Value {
+        let lesser = try lt(args: args, location: location)
         if try lesser.unwrapBoolean(location) { return lesser }
-        let equal = try eq(args: args, apply: apply, location: location)
+        let equal = try eq(args: args, location: location)
         return equal
     }
 
