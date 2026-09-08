@@ -21,7 +21,6 @@ final class Machine {
 // MARK: - Frame and Control
 
 extension Machine {
-
     enum Frame {
         case arguments(ArraySlice<Expression>, [Value], Environment, Location?)
         case bind(String, ArraySlice<Expression>, ArraySlice<Expression>, Environment, Location?)
@@ -36,6 +35,21 @@ extension Machine {
         case reducing(Value, ArraySlice<Value>, Location?)
         case sequence(ArraySlice<Expression>, Environment, Location?)
     }
+
+//    enum Frame {
+//        case arguments(LocatedSlice<Expression>, [Value], Environment, Location?)
+//        case bind(String, LocatedSlice<Expression>, LocatedSlice<Expression>, Environment, Location?)
+//        case branch(Expression, Expression, Environment, Location?)
+//        case condition(LocatedSlice<Expression>, LocatedSlice<Expression>, Environment, Location?)
+//        case conjunction(LocatedSlice<Expression>, Environment, Location?)
+//        case define(String, Environment)
+//        case disjunction(LocatedSlice<Expression>, Environment, Location?)
+//        case filtering(Value, Value, ArraySlice<Value>, [Value], Location?)
+//        case mapping(Value, ArraySlice<Value>, [Value], Location?)
+//        case probing(HigherProbe, Value, ArraySlice<Value>, Location?)
+//        case reducing(Value, ArraySlice<Value>, Location?)
+//        case sequence(LocatedSlice<Expression>, Environment, Location?)
+//    }
 
     enum Control {
         case eval(Expression, Environment)
@@ -68,7 +82,7 @@ extension Machine {
 
             case .eval(let expression, let environment):
                 try step(expression: expression, environment: environment)
-                try checkStackDepth(at: expression.getLocation())
+                try checkStackDepth(at: expression.location)
 
             case .value(let value):
                 guard let frame = stack.popLast() else { return value }
@@ -130,7 +144,7 @@ extension Machine {
         meta: Expression.Metadata,
         environment: Environment
     ) throws -> (Frame?, Control)? {
-        guard case .atom(.symbol(let formName), _) = head else { return nil }
+        guard let formName = head.asSymbolName() else { return nil }
 
         switch formName {
 
@@ -171,10 +185,10 @@ extension Machine {
             guard let sigList = sigExpression.asList() else {
                 let got = sigExpression.asValueKind()
                 let reason = MyronError.Reason.unexpectedType(got, [.symbol, .list])
-                throw MyronError(reason, at: sigExpression.getLocation())
+                throw MyronError(reason, at: sigExpression.location)
             }
 
-            let (nameExpr, paramExprs) = try sigList.headtail(sigExpression.getLocation())
+            let (nameExpr, paramExprs) = try sigList.headtail(sigExpression.location)
             let name = try nameExpr.unwrapSymbolName()
             let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(tail[(tail.startIndex + 1)...])
@@ -182,10 +196,7 @@ extension Machine {
             return (.define(name, environment), .value(.procedure(proc)))
 
         case "if":
-            try tail.mustHaveExactly(3, meta.location)
-            let condition = tail[tail.startIndex]
-            let thenClause = tail[tail.startIndex + 1]
-            let elseClause = tail[tail.startIndex + 2]
+            let (condition, thenClause, elseClause) = try tail.unwrap3(meta.location)
             return (
                 .branch(thenClause, elseClause, environment, meta.location),
                 .eval(condition, environment))
@@ -227,8 +238,8 @@ extension Machine {
             return (.disjunction(remainder, environment, meta.location), .eval(clause, environment))
 
         case "quote":
-            try tail.mustHaveExactly(1, meta.location)
-            let value = Value.makeValue(from: tail[tail.startIndex])
+            let quotation = try tail.unwrap1(meta.location)
+            let value = try Value.makeValue(from: quotation, at: meta.location)
             return (nil, .value(value))
 
         default: return nil

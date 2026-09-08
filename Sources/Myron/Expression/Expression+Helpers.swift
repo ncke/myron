@@ -2,17 +2,47 @@ import Foundation
 
 // MARK: - Expression Helpers
 
+// MARK: - Expression Unwrapping
+
 extension Expression {
+
+//    func unwrapList() throws -> (LocatedList<Expression>, Metadata) {
+//        guard case let .list(subexpressions, metadata) = self else {
+//            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
+//            throw MyronError(reason, at: self.location)
+//        }
+//
+//        let list = LocatedList(location: metadata.location, elements: subexpressions)
+//        return (list, metadata)
+//    }
+
+    func unwrapList() throws -> ([Expression], Metadata) {
+        guard case let .list(subexpressions, metadata) = self else {
+            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
+            throw MyronError(reason, at: self.location)
+        }
+
+        return (subexpressions, metadata)
+    }
+
+    func unwrapSymbolName() throws -> String {
+        guard let name = self.asSymbolName() else {
+            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.symbol])
+            throw MyronError(reason, at: self.location)
+        }
+
+        return name
+    }
 
     func unwrapBinding() throws -> (String, Expression) {
         guard case let .list(subexprs, _) = self else {
             let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
-            throw MyronError(reason, at: self.getLocation())
+            throw MyronError(reason, at: self.location)
         }
 
         guard subexprs.count == 2 else {
             let reason = MyronError.Reason.unexpectedArity(subexprs.count, .exactly(2))
-            throw MyronError(reason, at: self.getLocation())
+            throw MyronError(reason, at: self.location)
         }
 
         let name = try subexprs[subexprs.startIndex].unwrapSymbolName()
@@ -21,21 +51,11 @@ extension Expression {
         return (name, expr)
     }
 
-    func unwrapList() throws -> ([Expression], Metadata) {
-        guard case let .list(subexpressions, metadata) = self else {
-            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
-            throw MyronError(reason, at: self.getLocation())
-        }
+}
 
-        return (subexpressions, metadata)
-    }
+// MARK: - Expression Probing
 
-    func asValueKind() -> Value.Kind {
-        switch self {
-        case let .atom(atom, _): return atom.asValueKind()
-        case .list: return .list
-        }
-    }
+extension Expression {
 
     func asList() -> [Expression]? {
         guard case let .list(subexprs, _) = self else { return nil }
@@ -53,46 +73,33 @@ extension Expression {
         return name
     }
 
-    func unwrapSymbolName() throws -> String {
-        guard let name = self.asSymbolName() else {
-            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.symbol])
-            throw MyronError(reason, at: self.getLocation())
+}
+
+// MARK: - Value Kind Conversion
+
+extension Expression {
+
+    func asValueKind() -> Value.Kind {
+        switch self {
+        case let .atom(atom, _): return atom.asValueKind()
+        case .list: return .list
         }
-
-        return name
-    }
-
-    func headtail() throws -> (Expression, ArraySlice<Expression>) {
-        let (list, meta) = try self.unwrapList()
-        return try list.headtail(meta.location)
     }
 
 }
 
-// MARK: - Expression Collections
+// MARK: - List Destructuring
 
-extension Collection where Element == Expression {
+extension Expression {
 
-    func mustHaveAtLeast(_ n: Int, _ location: Location?) throws {
-        if count < n {
-            let reason = MyronError.Reason.unexpectedArity(count, .atLeast(n))
-            throw MyronError(reason, at: location)
-        }
-    }
+//    func headtail() throws -> (Expression, Slice<LocatedList<Expression>>) {
+//        let (list, meta) = try self.unwrapList()
+//        return try list.headtail(meta.location)
+//    }
 
-    func mustHaveExactly(_ n: Int, _ location: Location?) throws {
-        if count != n {
-            let reason = MyronError.Reason.unexpectedArity(count, .exactly(n))
-            throw MyronError(reason, at: location)
-        }
-    }
-
-    func headtail(_ location: Location?) throws -> (Element, Self.SubSequence) {
-        try mustHaveAtLeast(1, location)
-        let head = self[startIndex]
-        let tail = self[index(after: startIndex)...]
-        return (head, tail)
-
+    func headtail() throws -> (Expression, ArraySlice<Expression>) {
+        let (list, meta) = try self.unwrapList()
+        return try list.headtail(meta.location)
     }
 
 }

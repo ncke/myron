@@ -70,12 +70,9 @@ extension Value {
         }
     }
 
-
-    static func makeValue(from expression: Expression) -> Value {
-        if case .atom(let atom, _) = expression {
-            return makeValue(from: atom)
-        }
-
+    static func makeValue(from expression: Expression, at location: Location?) throws -> Value {
+        if case .atom(let atom, _) = expression { return makeValue(from: atom) }
+        
         var stack = [([Value], ArraySlice<Expression>)]()
         var remaining: ArraySlice<Expression> = [expression]
         var done = [Value]()
@@ -83,7 +80,6 @@ extension Value {
         while true {
             if let next = remaining.first {
                 remaining = remaining.dropFirst()
-
                 switch next {
 
                 case .atom(let atom, _):
@@ -106,7 +102,11 @@ extension Value {
                 continue
             }
 
-            guard let result = done.first else { fatalError() }
+            guard let result = done.first else {
+                let explain = "`makeValue` completed with an empty stack"
+                throw MyronError(.internalError(explain), at: location)
+            }
+
             return result
         }
     }

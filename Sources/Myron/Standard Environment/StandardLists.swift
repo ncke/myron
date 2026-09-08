@@ -7,25 +7,25 @@ import Foundation
 struct StandardLists {
 
     static func head(args: [Value], location: Location?) throws -> Value {
-        let elements = try args.unwrap1List(location)
+        let elements = try args.unwrap1(location).unwrapList(location)
         guard let head = elements.first else { return .nothing }
         return head
     }
 
     static func tail(args: [Value], location: Location?) throws -> Value {
-        let elements = try args.unwrap1List(location)
+        let elements = try args.unwrap1(location).unwrapList(location)
         let tail = Array(elements.dropFirst())
         return .list(tail)
     }
 
     static func initial(args: [Value], location: Location?) throws -> Value {
-        let elements = try args.unwrap1List(location)
+        let elements = try args.unwrap1(location).unwrapList(location)
         let result = Array(elements.dropLast())
         return .list(result)
     }
 
     static func last(args: [Value], location: Location?) throws -> Value {
-        let elements = try args.unwrap1List(location)
+        let elements = try args.unwrap1(location).unwrapList(location)
         guard let last = elements.last else { return .nothing }
         return last
     }
@@ -51,7 +51,7 @@ struct StandardLists {
     }
 
     static func length(args: [Value], location: Location?) throws -> Value {
-        let elements = try args.unwrap1List(location)
+        let elements = try args.unwrap1(location).unwrapList(location)
         return .integer(elements.count)
     }
 
@@ -71,7 +71,7 @@ struct StandardLists {
     }
 
     static func reverse(args: [Value], location: Location?) throws -> Value {
-        let list = try args.unwrap1List(location)
+        let list = try args.unwrap1(location).unwrapList(location)
         let reversed = Array(list.reversed())
         return .list(reversed)
     }
