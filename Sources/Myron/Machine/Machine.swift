@@ -135,173 +135,101 @@ extension Machine {
         switch formName {
 
         case "and":
-            guard let headClause = tail.first else {
-                throw MyronError(.unexpectedArity(tail.count, .atLeast(1)), at: meta.location)
-            }
-
-            let frame = Frame.conjunction(tail.dropFirst(), environment, meta.location)
-            let control = Control.eval(headClause, environment)
+            let (clause, remainder) = try tail.headtail(meta.location)
+            let frame = Frame.conjunction(remainder, environment, meta.location)
+            let control = Control.eval(clause, environment)
             return (frame, control)
 
         case "begin":
             if tail.count == 0 {
                 return (nil, .value(.nothing))
-            }
-
-            if tail.count > 1 {
-                let frame = Frame.sequence(tail.dropFirst(), environment, meta.location)
-                let control = Control.eval(tail[tail.startIndex], environment)
-                return (frame, control)
+            } else if tail.count > 1 {
+                return (
+                    .sequence(tail.dropFirst(), environment, meta.location),
+                    .eval(tail[tail.startIndex], environment))
             } else {
-                let control = Control.eval(tail[tail.startIndex], environment)
-                return (nil, control)
+                return (nil, .eval(tail[tail.startIndex], environment))
             }
 
         case "cond":
-            guard tail.count >= 1 else {
-                throw MyronError(.unexpectedArity(tail.count, .atLeast(1)), at: meta.location)
-            }
-
-            let (headList, hmeta) = try tail[tail.startIndex].unwrapList()
-            guard headList.count >= 1 else {
-                throw MyronError(.unexpectedArity(headList.count, .atLeast(1)), at: hmeta.location)
-            }
-
-            let condition = headList[headList.startIndex]
-            let bodies = headList[headList.index(after: headList.startIndex)...]
-            let frame = Frame.condition(bodies, tail.dropFirst(), environment, meta.location)
-            let control = Control.eval(condition, environment)
-            return (frame, control)
+            let (clause, remainder) = try tail.headtail(meta.location)
+            let (condition, bodies) = try clause.headtail()
+            return (
+                .condition(bodies, remainder, environment, meta.location),
+                .eval(condition, environment))
 
         case "define":
-            guard tail.count >= 2 else {
-                throw MyronError(.unexpectedArity(tail.count, .atLeast(2)), at: meta.location)
-            }
+            try tail.mustHaveAtLeast(2, meta.location)
+            let sigExpression = tail[tail.startIndex]
 
-            let signatureExpression = tail[tail.startIndex]
-
-            if let name = signatureExpression.asSymbolName() {
-                guard tail.count == 2 else {
-                    throw MyronError(.unexpectedArity(tail.count, .exactly(2)), at: meta.location)
-                }
-
+            if let name = sigExpression.asSymbolName() {
+                try tail.mustHaveExactly(2, meta.location)
                 let definition = tail[tail.startIndex + 1]
-                let frame = Frame.define(name, environment)
-                let control = Control.eval(definition, environment)
-                return (frame, control)
+                return (.define(name, environment), .eval(definition, environment))
             }
 
-            guard let signature = signatureExpression.asList() else {
-                let reason = MyronError.Reason.unexpectedType(
-                    signatureExpression.asValueKind(),
-                    [.symbol, .list])
-                throw MyronError(reason, at: signatureExpression.getLocation())
+            guard let sigList = sigExpression.asList() else {
+                let got = sigExpression.asValueKind()
+                let reason = MyronError.Reason.unexpectedType(got, [.symbol, .list])
+                throw MyronError(reason, at: sigExpression.getLocation())
             }
 
-            guard let nameExpression = signature.first else {
-                throw MyronError(
-                    .unexpectedArity(0, .atLeast(1)),
-                    at: signatureExpression.getLocation())
-            }
-
-            let name = try nameExpression.unwrapSymbolName()
-            let parameters = try signature.dropFirst().map { expr in try expr.unwrapSymbolName() }
-            let bodies = Array(tail.dropFirst())
-            let procedure = Procedure(
-                parameters: parameters,
-                bodies: bodies,
-                environment: environment)
-            let frame = Frame.define(name, environment)
-            let control = Control.value(.procedure(procedure))
-            return (frame, control)
+            let (nameExpr, paramExprs) = try sigList.headtail(sigExpression.getLocation())
+            let name = try nameExpr.unwrapSymbolName()
+            let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
+            let bodies = Array(tail[(tail.startIndex + 1)...])
+            let proc = Procedure(parameters: params, bodies: bodies, environment: environment)
+            return (.define(name, environment), .value(.procedure(proc)))
 
         case "if":
-            guard tail.count == 3 else {
-                throw MyronError(.unexpectedArity(tail.count, .exactly(3)), at: meta.location)
-            }
-
+            try tail.mustHaveExactly(3, meta.location)
             let condition = tail[tail.startIndex]
             let thenClause = tail[tail.startIndex + 1]
             let elseClause = tail[tail.startIndex + 2]
-            let frame = Frame.branch(thenClause, elseClause, environment, meta.location)
-            let control = Control.eval(condition, environment)
-            return (frame, control)
+            return (
+                .branch(thenClause, elseClause, environment, meta.location),
+                .eval(condition, environment))
 
         case "lambda":
-            guard tail.count >= 2 else {
-                throw MyronError(.unexpectedArity(tail.count, .atLeast(2)), at: meta.location)
-            }
-
-            guard let parameterExpressions = tail[tail.startIndex].asList() else {
-                let got = tail[tail.startIndex].asValueKind()
-                let reason = MyronError.Reason.unexpectedType(got, [.list])
-                throw MyronError(reason, at: tail[tail.startIndex].getLocation())
-            }
-
-            let parameters = try parameterExpressions.map { expr in try expr.unwrapSymbolName() }
-            let bodies = Array(tail.dropFirst())
-            let procedure = Procedure(
-                parameters: parameters,
-                bodies: bodies,
-                environment: environment)
-            let control = Control.value(.procedure(procedure))
-            return (nil, control)
+            try tail.mustHaveAtLeast(2, meta.location)
+            let (head, remainder) = try tail.headtail(meta.location)
+            let (paramExprs, _) = try head.unwrapList()
+            let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
+            let bodies = Array(remainder)
+            let proc = Procedure(parameters: params, bodies: bodies, environment: environment)
+            return (nil, .value(.procedure(proc)))
 
         case "let":
-            guard tail.count >= 2 else {
-                throw MyronError(.unexpectedArity(tail.count, .atLeast(2)), at: meta.location)
-            }
-
-            guard let bindingExprs = tail[tail.startIndex].asList() else {
-                let got = tail[tail.startIndex].asValueKind()
-                let reason = MyronError.Reason.unexpectedType(got, [.list])
-                throw MyronError(reason, at: tail[tail.startIndex].getLocation())
-            }
-
-            let bodies = tail.dropFirst()
+            try tail.mustHaveAtLeast(2, meta.location)
+            let (head, bodies) = try tail.headtail(meta.location)
+            let (bindingExprs, _) = try head.unwrapList()
             let inner = Environment(outer: environment)
 
-            guard let headBinding = bindingExprs.first else {
-                var frame: Frame? = nil
-                if bodies.count > 1 {
-                    frame = Frame.sequence(bodies.dropFirst(), inner, meta.location)
-                }
-
-                let control: Control
-                if let firstBody = bodies.first {
-                    control = Control.eval(firstBody, inner)
-                } else {
-                    control = Control.value(.nothing)
-                }
-
-                return (frame, control)
+            if let headBinding = bindingExprs.first {
+                let (name, expr) = try headBinding.unwrapBinding()
+                return (
+                    .bind(name, bindingExprs.dropFirst(), bodies, inner, meta.location),
+                    .eval(expr, inner))
             }
 
-            let (name, expr) = try headBinding.unwrapBinding()
+            guard let firstBody = bodies.first else {
+                let explain = "`let` must have at least one binding and one body"
+                throw MyronError(.internalError(explain), at: meta.location)
+            }
 
-            let frame = Frame.bind(name, bindingExprs.dropFirst(), bodies, inner, meta.location)
-            let control = Control.eval(expr, inner)
-            return (frame, control)
+            let frame = bodies.count > 1
+            ? Frame.sequence(bodies.dropFirst(), inner, meta.location)
+            : nil
+            return (frame, .eval(firstBody, inner))
 
         case "or":
-            guard let headClause = tail.first else {
-                throw MyronError(.unexpectedArity(tail.count, .atLeast(1)), at: meta.location)
-            }
-
-            let frame = Frame.disjunction(tail.dropFirst(), environment, meta.location)
-            let control = Control.eval(headClause, environment)
-            return (frame, control)
+            let (clause, remainder) = try tail.headtail(meta.location)
+            return (.disjunction(remainder, environment, meta.location), .eval(clause, environment))
 
         case "quote":
-            guard tail.count == 1 else {
-                throw MyronError(.unexpectedArity(tail.count, .exactly(1)), at: meta.location)
-            }
-
-            let quotation = tail[tail.startIndex]
-            let value = Value.makeValue(from: quotation)
-            let control = Control.value(value)
-            return (nil, control)
-
+            try tail.mustHaveExactly(1, meta.location)
+            let value = Value.makeValue(from: tail[tail.startIndex])
+            return (nil, .value(value))
 
         default: return nil
         }

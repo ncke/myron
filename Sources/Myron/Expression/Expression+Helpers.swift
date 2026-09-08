@@ -1,43 +1,5 @@
 import Foundation
 
-// MARK: - Expression
-
-public typealias Location = Range<Int>
-
-indirect enum Expression {
-    case atom(Atom, Metadata)
-    case list([Expression], Metadata)
-
-    struct Metadata {
-        let location: Location?
-    }
-}
-
-extension Expression {
-
-    func getLocation() -> Location? {
-        switch self {
-        case let .atom(_, metadata): return metadata.location
-        case let .list(_, metadata): return metadata.location
-        }
-    }
-
-}
-
-extension Expression: CustomStringConvertible {
-
-    var description: String {
-        switch self {
-        case let .atom(atom, _):
-            return atom.description
-        case let .list(expressions, _):
-            let descriptions = expressions.map(\.description)
-            return "(\(descriptions.joined(separator: " ")))"
-        }
-    }
-
-}
-
 // MARK: - Expression Helpers
 
 extension Expression {
@@ -100,49 +62,37 @@ extension Expression {
         return name
     }
 
-}
-
-// MARK: - Atom
-
-enum Atom {
-    case symbol(String)
-    case boolean(Bool)
-    case integer(Int)
-    case double(Double)
-    case string(String)
-}
-
-extension Atom {
-
-    var isSymbol: Bool {
-        switch self {
-        case .symbol: return true
-        default: return false
-        }
-    }
-
-    func asValueKind() -> Value.Kind {
-        switch self {
-        case .boolean: return .boolean
-        case .integer: return .integer
-        case .double: return .double
-        case .string: return .string
-        case .symbol: return .symbol
-        }
+    func headtail() throws -> (Expression, ArraySlice<Expression>) {
+        let (list, meta) = try self.unwrapList()
+        return try list.headtail(meta.location)
     }
 
 }
 
-extension Atom: CustomStringConvertible {
+// MARK: - Expression Collections
 
-    var description: String {
-        switch self {
-        case let .symbol(symbol): return symbol
-        case let .boolean(boolean): return boolean.description
-        case let .integer(integer): return integer.description
-        case let .double(double): return double.description
-        case let .string(string): return string
+extension Collection where Element == Expression {
+
+    func mustHaveAtLeast(_ n: Int, _ location: Location?) throws {
+        if count < n {
+            let reason = MyronError.Reason.unexpectedArity(count, .atLeast(n))
+            throw MyronError(reason, at: location)
         }
+    }
+
+    func mustHaveExactly(_ n: Int, _ location: Location?) throws {
+        if count != n {
+            let reason = MyronError.Reason.unexpectedArity(count, .exactly(n))
+            throw MyronError(reason, at: location)
+        }
+    }
+
+    func headtail(_ location: Location?) throws -> (Element, Self.SubSequence) {
+        try mustHaveAtLeast(1, location)
+        let head = self[startIndex]
+        let tail = self[index(after: startIndex)...]
+        return (head, tail)
+
     }
 
 }

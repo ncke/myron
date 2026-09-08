@@ -159,6 +159,8 @@ import Testing
         ("()", .emptyApplication),
         ("(define (f))", .unexpectedArity(1, .atLeast(2))),
         ("(define x 1 2)", .unexpectedArity(3, .exactly(2))),
+        ("(define 5 1)", .unexpectedType(.integer, [.symbol, .list])),
+        ("(define \"x\" 1)", .unexpectedType(.string, [.symbol, .list])),
         ("(define (f 1) 1)", .unexpectedType(.integer, [.symbol])),
         ("(define (f x) 1) (f)", .unexpectedArity(0, .exactly(1))),
         ("(define (f) 1) (f 1)", .unexpectedArity(1, .exactly(0)))
