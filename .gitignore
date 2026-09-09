@@ -2,8 +2,6 @@
 .build/
 .swiftpm/
 *.xcuserstate
-README.md
-docs/
 
 # Prerequisites
 *.d
