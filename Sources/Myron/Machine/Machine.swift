@@ -36,21 +36,6 @@ extension Machine {
         case sequence(ArraySlice<Expression>, Environment, Location?)
     }
 
-//    enum Frame {
-//        case arguments(LocatedSlice<Expression>, [Value], Environment, Location?)
-//        case bind(String, LocatedSlice<Expression>, LocatedSlice<Expression>, Environment, Location?)
-//        case branch(Expression, Expression, Environment, Location?)
-//        case condition(LocatedSlice<Expression>, LocatedSlice<Expression>, Environment, Location?)
-//        case conjunction(LocatedSlice<Expression>, Environment, Location?)
-//        case define(String, Environment)
-//        case disjunction(LocatedSlice<Expression>, Environment, Location?)
-//        case filtering(Value, Value, ArraySlice<Value>, [Value], Location?)
-//        case mapping(Value, ArraySlice<Value>, [Value], Location?)
-//        case probing(HigherProbe, Value, ArraySlice<Value>, Location?)
-//        case reducing(Value, ArraySlice<Value>, Location?)
-//        case sequence(LocatedSlice<Expression>, Environment, Location?)
-//    }
-
     enum Control {
         case eval(Expression, Environment)
         case value(Value)

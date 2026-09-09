@@ -6,16 +6,6 @@ import Foundation
 
 extension Expression {
 
-//    func unwrapList() throws -> (LocatedList<Expression>, Metadata) {
-//        guard case let .list(subexpressions, metadata) = self else {
-//            let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
-//            throw MyronError(reason, at: self.location)
-//        }
-//
-//        let list = LocatedList(location: metadata.location, elements: subexpressions)
-//        return (list, metadata)
-//    }
-
     func unwrapList() throws -> ([Expression], Metadata) {
         guard case let .list(subexpressions, metadata) = self else {
             let reason = MyronError.Reason.unexpectedType(self.asValueKind(), [.list])
@@ -91,11 +81,6 @@ extension Expression {
 // MARK: - List Destructuring
 
 extension Expression {
-
-//    func headtail() throws -> (Expression, Slice<LocatedList<Expression>>) {
-//        let (list, meta) = try self.unwrapList()
-//        return try list.headtail(meta.location)
-//    }
 
     func headtail() throws -> (Expression, ArraySlice<Expression>) {
         let (list, meta) = try self.unwrapList()
