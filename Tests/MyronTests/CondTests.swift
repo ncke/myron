@@ -7,13 +7,13 @@ import Testing
 
 struct CondTests {
 
-    private static func eval(_ source: String, limit: Int?) -> MyronSession.Result {
+    private static func eval(_ source: String, limit: Int?) -> MyronResult {
         MyronSession(configuration: MyronSessionConfiguration(
             errorStyle: .verbose,
             maximumStackDepth: limit)).eval(source)
     }
 
-    private static func isDepthError(_ result: MyronSession.Result) -> Bool {
+    private static func isDepthError(_ result: MyronResult) -> Bool {
         guard case .failure(let errors) = result else { return false }
         return errors.contains { error in
             if case .exceededMaximumStackDepth = error.reason { return true }

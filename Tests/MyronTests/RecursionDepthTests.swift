@@ -27,13 +27,13 @@ struct RecursionDepthTests {
             maximumStackDepth: limit))
     }
 
-    private static func eval(_ source: String, limit: Int?) -> MyronSession.Result {
+    private static func eval(_ source: String, limit: Int?) -> MyronResult {
         let session = session(limit: limit)
         _ = session.eval(definitions)
         return session.eval(source)
     }
 
-    private static func isDepthError(_ result: MyronSession.Result) -> Bool {
+    private static func isDepthError(_ result: MyronResult) -> Bool {
         guard case .failure(let errors) = result else { return false }
         return errors.contains { error in
             if case .exceededMaximumStackDepth = error.reason { return true }

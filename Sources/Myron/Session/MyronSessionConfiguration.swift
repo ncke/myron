@@ -6,6 +6,11 @@ public struct MyronSessionConfiguration: Sendable {
     public enum ErrorStyle: Sendable { case terse, verbose }
     public let errorStyle: ErrorStyle
     public let maximumStackDepth: Int?
+
+    public init(errorStyle: ErrorStyle, maximumStackDepth: Int?) {
+        self.errorStyle = errorStyle
+        self.maximumStackDepth = maximumStackDepth
+    }
 }
 
 // MARK: - Standard Configuration

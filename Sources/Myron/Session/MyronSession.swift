@@ -3,17 +3,10 @@ import Foundation
 // MARK: - MyronSession
 
 public final class MyronSession {
-
-    public enum Result {
-        case success(Value)
-        case failure([MyronError])
-        case nothing
-    }
-
-    let configuration: MyronSessionConfiguration
-    let environment: Environment
-    let environmentRegistry: EnvironmentRegistry
-    let machine: Machine
+    private let configuration: MyronSessionConfiguration
+    private let environment: Environment
+    private let environmentRegistry: EnvironmentRegistry
+    private let machine: Machine
 
     public init(configuration: MyronSessionConfiguration = .standard) {
         self.configuration = configuration
@@ -31,7 +24,7 @@ public final class MyronSession {
     public func eval(
         _ expression: String,
         sourceHandle: Int? = nil
-    ) -> Result {
+    ) -> MyronResult {
         defer { environmentRegistry.tidy() }
         environmentRegistry.resetTidyTrigger()
         let lexer = Lexer(input: expression, sourceHandle: sourceHandle)
@@ -51,7 +44,7 @@ public final class MyronSession {
             return .nothing
         }
 
-        func caughtEval(_ form: Expression) -> Result {
+        func caughtEval(_ form: Expression) -> MyronResult {
             do {
                 let value = try machine.eval(form)
                 return .success(value)
@@ -77,19 +70,6 @@ public final class MyronSession {
 
         let result = caughtEval(lastForm)
         return result
-    }
-
-}
-
-// MARK: - Result Helper
-
-public extension MyronSession.Result {
-
-    var isFailure: Bool {
-        switch self {
-        case .failure: return true
-        default: return false
-        }
     }
 
 }
