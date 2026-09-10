@@ -56,4 +56,17 @@ struct StandardPredicates {
         return .boolean(false)
     }
 
+    static func isFinite(args: [Value], location: Location?) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let d = number.asDouble { return .boolean(d.isFinite) }
+        if number.asInteger != nil { return .boolean(true) }
+        return .boolean(false)
+    }
+
+    static func isInfinite(args: [Value], location: Location?) throws -> Value {
+        let number = try args.unwrap1(location)
+        if let d = number.asDouble { return .boolean(d.isInfinite) }
+        return .boolean(false)
+    }
+
 }

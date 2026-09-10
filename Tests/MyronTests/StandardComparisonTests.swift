@@ -21,7 +21,12 @@ struct StandardComparisonTests {
         ("(eq '(1 2 3) '(1 2 3))", "true"),
         ("(eq '(1 2) '(1 3))", "false"),
         ("(eq '(1 2) '(1 2 3))", "false"),
-        ("(eq '((1) (2)) '((1) (2)))", "true")
+        ("(eq '((1) (2)) '((1) (2)))", "true"),
+        ("(eq 1 1.0)", "false"),
+        ("(eq '(1) '(1.0))", "false"),
+        ("(eq true 1)", "false"),
+        ("(eq nothing nothing)", "true"),
+        ("(eq nothing 1)", "false")
     ] as [ValueCase])
     func equality(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -30,7 +35,8 @@ struct StandardComparisonTests {
     @Test("inequality", arguments: [
         ("(neq 1 2)", "true"),
         ("(neq 1 1)", "false"),
-        ("(!= 1 2)", "true")
+        ("(!= 1 2)", "true"),
+        ("(neq 1 1.0)", "true")
     ] as [ValueCase])
     func inequality(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -82,8 +88,6 @@ struct StandardComparisonTests {
 
     @Test("comparison errors", arguments: [
         ("(eq 1)", .unexpectedArity(1, .exactly(2))),
-        ("(eq 1 1.0)", .unexpectedType(.double, [.integer])),
-        ("(eq '(1) '(1.0))", .unexpectedType(.double, [.integer])),
         ("(gt 1)", .unexpectedArity(1, .exactly(2))),
         ("(gt 1 1.0)", .unexpectedType(.double, [.integer])),
         ("(gt true false)", .incomparableTypes)
@@ -92,11 +96,22 @@ struct StandardComparisonTests {
         expectFailure(c.source, reason: c.reason)
     }
 
-    @Test("comparing nothing is inequatable")
-    func comparingNothing() {
-        expectFailure(
-            "(eq (head '()) (head '()))",
-            reason: .inequatableTypes)
+    @Test("nothing is equal only to itself", arguments: [
+        ("(eq (head '()) (head '()))", "true"),
+        ("(eq (head '()) nothing)", "true"),
+        ("(eq (head '()) 1)", "false"),
+        ("(neq (head '()) 1)", "true")
+    ] as [ValueCase])
+    func comparingNothing(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("procedures have no equality", arguments: [
+        ("(eq eq eq)", .inequatableTypes),
+        ("(eq map map)", .inequatableTypes)
+    ] as [FailureCase])
+    func comparingProcedures(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
     }
 
 }

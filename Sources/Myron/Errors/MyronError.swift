@@ -7,6 +7,7 @@ public struct MyronError: Error, Sendable {
     public enum Reason: Sendable, Equatable {
         case cannotBeNegative
         case divisionByZero
+        case duplicateKeys([Int])
         case emptyApplication
         case exceededMaximumStackDepth(Int)
         case expectedExpressionAfterTick
@@ -16,7 +17,9 @@ public struct MyronError: Error, Sendable {
         case incomparableTypes
         case inequatableTypes
         case internalError(String)
+        case invalidKey(Value.Kind)
         case invalidNumber
+        case malformedAlist(Int)
         case overflow
         case subscriptOutOfBounds(Int, Int)
         case unexpectedArity(Int, IntegerExpectation)
@@ -89,6 +92,7 @@ extension MyronError.Reason: CustomStringConvertible {
         switch self {
         case .cannotBeNegative: return "Cannot be negative"
         case .divisionByZero: return "Division by zero"
+        case .duplicateKeys(let idxs): return "Duplicate keys at indices: \(idxs)"
         case .emptyApplication: return "Empty application"
         case .exceededMaximumStackDepth(let depth): return "Exceeded maximum stack depth: \(depth)"
         case .expectedExpressionAfterTick: return "Expected expression after tick"
@@ -98,7 +102,9 @@ extension MyronError.Reason: CustomStringConvertible {
         case .incomparableTypes: return "Incomparable types"
         case .inequatableTypes: return "Inequatable types"
         case .internalError(let message): return "Internal error: \(message)"
+        case .invalidKey(let kind): return "Invalid key, got: \(kind)"
         case .invalidNumber: return "Invalid number"
+        case .malformedAlist(let idx): return "Malformed alist at index: \(idx)"
         case .overflow: return "Overflow"
         case .subscriptOutOfBounds(let got, let length):
             return "Subscript out of bounds: got \(got) for length \(length)"
@@ -109,7 +115,6 @@ extension MyronError.Reason: CustomStringConvertible {
             case .unspecified:
                 return "Unexpected arity: got \(got)"
             }
-
         case .typeCastFailed(let src, let dst):
             return "Type cast failed: \(src) -> \(dst)"
         case .unexpectedType(let got, let expected):

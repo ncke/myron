@@ -41,7 +41,7 @@ looking things up later.
 - [Standard library reference](#standard-library-reference)
   — [Comparison](#comparison) · [Predicates](#predicates) ·
   [Logic](#logic) · [Mathematics](#mathematics) · [Sequences](#sequences) ·
-  [Lists](#lists) ·
+  [Lists](#lists) · [Association lists](#association-lists) ·
   [Strings](#strings) · [Higher-order functions](#higher-order-functions)
 - [Status](#status)
 - [Licence](#licence)
@@ -56,8 +56,8 @@ looking things up later.
   interpreter's continuation stack lives on the heap, so recursion depth is
   bounded by a configurable limit rather than by the host's thread stack.
 - A standard environment covering comparison, predicates, logic, mathematics,
-  sequences, lists, strings, and the higher-order staples (`map`, `filter`,
-  `reduce`, `all`, `any`).
+  sequences, lists, association lists, strings, and the higher-order staples
+  (`map`, `filter`, `reduce`, `all`, `any`).
 - Sequence primitives that work on both lists and strings, dispatched on the
   argument's type: `(length '(1 2 3))` and `(length "abc")` are both `3`.
 - Strict, coercion-free numerics: integers and doubles never mix silently.
@@ -288,6 +288,7 @@ also has a `description`, which is the first line of the rendered message.
 |---|---|
 | `cannotBeNegative` | A count that must be non-negative was not — `(take -1 xs)`. |
 | `divisionByZero` | `/`, `mod`, or `rem` was given a zero divisor. |
+| `duplicateKeys([Int])` | `put` found a key more than once in an alist; carries the indices. |
 | `emptyApplication` | The form `()` was evaluated. |
 | `exceededMaximumStackDepth(Int)` | Recursion passed the configured limit; carries the depth reached. |
 | `expectedExpressionAfterTick` | A `'` was not followed by an expression. |
@@ -295,9 +296,11 @@ also has a `description`, which is the first line of the rendered message.
 | `expectedQuote` | A string literal was never closed. |
 | `expectedRightBracket` | A list was never closed. |
 | `incomparableTypes` | `gt`/`lt` and friends were given types with no ordering. |
-| `inequatableTypes` | `eq` was given types with no equality — notably `nothing`. |
+| `inequatableTypes` | `eq` was given types with no equality — procedures. |
 | `internalError(String)` | An invariant inside the interpreter broke. Please report these. |
+| `invalidKey(Value.Kind)` | An alist key was not an atomic, finite value. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
+| `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
 | `typeCastFailed(Value.Kind, Value.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
@@ -408,12 +411,14 @@ source, with the newlines becoming part of the string — though not at the
 line-based REPL.
 
 `nothing` is the absence of a value. It is what `head` gives you for an empty
-list, and it is deliberately awkward to work with: comparing it is an error, so
-test for it with `nothing?`.
+list, and it is bound to the name `nothing` so you can write one down. It is
+equal to itself and to nothing else, so `nothing?` and `eq` both work on it.
 
 ```lisp
 (head '())                                ; <nothing>
 (nothing? (head '()))                     ; true
+(eq nothing (head '()))                   ; true
+(eq nothing 0)                            ; false
 ```
 
 ### Naming things with `define`
@@ -918,15 +923,17 @@ function under two names.
 ```lisp
 (== 3 3)                                  ; true
 (eq '(1 2) '(1 2))                        ; true — element-wise, recursively
+(== 1 1.0)                                ; false — different types
 (> "b" "a")                               ; true — lexicographic
 (<= 3 3)                                  ; true
 ```
 
-Comparing different types is an error rather than `false`, so `(== 1 1.0)` does
-not evaluate. Equality is defined for integers, doubles, booleans, strings,
-symbols, and lists; ordering for integers, doubles, and strings. Comparing
-`nothing` with anything, including itself, raises `inequatableTypes` — use
-[`nothing?`](#predicates) instead.
+Equality across types is `false` rather than an error, so `(== 1 1.0)` is
+`false` — an integer is never a double. Ordering is stricter and still raises
+`unexpectedType`, since there is no sensible answer to give. Equality is defined
+for integers, doubles, booleans, strings, symbols, lists, and `nothing`;
+ordering for integers, doubles, and strings. Procedures have no equality at all
+and raise `inequatableTypes`.
 
 ### Predicates
 
@@ -946,6 +953,8 @@ them.
 | `positive?` | a number greater than zero |
 | `negative?` | a number less than zero |
 | `zero?` | a number equal to zero |
+| `finite?` | a number that is neither infinite nor `nan` |
+| `infinite?` | a double that is positive or negative infinity |
 
 ```lisp
 (nothing? (head '()))                     ; true
@@ -955,10 +964,10 @@ them.
 (positive? "x")                           ; false — non-numbers are never
 ```
 
-`nothing?` is the only way to inspect a `nothing`, since comparing one is an
-error. `integer?` and `double?` do not overlap; use `number?` when either will
-do. The three numeric predicates answer `false` for non-numbers rather than
-failing.
+`integer?` and `double?` do not overlap; use `number?` when either will do. The
+numeric predicates answer `false` for non-numbers rather than failing —
+including `finite?`, for which every integer is finite and every non-number is
+not.
 
 ### Logic
 
@@ -1159,6 +1168,61 @@ Myron rather than having to be primitives:
 (my-filter (lambda (x) (> x 2)) '(1 2 3 4))
                                           ; (3 4)
 ```
+
+### Association lists
+
+An association list is an ordinary list of two-element lists, each a key and a
+value. Nothing declares one — any list of that shape will do — so these
+primitives are a convention over lists rather than a separate type.
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `get` | key, alist | the value, or `nothing` if absent |
+| `get-or` | default, key, alist | the value, or the default if absent |
+| `put` | key, value, alist | the alist with the key set to the value |
+| `remove` | key, alist | the alist without that key |
+| `has-key?` | key, alist | boolean |
+| `keys` | alist | a list of the keys, in order |
+| `values` | alist | a list of the values, in order |
+| `key-index` | key, alist | the position of the key, or `nothing` if absent |
+
+```lisp
+(define ages '(("ada" 36) ("alan" 41)))
+
+(get "ada" ages)                          ; 36
+(get "grace" ages)                        ; <nothing>
+(get-or 0 "grace" ages)                   ; 0
+(put "grace" 45 ages)                     ; (("ada" 36) ("alan" 41) ("grace" 45))
+(put "ada" 37 ages)                       ; (("ada" 37) ("alan" 41))
+(keys ages)                               ; ("ada" "alan")
+```
+
+The alist is always the last argument, and `get-or` takes its default first so
+that the "or" reads next to the value it supplies. Nothing is mutated: `put`
+and `remove` return a new list, replacing a key in place and appending a new
+one at the end.
+
+Keys must be atomic — a boolean, integer, double, or string — and finite, so
+`nan` and infinity are rejected with `invalidKey`. Symbols and lists are not
+keys. Keys are typed exactly as `eq` compares them, so `1` and `1.0` are two
+different keys:
+
+```lisp
+(get 1 '((1.0 "double") (1 "integer")))   ; "integer"
+```
+
+Storing `nothing` is a way to delete: `(put k nothing al)` is `(remove k al)`.
+That is what makes `get` unambiguous — a `nothing` coming back always means the
+key is absent, never that a `nothing` was stored there.
+
+An entry that is not a two-element list raises `malformedAlist` with its index,
+and a key that is not a valid key raises `invalidKey`. Lookups stop at the
+first match, so a malformed entry *after* the key you asked for goes unnoticed;
+a successful `get` is not a promise that the whole list is well formed. `put`
+is the exception — it checks the whole list, and refuses with `duplicateKeys`
+if a key appears twice. A duplicated key can still be repaired with `remove`,
+which takes the first match. Invoking `put` to an existing key is legal and
+operates as replacement rather than creating a duplicate.
 
 ### Strings
 

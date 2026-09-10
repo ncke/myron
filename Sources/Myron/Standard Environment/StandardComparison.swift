@@ -6,16 +6,14 @@ struct StandardComparison {
 
     static func eq(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-
-        guard fst.kind == snd.kind else {
-            throw MyronError(.unexpectedType(snd.kind, [fst.kind]), at: location)
-        }
+        guard fst.kind == snd.kind else { return .boolean(false) }
 
         if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f == s) }
         if let f = fst.asDouble, let s = snd.asDouble { return .boolean(f == s) }
         if let f = fst.asBoolean, let s = snd.asBoolean { return .boolean(f == s) }
         if let f = fst.asString, let s = snd.asString { return .boolean(f == s) }
         if let f = fst.asSymbol, let s = snd.asSymbol { return .boolean(f == s) }
+        if case .nothing = fst { return .boolean(true) }
 
         if let f = fst.asList, let s = snd.asList {
             if f.count != s.count { return .boolean(false) }

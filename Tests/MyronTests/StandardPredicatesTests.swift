@@ -11,7 +11,8 @@ struct StandardPredicatesTests {
         ("(nothing? (head '()))", "true"),
         ("(nothing? (last '()))", "true"),
         ("(nothing? 1)", "false"),
-        ("(nothing? '())", "false")
+        ("(nothing? '())", "false"),
+        ("(nothing? nothing)", "true")
     ] as [ValueCase])
     func isNothing(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -150,6 +151,29 @@ struct StandardPredicatesTests {
             "0")
     }
 
+    @Test("finite?", arguments: [
+        ("(finite? 1.0)", "true"),
+        ("(finite? 1)", "true"),
+        ("(finite? (sqrt -1.0))", "false"),
+        ("(finite? (pow 10.0 400.0))", "false"),
+        ("(finite? \"a\")", "false"),
+        ("(finite? '(1))", "false")
+    ] as [ValueCase])
+    func isFinite(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("infinite?", arguments: [
+        ("(infinite? (pow 10.0 400.0))", "true"),
+        ("(infinite? 1.0)", "false"),
+        ("(infinite? 1)", "false"),
+        ("(infinite? (sqrt -1.0))", "false"),
+        ("(infinite? \"a\")", "false")
+    ] as [ValueCase])
+    func isInfinite(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("predicate errors", arguments: [
         ("(nothing? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(number?)", .unexpectedArity(0, .exactly(1))),
@@ -157,7 +181,9 @@ struct StandardPredicatesTests {
         ("(list? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(positive? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(negative? 1 2)", .unexpectedArity(2, .exactly(1))),
-        ("(zero? 1 2)", .unexpectedArity(2, .exactly(1)))
+        ("(zero? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(finite? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(infinite?)", .unexpectedArity(0, .exactly(1)))
     ] as [FailureCase])
     func predicateErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

@@ -7,6 +7,9 @@ extension Environment {
     func standardLookup(_ name: String) -> Value? {
         switch name {
 
+        // Types
+        case "nothing": return .nothing
+
         // Comparison.
         case "eq": return .primitive(StandardComparison.eq)
         case "==": return .primitive(StandardComparison.eq)
@@ -32,6 +35,8 @@ extension Environment {
         case "positive?": return .primitive(StandardPredicates.isPositive)
         case "negative?": return .primitive(StandardPredicates.isNegative)
         case "zero?": return .primitive(StandardPredicates.isZero)
+        case "finite?": return .primitive(StandardPredicates.isFinite)
+        case "infinite?": return .primitive(StandardPredicates.isInfinite)
 
         // Logic.
         case "not": return .primitive(StandardLogic.not)
@@ -98,6 +103,19 @@ extension Environment {
         case "reduce": return .higherOrder(.reduce)
         case "all": return .higherProbe(.all)
         case "any": return .higherProbe(.any)
+
+        // Association lists.
+        case "get": return .primitive(StandardAlist.get)
+        case "get-or": return .primitive(StandardAlist.getOr)
+        case "put": return .primitive(StandardAlist.put)
+        case "remove": return .primitive(StandardAlist.remove)
+        case "has-key?": return .primitive(StandardAlist.hasKey)
+        case "keys": return .primitive(StandardAlist.keys)
+        case "values": return .primitive(StandardAlist.values)
+        case "key-index": return .primitive(StandardAlist.keyIndex)
+
+        // Hash tables.
+        // keys-values
 
         default:
             return nil
