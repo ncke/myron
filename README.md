@@ -397,7 +397,7 @@ Values cross the boundary in both directions. Reading is covered by the
 accessors [above](#myronvalue); writing is covered by two protocols.
 
 `MyronValueRepresentable` turns a Swift value into a `MyronValue`, and
-`MyronKeyRepresentable` turns one into a `MyronValue.Key`:
+`MyronKeyRepresentable` turns one into a `MyronKey`:
 
 ```swift
 7.myronValue                              // .integer(7)
@@ -406,15 +406,16 @@ accessors [above](#myronvalue); writing is covered by two protocols.
 ["a": 1].myronValue                       // .hashmap(...)
 Optional<Int>.none.myronValue             // .nothing
 
-"a".myronKey                              // MyronValue.Key.string("a")
+"a".myronKey                              // MyronKey.string("a")
 ```
 
 `Bool`, `Double`, `Int`, `String`, `Array`, `Dictionary` and `Optional` conform,
-as do `MyronValue` and `MyronValue.Key` themselves, so a value you already hold
+as do `MyronValue` and `MyronKey` themselves, so a value you already hold
 can be used wherever a representable one is wanted. `Double` is deliberately
 **not** `MyronKeyRepresentable`: a key must be finite, and there is no way for a
-non-throwing conversion to say otherwise. Use `MyronValue.Key.double(_:)`
-directly if you need one.
+non-throwing conversion to say otherwise. The consequence is that a double
+cannot be written as a key in a literal — spell it `MyronKey.double(1.5)` when
+you need one.
 
 Both types are expressible as Swift literals, which is usually the shortest way
 to build one:
@@ -424,18 +425,32 @@ let a: MyronValue = 42
 let b: MyronValue = "text"
 let c: MyronValue = nil                   // .nothing
 let d: MyronValue = [1, "two", true]      // a list of mixed types
-let e: MyronValue.Key = "a"
+let e: MyronValue = ["a": 1, "b": true]   // a hashmap of mixed types
+let f: MyronKey = "a"
 ```
 
-A `MyronValue` can be made into a `MyronValue.Key`, which fails if it cannot be
+An array literal becomes a list and a dictionary literal becomes a hashmap.
+Both take anything representable, so variables sit alongside literals and
+collections nest:
+
+```swift
+let count = 3
+let config: MyronValue = [
+    "retries": count,                     // a variable
+    "tags": ["a", "b"],                   // a nested list
+    "limits": ["max": 10]                 // a nested hashmap
+]
+```
+
+A `MyronValue` can be made into a `MyronKey`, which fails if it cannot be
 one:
 
 ```swift
-let key = try MyronValue.Key(.string("a"))
+let key = try MyronKey(.string("a"))
 key.value                                 // back to .string("a")
 
-try MyronValue.Key(.symbol("s"))          // throws invalidKey
-try MyronValue.Key(.double(.nan))         // throws invalidKey
+try MyronKey(.symbol("s"))                // throws invalidKey
+try MyronKey(.double(.nan))               // throws invalidKey
 ```
 
 #### `MyronHashmap`
@@ -447,10 +462,10 @@ dictionary-shaped Swift interface:
 hashmap.count                             // Int
 hashmap.isEmpty                           // Bool
 hashmap["a"]                              // MyronValue?
-hashmap.keys                              // [MyronValue.Key]
+hashmap.keys                              // [MyronKey]
 hashmap.values                            // [MyronValue]
-hashmap.pairs                             // [(key: MyronValue.Key, value: MyronValue)]
-hashmap.dictionary                        // [MyronValue.Key: MyronValue]
+hashmap.pairs                             // [(key: MyronKey, value: MyronValue)]
+hashmap.dictionary                        // [MyronKey: MyronValue]
 ```
 
 It conforms to `Sequence`, so it iterates and composes like any other
@@ -468,7 +483,7 @@ Build one from a Swift dictionary, or from Myron types directly:
 
 ```swift
 let a = try MyronHashmap(["a": 1, "b": 2])
-let b = try MyronHashmap([MyronValue.Key.string("a"): MyronValue.integer(1)])
+let b = try MyronHashmap([MyronKey.string("a"): MyronValue.integer(1)])
 ```
 
 Both initialisers throw, because not every dictionary is a legal hashmap. A
@@ -494,9 +509,12 @@ let hashmap: MyronHashmap = [
 
 Two rules apply to literals, both of which would otherwise be silent. A
 duplicated key keeps the first entry and discards the rest. A non-finite key
-traps — it can only arise from writing `MyronValue.Key.double(_:)` with a
-computed value, which is a mistake at the call site rather than something the
-data can do.
+traps — it can only arise from writing `MyronKey.double(_:)` with a computed
+value, which is a mistake at the call site rather than something the data can
+do.
+
+A `MyronValue` dictionary literal builds a hashmap through the same code, so
+everything here applies to it too.
 
 Note that iteration order is unspecified, so `keys`, `values`, `pairs` and
 `description` may come back in a different order on each run.

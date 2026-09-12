@@ -2,22 +2,18 @@ import Foundation
 
 // MARK: - Key
 
-extension MyronValue {
-
-    public enum Key {
-        case boolean(Bool)
-        case double(Double)
-        case integer(Int)
-        case string(String)
-    }
-
+public enum MyronKey {
+    case boolean(Bool)
+    case double(Double)
+    case integer(Int)
+    case string(String)
 }
 
 // MARK: - Conformances
 
-extension MyronValue.Key: Equatable, Hashable, Sendable {}
+extension MyronKey: Equatable, Hashable, Sendable {}
 
-extension MyronValue.Key: CustomStringConvertible {
+extension MyronKey: CustomStringConvertible {
 
     public var description: String {
         return "\(self.value)"
@@ -27,7 +23,7 @@ extension MyronValue.Key: CustomStringConvertible {
 
 // MARK: - Key Helpers
 
-extension MyronValue.Key {
+extension MyronKey {
 
     public init(_ value: MyronValue) throws {
         try self.init(value, at: nil)

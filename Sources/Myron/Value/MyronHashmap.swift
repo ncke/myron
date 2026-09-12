@@ -3,13 +3,13 @@ import Foundation
 // MARK: - MyronHashmap
 
 public struct MyronHashmap {
-    private var contents: [MyronValue.Key: MyronValue]
+    private var contents: [MyronKey: MyronValue]
 
     init() {
         contents = [:]
     }
 
-    init(contents: [MyronValue.Key: MyronValue]) {
+    init(contents: [MyronKey: MyronValue]) {
         self.contents = contents
     }
 
@@ -19,28 +19,28 @@ public struct MyronHashmap {
 
 extension MyronHashmap {
 
-    func get(key: MyronValue.Key) -> MyronValue? {
+    func get(key: MyronKey) -> MyronValue? {
         contents[key]
     }
     
-    func put(key: MyronValue.Key, value: MyronValue) -> MyronHashmap {
+    func put(key: MyronKey, value: MyronValue) -> MyronHashmap {
         var result = MyronHashmap(contents: contents)
         result.contents[key] = value
         return result
     }
 
-    func remove(key: MyronValue.Key) -> MyronHashmap {
+    func remove(key: MyronKey) -> MyronHashmap {
         if contents[key] == nil { return self }
         var result = MyronHashmap(contents: contents)
         result.contents.removeValue(forKey: key)
         return result
     }
 
-    func hasKey(_ key: MyronValue.Key) -> Bool {
+    func hasKey(_ key: MyronKey) -> Bool {
         return contents[key] != nil
     }
 
-    func keysValues() -> [(MyronValue.Key, MyronValue)] {
+    func keysValues() -> [(MyronKey, MyronValue)] {
         return contents.map { element in (element.key, element.value) }
     }
 
@@ -72,11 +72,11 @@ extension MyronHashmap: CustomStringConvertible {
 
 extension MyronHashmap {
 
-    public var pairs: [(key: MyronValue.Key, value: MyronValue)] {
+    public var pairs: [(key: MyronKey, value: MyronValue)] {
         return keysValues()
     }
 
-    public var keys: [MyronValue.Key] {
+    public var keys: [MyronKey] {
         return Array(contents.keys)
     }
 
@@ -92,11 +92,11 @@ extension MyronHashmap {
         return empty()
     }
 
-    public subscript(key: MyronValue.Key) -> MyronValue? {
+    public subscript(key: MyronKey) -> MyronValue? {
         return contents[key]
     }
 
-    public var dictionary: [MyronValue.Key: MyronValue] {
+    public var dictionary: [MyronKey: MyronValue] {
         return contents
     }
 

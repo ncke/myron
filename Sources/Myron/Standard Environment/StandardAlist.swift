@@ -6,7 +6,7 @@ struct StandardAlist {
 
     static func get(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
@@ -16,7 +16,7 @@ struct StandardAlist {
 
     static func getOr(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (def, fst, snd) = try args.unwrap3(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
@@ -30,7 +30,7 @@ struct StandardAlist {
             return try remove(args: [fst, thd], location: location)
         }
 
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let pair = MyronValue.list([fst, value])
         var list = try thd.unwrapList(location)
         let found = try findKey(key, in: list, validating: true, at: location)
@@ -41,7 +41,7 @@ struct StandardAlist {
 
     static func remove(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         var list = try snd.unwrapList(location)
         let found = try findKey(key, in: list, validating: false, at: location)
 
@@ -55,7 +55,7 @@ struct StandardAlist {
 
     static func hasKey(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
@@ -76,7 +76,7 @@ struct StandardAlist {
             }
 
             let key = pair[0]
-            _ = try MyronValue.Key(key, at: location)
+            _ = try MyronKey(key, at: location)
             ks.append(key)
         }
 
@@ -96,7 +96,7 @@ struct StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
-            _ = try MyronValue.Key(pair[0], at: location)
+            _ = try MyronKey(pair[0], at: location)
             vs.append(pair[1])
         }
 
@@ -105,7 +105,7 @@ struct StandardAlist {
 
     static func keyIndex(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
         
@@ -120,7 +120,7 @@ struct StandardAlist {
 extension StandardAlist {
 
     private static func findKey(
-        _ key: MyronValue.Key,
+        _ key: MyronKey,
         in list: [MyronValue],
         validating: Bool,
         at location: MyronLocation?
@@ -136,7 +136,7 @@ extension StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
-            let pairKey = try MyronValue.Key(pair[0], at: location)
+            let pairKey = try MyronKey(pair[0], at: location)
             if pairKey == key {
                 let result = (idx, pair[1])
                 if !validating { return result }

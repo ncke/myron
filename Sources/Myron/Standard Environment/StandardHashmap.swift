@@ -8,7 +8,7 @@ struct StandardHashmap {
 
     static func get(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         guard let result = hashmap.get(key: key) else { return .nothing }
@@ -17,7 +17,7 @@ struct StandardHashmap {
 
     static func getOr(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (def, fst, snd) = try args.unwrap3(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         guard let result = hashmap.get(key: key) else { return def }
@@ -30,7 +30,7 @@ struct StandardHashmap {
             return try remove(args: [fst, thd], location: location)
         }
 
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let hashmap = try thd.unwrapHashmap(location)
 
         return .hashmap(hashmap.put(key: key, value: value))
@@ -38,7 +38,7 @@ struct StandardHashmap {
 
     static func remove(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         return .hashmap(hashmap.remove(key: key))
@@ -46,7 +46,7 @@ struct StandardHashmap {
 
     static func hasKey(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronValue.Key(fst, at: location)
+        let key = try MyronKey(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         return .boolean(hashmap.hasKey(key))
@@ -90,8 +90,8 @@ extension StandardHashmap {
             return .hashmap(MyronHashmap())
         }
 
-        var contents = [MyronValue.Key: MyronValue]()
-        var seen = [MyronValue.Key: Int]()
+        var contents = [MyronKey: MyronValue]()
+        var seen = [MyronKey: Int]()
 
         for (idx, element) in alist.enumerated() {
             guard case .list(let pair) = element, pair.count == 2 else {
@@ -102,7 +102,7 @@ extension StandardHashmap {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
-            let key = try MyronValue.Key(pair[0], at: location)
+            let key = try MyronKey(pair[0], at: location)
 
             if let dupIdx = seen[key] {
                 throw MyronError(.duplicateKeys([dupIdx, idx]), at: location)

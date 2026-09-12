@@ -87,6 +87,15 @@ struct SessionEnvironmentTests {
         #expect(session.eval("(length hm)").asSuccess?.asInteger == 1)
     }
 
+    @Test("a dictionary literal can be set directly")
+    func setDictionaryLiteral() {
+        let session = MyronSession()
+        session.set("cfg", to: ["retries": 3, "name": "x"])
+
+        #expect(session.eval("(length cfg)").asSuccess?.asInteger == 2)
+        #expect(session.eval("(get \"retries\" cfg)").asSuccess?.asInteger == 3)
+    }
+
     @Test("set replaces an earlier set")
     func setReplacesSet() {
         let session = MyronSession()
