@@ -55,7 +55,48 @@ extension Value {
 
 }
 
-// MARK: - Value Probing
+// MARK: - Public Value Probing
+
+extension Value {
+
+    public var asBoolean: Bool? {
+        if case .boolean(let b) = self { return b }
+        return nil
+    }
+
+    public var asInteger: Int? {
+        if case .integer(let n) = self { return n }
+        return nil
+    }
+
+    public var asDouble: Double? {
+        if case .double(let n) = self { return n }
+        return nil
+    }
+
+    public var asList: [Value]? {
+        if case .list(let l) = self { return l }
+        return nil
+    }
+
+    public var asHashmap: MyronHashmap? {
+        if case .hashmap(let h) = self { return h }
+        return nil
+    }
+
+    public var asString: String? {
+        if case .string(let s) = self { return s }
+        return nil
+    }
+
+    public var asSymbol: String? {
+        if case .symbol(let s) = self { return s }
+        return nil
+    }
+
+}
+
+// MARK: - Internal Value Probing
 
 extension Value {
 
@@ -69,41 +110,6 @@ extension Value {
         case .higherOrder, .higherProbe, .primitive, .procedure: return true
         default: return false
         }
-    }
-
-    var asBoolean: Bool? {
-        if case .boolean(let b) = self { return b }
-        return nil
-    }
-
-    var asInteger: Int? {
-        if case .integer(let n) = self { return n }
-        return nil
-    }
-
-    var asDouble: Double? {
-        if case .double(let n) = self { return n }
-        return nil
-    }
-
-    var asList: [Value]? {
-        if case .list(let l) = self { return l }
-        return nil
-    }
-
-    var asHashmap: MyronHashmap? {
-        if case .hashmap(let h) = self { return h }
-        return nil
-    }
-
-    var asString: String? {
-        if case .string(let s) = self { return s }
-        return nil
-    }
-
-    var asSymbol: String? {
-        if case .symbol(let s) = self { return s }
-        return nil
     }
 
     var asPrimitive: Primitive? {

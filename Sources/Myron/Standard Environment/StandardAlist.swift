@@ -6,7 +6,7 @@ struct StandardAlist {
 
     static func get(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
@@ -16,7 +16,7 @@ struct StandardAlist {
 
     static func getOr(args: [Value], location: Location?) throws -> Value {
         let (def, fst, snd) = try args.unwrap3(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
@@ -30,7 +30,7 @@ struct StandardAlist {
             return try remove(args: [fst, thd], location: location)
         }
 
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let pair = Value.list([fst, value])
         var list = try thd.unwrapList(location)
         let found = try findKey(key, in: list, validating: true, at: location)
@@ -41,7 +41,7 @@ struct StandardAlist {
 
     static func remove(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         var list = try snd.unwrapList(location)
         let found = try findKey(key, in: list, validating: false, at: location)
 
@@ -55,7 +55,7 @@ struct StandardAlist {
 
     static func hasKey(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
@@ -76,7 +76,7 @@ struct StandardAlist {
             }
 
             let key = pair[0]
-            _ = try Value.Key.fromValue(key, at: location)
+            _ = try Value.Key(key, at: location)
             ks.append(key)
         }
 
@@ -96,7 +96,7 @@ struct StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
-            _ = try Value.Key.fromValue(pair[0], at: location)
+            _ = try Value.Key(pair[0], at: location)
             vs.append(pair[1])
         }
 
@@ -105,7 +105,7 @@ struct StandardAlist {
 
     static func keyIndex(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
         
@@ -136,7 +136,7 @@ extension StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
-            let pairKey = try Value.Key.fromValue(pair[0], at: location)
+            let pairKey = try Value.Key(pair[0], at: location)
             if pairKey == key {
                 let result = (idx, pair[1])
                 if !validating { return result }

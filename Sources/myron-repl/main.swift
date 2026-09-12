@@ -10,7 +10,7 @@ let signature = #"""
 
 print(signature)
 print()
-print("      version \(Myron.version)")
+print("      version \(MyronLanguage.version)")
 print()
 print("Ready.")
 

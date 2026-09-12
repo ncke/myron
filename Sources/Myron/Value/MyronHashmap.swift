@@ -3,13 +3,13 @@ import Foundation
 // MARK: - MyronHashmap
 
 public struct MyronHashmap {
-    private var contents: [Value.Key: Value]
+    private var contents: [Myron.Value.Key: Myron.Value]
 
     init() {
         contents = [:]
     }
 
-    init(contents: [Value.Key: Value]) {
+    init(contents: [Myron.Value.Key: Myron.Value]) {
         self.contents = contents
     }
 
@@ -19,44 +19,36 @@ public struct MyronHashmap {
 
 extension MyronHashmap {
 
-    func get(key: Value.Key) -> Value? {
+    func get(key: Myron.Value.Key) -> Myron.Value? {
         contents[key]
     }
     
-    func put(key: Value.Key, value: Value) -> MyronHashmap {
+    func put(key: Myron.Value.Key, value: Myron.Value) -> MyronHashmap {
         var result = MyronHashmap(contents: contents)
         result.contents[key] = value
         return result
     }
 
-    func remove(key: Value.Key) -> MyronHashmap {
+    func remove(key: Myron.Value.Key) -> MyronHashmap {
         if contents[key] == nil { return self }
         var result = MyronHashmap(contents: contents)
         result.contents.removeValue(forKey: key)
         return result
     }
 
-    func hasKey(_ key: Value.Key) -> Bool {
+    func hasKey(_ key: Myron.Value.Key) -> Bool {
         return contents[key] != nil
     }
 
-    func keys() -> [Value.Key] {
-        return Array(contents.keys)
-    }
-
-    func values() -> [Value] {
-        return Array(contents.values)
-    }
-
-    func keysValues() -> [(Value.Key, Value)] {
-        return Array(contents.map { element in (element.key, element.value) })
+    func keysValues() -> [(Myron.Value.Key, Myron.Value)] {
+        return contents.map { element in (element.key, element.value) }
     }
 
     func length() -> Int {
         return contents.count
     }
 
-    func isEmpty() -> Bool {
+    func empty() -> Bool {
         return contents.isEmpty
     }
 
@@ -72,6 +64,40 @@ extension MyronHashmap: CustomStringConvertible {
         }.joined(separator: " ")
 
         return "#(\(description))"
+    }
+
+}
+
+// MARK: - Swift Accessors
+
+extension MyronHashmap {
+
+    public var pairs: [(key: Myron.Value.Key, value: Myron.Value)] {
+        return keysValues()
+    }
+
+    public var keys: [Myron.Value.Key] {
+        return Array(contents.keys)
+    }
+
+    public var values: [Myron.Value] {
+        return Array(contents.values)
+    }
+
+    public var count: Int {
+        return length()
+    }
+
+    public var isEmpty: Bool {
+        return empty()
+    }
+
+    public subscript(key: Myron.Value.Key) -> Myron.Value? {
+        return contents[key]
+    }
+
+    public var dictionary: [Myron.Value.Key: Myron.Value] {
+        return contents
     }
 
 }

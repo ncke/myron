@@ -8,7 +8,7 @@ struct StandardHashmap {
 
     static func get(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         guard let result = hashmap.get(key: key) else { return .nothing }
@@ -17,7 +17,7 @@ struct StandardHashmap {
 
     static func getOr(args: [Value], location: Location?) throws -> Value {
         let (def, fst, snd) = try args.unwrap3(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         guard let result = hashmap.get(key: key) else { return def }
@@ -30,7 +30,7 @@ struct StandardHashmap {
             return try remove(args: [fst, thd], location: location)
         }
 
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let hashmap = try thd.unwrapHashmap(location)
 
         return .hashmap(hashmap.put(key: key, value: value))
@@ -38,7 +38,7 @@ struct StandardHashmap {
 
     static func remove(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         return .hashmap(hashmap.remove(key: key))
@@ -46,7 +46,7 @@ struct StandardHashmap {
 
     static func hasKey(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
-        let key = try Value.Key.fromValue(fst, at: location)
+        let key = try Value.Key(fst, at: location)
         let hashmap = try snd.unwrapHashmap(location)
 
         return .boolean(hashmap.hasKey(key))
@@ -54,12 +54,12 @@ struct StandardHashmap {
 
     static func keys(args: [Value], location: Location?) throws -> Value {
         let hashmap = try args.unwrap1(location).unwrapHashmap(location)
-        return .list(hashmap.keys().map { key in key.asValue() })
+        return .list(hashmap.keys.map { key in key.value })
     }
 
     static func values(args: [Value], location: Location?) throws -> Value {
         let hashmap = try args.unwrap1(location).unwrapHashmap(location)
-        return .list(hashmap.values())
+        return .list(hashmap.values)
     }
 
 }
@@ -75,7 +75,7 @@ extension StandardHashmap {
 
     static func empty(args: [Value], location: Location?) throws -> Value {
         let hashmap = try args.unwrap1(location).unwrapHashmap(location)
-        return .boolean(hashmap.isEmpty())
+        return .boolean(hashmap.empty())
     }
 
 }
@@ -102,7 +102,7 @@ extension StandardHashmap {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
-            let key = try Value.Key.fromValue(pair[0], at: location)
+            let key = try Value.Key(pair[0], at: location)
 
             if let dupIdx = seen[key] {
                 throw MyronError(.duplicateKeys([dupIdx, idx]), at: location)
@@ -118,7 +118,7 @@ extension StandardHashmap {
     static func keysValues(args: [Value], location: Location?) throws -> Value {
         let hashmap = try args.unwrap1(location).unwrapHashmap(location)
         let kvs = hashmap.keysValues()
-        let pairs = kvs.map { (k, v) in Value.list([k.asValue(), v])  }
+        let pairs = kvs.map { (k, v) in Value.list([k.value, v])  }
 
         return .list(pairs)
     }

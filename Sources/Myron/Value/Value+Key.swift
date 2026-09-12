@@ -4,7 +4,7 @@ import Foundation
 
 extension Value {
 
-    enum Key {
+    public enum Key {
         case boolean(Bool)
         case double(Double)
         case integer(Int)
@@ -15,12 +15,12 @@ extension Value {
 
 // MARK: - Conformances
 
-extension Value.Key: Equatable, Hashable {}
+extension Value.Key: Equatable, Hashable, Sendable {}
 
 extension Value.Key: CustomStringConvertible {
 
-    var description: String {
-        return "\(self.asValue())"
+    public var description: String {
+        return "\(self.value)"
     }
 
 }
@@ -29,20 +29,22 @@ extension Value.Key: CustomStringConvertible {
 
 extension Value.Key {
 
-    static func fromValue(_ value: Value, at location: Location?) throws -> Value.Key {
+    public init(_ value: Value) throws {
+        try self.init(value, at: nil)
+    }
+
+    init(_ value: Value, at location: Location?) throws {
         switch value {
-        case .boolean(let b): return .boolean(b)
-        case .double(let d):
-            guard d.isFinite else { throw MyronError(.invalidKey(value.kind), at: location) }
-            return .double(d)
-        case .integer(let i): return .integer(i)
-        case .string(let s): return .string(s)
+        case .boolean(let b): self = .boolean(b)
+        case .double(let d) where d.isFinite: self = .double(d)
+        case .integer(let i): self = .integer(i)
+        case .string(let s): self = .string(s)
         default:
             throw MyronError(.invalidKey(value.kind), at: location)
         }
     }
 
-    func asValue() -> Value {
+    public var value: Value {
         switch self {
         case .boolean(let b): return .boolean(b)
         case .double(let d): return .double(d)
