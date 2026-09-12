@@ -155,7 +155,7 @@ struct StandardListsTests {
         ("(head 5)", .unexpectedType(.integer, [.string, .list])),
         ("(tail 5)", .unexpectedType(.integer, [.string, .list])),
         ("(last 5)", .unexpectedType(.integer, [.string, .list])),
-        ("(empty? 5)", .unexpectedType(.integer, [.string, .list])),
+        ("(empty? 5)", .unexpectedType(.integer, [.hashmap, .string, .list])),
         ("(head '(1) '(2))", .unexpectedArity(2, .exactly(1))),
         ("(take -1 '(1 2))", .cannotBeNegative),
         ("(drop -1 '(1 2))", .cannotBeNegative),
@@ -166,14 +166,14 @@ struct StandardListsTests {
         ("(cons 1 2)", .unexpectedType(.integer, [.list])),
         ("(cons 1)", .unexpectedArity(1, .exactly(2))),
         ("(append 5)", .unexpectedType(.integer, [.string, .list])),
-        ("(append)", .unexpectedArity(0, .unspecified)),
+        ("(append)", .unexpectedArity(0, .atLeast(1))),
         ("(nth 0 5)", .unexpectedType(.integer, [.string, .list])),
         ("(nth \"a\" '(1))", .unexpectedType(.string, [.integer])),
         ("(nth 5 '(1 2))", .subscriptOutOfBounds(5, 2)),
         ("(nth -1 '(1 2))", .subscriptOutOfBounds(-1, 2)),
         ("(nth 0 '())", .subscriptOutOfBounds(0, 0)),
         ("(contains 1 5)", .unexpectedType(.integer, [.string, .list])),
-        ("(contains 1)", .unexpectedArity(1, .unspecified))
+        ("(contains 1)", .unexpectedArity(1, .exactly(2)))
     ] as [FailureCase])
     func listErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

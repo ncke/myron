@@ -104,18 +104,21 @@ extension Environment {
         case "all": return .higherProbe(.all)
         case "any": return .higherProbe(.any)
 
-        // Association lists.
-        case "get": return .primitive(StandardAlist.get)
-        case "get-or": return .primitive(StandardAlist.getOr)
-        case "put": return .primitive(StandardAlist.put)
-        case "remove": return .primitive(StandardAlist.remove)
-        case "has-key?": return .primitive(StandardAlist.hasKey)
-        case "keys": return .primitive(StandardAlist.keys)
-        case "values": return .primitive(StandardAlist.values)
+        // Associations.
+        case "get": return .primitive(StandardAssociative.get)
+        case "get-or": return .primitive(StandardAssociative.getOr)
+        case "put": return .primitive(StandardAssociative.put)
+        case "remove": return .primitive(StandardAssociative.remove)
+        case "has-key?": return .primitive(StandardAssociative.hasKey)
+        case "keys": return .primitive(StandardAssociative.keys)
+        case "values": return .primitive(StandardAssociative.values)
+
+        // Native Alist.
         case "key-index": return .primitive(StandardAlist.keyIndex)
 
-        // Hash tables.
-        // keys-values
+        // Native Hashmap.
+        case "make-hashmap": return .primitive(StandardHashmap.makeHashmap)
+        case "keys-values": return .primitive(StandardHashmap.keysValues)
 
         default:
             return nil

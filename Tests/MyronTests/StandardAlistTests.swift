@@ -152,15 +152,6 @@ struct StandardAlistTests {
         expectValue("(remove 1 '((1 \"a\") (1 \"b\")))", "((1 \"b\"))")
     }
 
-    @Test("the alist argument must be a list", arguments: [
-        ("(get 1 7)", .unexpectedType(.integer, [.list])),
-        ("(keys \"a\")", .unexpectedType(.string, [.list])),
-        ("(put 1 2 7)", .unexpectedType(.integer, [.list]))
-    ] as [FailureCase])
-    func notAList(_ c: FailureCase) {
-        expectFailure(c.source, reason: c.reason)
-    }
-
     @Test("alist arity errors", arguments: [
         "(get 1)",
         "(get 1 '() 3)",

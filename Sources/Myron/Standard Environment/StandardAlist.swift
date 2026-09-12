@@ -4,44 +4,14 @@ import Foundation
 
 struct StandardAlist {
 
-    private static func findKey(
-        _ key: Value.Key,
-        in list: [Value],
-        validating: Bool,
-        at location: Location?
-    ) throws -> (Int, Value)? {
-        var matches = [(Int, Value)]()
-
-        for (idx, element) in list.enumerated() {
-            guard case .list(let pair) = element, pair.count == 2 else {
-                throw MyronError(.malformedAlist(idx), at: location)
-            }
-
-            let pairKey = try Value.Key.fromValue(pair[0], at: location)
-            if pairKey == key {
-                let result = (idx, pair[1])
-                if !validating { return result }
-                matches.append(result)
-            }
-        }
-
-        guard matches.count <= 1 else {
-            let indices = matches.map { (idx, _) in idx }
-            throw MyronError(.duplicateKeys(indices), at: location)
-        }
-
-        if let firstMatch = matches.first { return firstMatch }
-        return nil
-    }
-
     static func get(args: [Value], location: Location?) throws -> Value {
         let (fst, snd) = try args.unwrap2(location)
         let key = try Value.Key.fromValue(fst, at: location)
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
-        if let (_, value) = result { return value }
-        return .nothing
+        guard let (_, value) = result else { return .nothing }
+        return value
     }
 
     static func getOr(args: [Value], location: Location?) throws -> Value {
@@ -50,8 +20,8 @@ struct StandardAlist {
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
 
-        if let (_, value) = result { return value }
-        return def
+        guard let (_, value) = result else { return def }
+        return value
     }
 
     static func put(args: [Value], location: Location?) throws -> Value {
@@ -66,7 +36,6 @@ struct StandardAlist {
         let found = try findKey(key, in: list, validating: true, at: location)
 
         if let (idx, _) = found { list[idx] = pair } else { list.append(pair) }
-
         return .list(list)
     }
 
@@ -102,6 +71,10 @@ struct StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
+            if case .nothing = pair[1] {
+                throw MyronError(.malformedAlist(idx), at: location)
+            }
+
             let key = pair[0]
             _ = try Value.Key.fromValue(key, at: location)
             ks.append(key)
@@ -119,6 +92,10 @@ struct StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
+            if case .nothing = pair[1] {
+                throw MyronError(.malformedAlist(idx), at: location)
+            }
+
             _ = try Value.Key.fromValue(pair[0], at: location)
             vs.append(pair[1])
         }
@@ -132,11 +109,48 @@ struct StandardAlist {
         let list = try snd.unwrapList(location)
         let result = try findKey(key, in: list, validating: false, at: location)
         
-        if let (idx, _) = result {
-            return .integer(idx)
+        guard let (idx, _) = result else { return .nothing }
+        return .integer(idx)
+    }
+
+}
+
+// MARK: - Helpers
+
+extension StandardAlist {
+
+    private static func findKey(
+        _ key: Value.Key,
+        in list: [Value],
+        validating: Bool,
+        at location: Location?
+    ) throws -> (Int, Value)? {
+        var matches = [(Int, Value)]()
+
+        for (idx, element) in list.enumerated() {
+            guard case .list(let pair) = element, pair.count == 2 else {
+                throw MyronError(.malformedAlist(idx), at: location)
+            }
+
+            if case .nothing = pair[1] {
+                throw MyronError(.malformedAlist(idx), at: location)
+            }
+
+            let pairKey = try Value.Key.fromValue(pair[0], at: location)
+            if pairKey == key {
+                let result = (idx, pair[1])
+                if !validating { return result }
+                matches.append(result)
+            }
         }
 
-        return .nothing
+        guard matches.count <= 1 else {
+            let indices = matches.map { (idx, _) in idx }
+            throw MyronError(.duplicateKeys(indices), at: location)
+        }
+
+        guard let firstMatch = matches.first else { return nil }
+        return firstMatch
     }
 
 }

@@ -8,6 +8,7 @@ import Testing
 struct StandardSequenceTests {
 
     private static let sequenceKinds: Set<Value.Kind> = [.list, .string]
+    private static let extendedSequenceKinds: Set<Value.Kind> = [.hashmap, .list, .string]
 
     @Test("a shared name works over either sequence type", arguments: [
         ("(head '(1 2 3))", "1"),
@@ -55,19 +56,19 @@ struct StandardSequenceTests {
         ("(last 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(take 1 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(drop 1 5)", .unexpectedType(.integer, sequenceKinds)),
-        ("(length 5)", .unexpectedType(.integer, sequenceKinds)),
-        ("(empty? 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(length 5)", .unexpectedType(.integer, extendedSequenceKinds)),
+        ("(empty? 5)", .unexpectedType(.integer, extendedSequenceKinds)),
         ("(append 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(reverse 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(nth 0 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(contains 1 5)", .unexpectedType(.integer, sequenceKinds)),
-        ("(length 1.5)", .unexpectedType(.double, sequenceKinds)),
-        ("(length true)", .unexpectedType(.boolean, sequenceKinds)),
-        ("(length 'sym)", .unexpectedType(.symbol, sequenceKinds)),
-        ("(length (head '()))", .unexpectedType(.nothing, sequenceKinds)),
-        ("(length sqrt)", .unexpectedType(.primitive, sequenceKinds)),
-        ("(length (lambda (x) x))", .unexpectedType(.procedure, sequenceKinds)),
-        ("(length (define x 1))", .unexpectedType(.define, sequenceKinds))
+        ("(length 1.5)", .unexpectedType(.double, extendedSequenceKinds)),
+        ("(length true)", .unexpectedType(.boolean, extendedSequenceKinds)),
+        ("(length 'sym)", .unexpectedType(.symbol, extendedSequenceKinds)),
+        ("(length (head '()))", .unexpectedType(.nothing, extendedSequenceKinds)),
+        ("(length sqrt)", .unexpectedType(.primitive, extendedSequenceKinds)),
+        ("(length (lambda (x) x))", .unexpectedType(.procedure, extendedSequenceKinds)),
+        ("(length (define x 1))", .unexpectedType(.define, extendedSequenceKinds))
     ] as [FailureCase])
     func unexpectedType(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
@@ -106,7 +107,7 @@ struct StandardSequenceTests {
                 return
             }
             #expect(errors.first?.message?.hasPrefix(
-                "ERROR: Unexpected type, got integer, expected list, string") == true)
+                "ERROR: Unexpected type, got integer, expected hashmap, list, string") == true)
         }
     }
 

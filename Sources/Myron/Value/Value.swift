@@ -47,6 +47,7 @@ public typealias Primitive = ([Value], Location?) throws -> Value
 public enum Value {
     case boolean(Bool)
     case double(Double)
+    case hashmap(MyronHashmap)
     case higherOrder(HigherOrder)
     case higherProbe(HigherProbe)
     case integer(Int)
@@ -130,6 +131,7 @@ extension Value {
     public enum Kind: Equatable, CustomStringConvertible, Sendable {
         case boolean
         case double
+        case hashmap
         case higherOrder
         case higherProbe
         case integer
@@ -145,6 +147,7 @@ extension Value {
             switch self {
             case .boolean: return "boolean"
             case .double: return "double"
+            case .hashmap: return "hashmap"
             case .higherOrder: return "procedure"
             case .higherProbe: return "procedure"
             case .integer: return "integer"
@@ -163,6 +166,7 @@ extension Value {
         switch self {
         case .boolean: return .boolean
         case .double: return .double
+        case .hashmap: return .hashmap
         case .higherOrder: return .higherOrder
         case .higherProbe: return .higherProbe
         case .integer: return .integer
@@ -186,6 +190,7 @@ extension Value: CustomStringConvertible {
         switch self {
         case .boolean(let boolean): "\(boolean)"
         case .double(let double): "\(double)"
+        case .hashmap(let hashmap): "\(hashmap)"
         case .higherOrder: "<procedure>"
         case .higherProbe: "<procedure>"
         case .integer(let integer): "\(integer)"

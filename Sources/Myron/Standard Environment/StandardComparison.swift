@@ -26,6 +26,18 @@ struct StandardComparison {
             return .boolean(true)
         }
 
+        if let f = fst.asHashmap, let s = snd.asHashmap {
+            if f.length() != s.length() { return .boolean(false) }
+
+            for (fk, fv) in f.keysValues() {
+                guard let sv = s.get(key: fk) else { return .boolean(false) }
+                let compare = try eq(args: [fv, sv], location: location)
+                if try !compare.unwrapBoolean(location) { return .boolean(false) }
+            }
+
+            return .boolean(true)
+        }
+
         throw MyronError(.inequatableTypes, at: location)
     }
 

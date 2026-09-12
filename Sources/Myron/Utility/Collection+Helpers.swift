@@ -6,6 +6,10 @@ extension Collection {
         if count < n { throw MyronError(.unexpectedArity(count, .atLeast(n)), at: location) }
     }
 
+    func mustHaveAtMost(_ n: Int, _ location: Location?) throws {
+        if count > n { throw MyronError(.unexpectedArity(count, .atMost(n)), at: location) }
+    }
+
     func mustHaveExactly(_ n: Int, _ location: Location?) throws {
         if count != n { throw MyronError(.unexpectedArity(count, .exactly(n)), at: location) }
     }

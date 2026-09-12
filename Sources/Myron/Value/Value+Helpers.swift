@@ -32,6 +32,13 @@ extension Value {
         return l
     }
 
+    func unwrapHashmap(_ location: Location?) throws -> MyronHashmap {
+        guard let h = asHashmap else {
+            throw MyronError(.unexpectedType(self.kind, [.hashmap]), at: location)
+        }
+        return h
+    }
+
     func unwrapString(_ location: Location?) throws -> String {
         guard let s = asString else {
             throw MyronError(.unexpectedType(self.kind, [.string]), at: location)
@@ -81,6 +88,11 @@ extension Value {
 
     var asList: [Value]? {
         if case .list(let l) = self { return l }
+        return nil
+    }
+
+    var asHashmap: MyronHashmap? {
+        if case .hashmap(let h) = self { return h }
         return nil
     }
 

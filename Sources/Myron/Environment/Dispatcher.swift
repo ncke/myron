@@ -17,9 +17,11 @@ struct Dispatcher: @unchecked Sendable {
     }
 
     private let patterns: [Pattern]
+    private let sharedArity: MyronError.IntegerExpectation?
 
-    init(_ patterns: [Pattern]) {
+    init(_ patterns: [Pattern], sharedArity: MyronError.IntegerExpectation? = nil) {
         self.patterns = patterns
+        self.sharedArity = sharedArity
     }
 
     func dispatch(_ args: [Value], _ location: Location?) throws -> Value {
@@ -34,7 +36,17 @@ struct Dispatcher: @unchecked Sendable {
                 continue
             }
 
-            arityMet = true
+            if let sharedArity {
+                switch sharedArity {
+                case .atLeast(let count): arityMet = arityMet || args.count >= count
+                case .atMost(let count): arityMet = arityMet || args.count <= count
+                case .exactly(let count): arityMet = arityMet || args.count == count
+                case .unspecified: arityMet = true
+                }
+            } else {
+                arityMet = true
+            }
+
             guard args[pattern.argumentIndex].kind == pattern.match else {
                 gotKinds.insert(args[pattern.argumentIndex].kind)
                 continue
@@ -44,7 +56,8 @@ struct Dispatcher: @unchecked Sendable {
         }
 
         if !arityMet {
-            throw MyronError(.unexpectedArity(args.count, .unspecified), at: location)
+            let expect = sharedArity ?? .unspecified
+            throw MyronError(.unexpectedArity(args.count, expect), at: location)
         }
 
         let got = gotKinds.count == 1 ? gotKinds.first : nil

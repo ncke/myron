@@ -5,6 +5,6 @@ import Foundation
 public enum Myron {
 
     /// Myron language version number.
-    public static let version = "0.1.0"
+    public static let version = "0.1.1"
 
 }
