@@ -199,7 +199,7 @@ extension Machine {
             try tail.mustHaveAtLeast(2, meta.location)
             let (head, bodies) = try tail.headtail(meta.location)
             let (bindingExprs, _) = try head.unwrapList()
-            let inner = Environment(outer: environment)
+            let inner = try Environment(outer: environment, at: meta.location)
 
             if let headBinding = bindingExprs.first {
                 let (name, expr) = try headBinding.unwrapBinding()
@@ -477,7 +477,7 @@ extension Machine {
                 throw MyronError(reason, at: location)
             }
 
-            let inner = Environment(outer: procedure.environment)
+            let inner = try Environment(outer: procedure.environment, at: location)
             for (name, argument) in zip(procedure.parameters, arguments) {
                 inner.insert(name, value: argument)
             }

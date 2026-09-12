@@ -74,6 +74,24 @@ public final class MyronSession {
 
 }
 
+// MARK: - Environment Interaction
+
+extension MyronSession {
+
+    public func query(_ name: String) -> MyronValue? {
+        return environment.lookup(name)
+    }
+
+    public func set(_ name: String, to value: MyronValue) {
+        environment.insert(name, value: value)
+    }
+
+    public var names: Set<String> {
+        return environment.names
+    }
+
+}
+
 // MARK: - Error Messages
 
 private extension MyronSession {

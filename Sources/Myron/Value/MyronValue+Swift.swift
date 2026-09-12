@@ -89,6 +89,17 @@ extension MyronValue: ExpressibleByArrayLiteral {
     }
 }
 
+extension MyronValue: ExpressibleByDictionaryLiteral {
+
+    public typealias Value = MyronValueRepresentable
+
+    public init(dictionaryLiteral elements: (Key, any Value)...) {
+        let hashmap = MyronHashmap(elements: elements)
+        self = .hashmap(hashmap)
+    }
+
+}
+
 // MARK: - MyronKeyRepresentable
 
 public protocol MyronKeyRepresentable: Hashable {
@@ -173,6 +184,10 @@ extension MyronHashmap: ExpressibleByDictionaryLiteral {
     public init(
         dictionaryLiteral elements: (any MyronKeyRepresentable, any MyronValueRepresentable)...
     ) {
+        self.init(elements: elements)
+    }
+
+    fileprivate init(elements: [(any MyronKeyRepresentable, any MyronValueRepresentable)]) {
         var pairs = [(MyronValue.Key, MyronValue)]()
 
         for (key, value) in elements {

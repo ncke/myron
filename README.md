@@ -65,6 +65,8 @@ looking things up later.
 - Swift interoperability in both directions. Swift values convert to
   `MyronValue`, which reads back through typed accessors, and both are
   expressible as Swift literals.
+- A session's environment is open to its host: names can be read, written and
+  listed from Swift without going through source text.
 - Sequence primitives that work on both lists and strings, dispatched on the
   argument's type: `(length '(1 2 3))` and `(length "abc")` are both `3`.
 - Strict, coercion-free numerics: integers and doubles never mix silently.
@@ -178,6 +180,49 @@ errors, so treat it as reserved.
 
 Each session is independent. Create a new one when you want a clean
 environment; there is no way to reset an existing one.
+
+#### Reading and writing the environment
+
+A session's top-level environment is open to the host. `query` resolves a name
+the way Myron would, `set` binds one, and `names` lists what is bound:
+
+```swift
+session.set("limit", to: 10)
+session.eval("(< 3 limit)")               // .success(.boolean(true))
+
+session.query("limit")                    // .integer(10)
+session.query("pi")                       // .double(3.14159...) — standard
+session.query("nowhere")                  // nil
+
+session.names                             // Set<String>
+```
+
+`set` takes a `MyronValue`, so data a host has built — a number, a string, a
+list, a hashmap — can be handed to Myron without going through source text. It
+never fails, and it overwrites whatever was there before, whether the host or a
+`define` put it there. Myron's own `define` overwrites it in turn: the two
+write to the same place.
+
+`query` resolves a name exactly as evaluation would, so it reaches the
+[standard environment](#standard-library-reference) as well as what has been
+bound in the session. A `nil` result means the name is unbound, which is
+distinct from a name bound to `nothing`:
+
+```swift
+session.set("n", to: nil)                 // bound to nothing
+session.query("n")                        // .some(.nothing)
+session.query("m")                        // nil — never bound
+```
+
+`names` reports only what has been bound in the session, by `define` or by
+`set`. It does not list the standard environment or the special forms, so a
+name can be resolvable through `query` without appearing in `names`. Local
+bindings from `let` and from procedure calls do not appear either; they belong
+to inner environments that do not outlive the call.
+
+Nothing stops a host from shadowing a standard name — `set("map", to: 9)` makes
+`map` an integer for that session, exactly as `(define map 9)` would. It is the
+host's session to furnish.
 
 ### `MyronResult`
 
@@ -321,6 +366,7 @@ also has a `description`, which is the first line of the rendered message.
 | Reason | Raised when |
 |---|---|
 | `cannotBeNegative` | A count that must be non-negative was not — `(take -1 xs)`. |
+| `containingEnvironmentNoLongerExists` | A procedure was called after the session that defined it was deallocated. |
 | `divisionByZero` | `/`, `mod`, or `rem` was given a zero divisor. |
 | `dictionaryValueCannotBeNothing` | A Swift dictionary of Myron types held `.nothing` as a value. |
 | `duplicateKeys([Int])` | A key was found more than once in an alist; carries the indices. |
@@ -487,9 +533,14 @@ Sessions are not thread-safe. Confine each one to a single thread or actor.
 When a session is deallocated it shuts down every environment it created. This
 matters because closures capture their defining environment, and a procedure
 stored in an environment forms a reference cycle with it; the session's
-registry breaks those cycles at teardown. The practical consequence is that you
-should not hold on to a `.procedure` value beyond the life of the session that
-produced it — extract the data you need while the session is alive.
+registry breaks those cycles at teardown. The practical consequence is that a
+`.procedure` value is only meaningful while the session that produced it is
+alive — extract the data you need before letting the session go.
+
+Calling one afterwards is an error rather than a crash: the procedure has no
+environment left to run in, and evaluation fails with
+`containingEnvironmentNoLongerExists`. That applies however the procedure is
+reached, including from inside a list or hashmap it was stored in.
 
 ## A tour of Myron
 

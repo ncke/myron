@@ -6,6 +6,7 @@ public struct MyronError: Error, Sendable {
 
     public enum Reason: Sendable, Equatable {
         case cannotBeNegative
+        case containingEnvironmentNoLongerExists
         case dictionaryValueCannotBeNothing
         case divisionByZero
         case duplicateKeys([Int])
@@ -92,6 +93,7 @@ extension MyronError.Reason: CustomStringConvertible {
     public var description: String {
         switch self {
         case .cannotBeNegative: return "Cannot be negative"
+        case .containingEnvironmentNoLongerExists: return "Containing environment no longer exists"
         case .dictionaryValueCannotBeNothing: return "Dictionary value cannot be nothing"
         case .divisionByZero: return "Division by zero"
         case .duplicateKeys(let idxs): return "Duplicate keys at indices: \(idxs)"
