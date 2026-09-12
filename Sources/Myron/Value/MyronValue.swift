@@ -1,28 +1,28 @@
 import Foundation
 
-// MARK: - Value
+// MARK: - MyronValue
 
-public typealias Primitive = ([Value], Location?) throws -> Value
+public typealias MyronPrimitive = ([MyronValue], MyronLocation?) throws -> MyronValue
 
-public enum Value {
+public enum MyronValue {
     case boolean(Bool)
     case double(Double)
     case hashmap(MyronHashmap)
-    case higherOrder(HigherOrder)
-    case higherProbe(HigherProbe)
+    case higherOrder(MyronHigherOrder)
+    case higherProbe(MyronHigherProbe)
     case integer(Int)
-    case list([Value])
+    case list([MyronValue])
     case nothing
     case string(String)
     case symbol(String)
-    case primitive(Primitive)
-    case procedure(Procedure)
+    case primitive(MyronPrimitive)
+    case procedure(MyronProcedure)
     case define(String)
 }
 
 // MARK: - Atomic Type Helper
 
-extension Value {
+extension MyronValue {
 
     var isAtomicType: Bool {
         switch self {
@@ -31,12 +31,15 @@ extension Value {
         }
     }
 
-    static func makeValue(from expression: Expression, at location: Location?) throws -> Value {
+    static func makeValue(
+        from expression: Expression,
+        at location: MyronLocation?
+    ) throws -> MyronValue {
         if case .atom(let atom, _) = expression { return makeValue(from: atom) }
         
-        var stack = [([Value], ArraySlice<Expression>)]()
+        var stack = [([MyronValue], ArraySlice<Expression>)]()
         var remaining: ArraySlice<Expression> = [expression]
-        var done = [Value]()
+        var done = [MyronValue]()
 
         while true {
             if let next = remaining.first {
@@ -57,7 +60,7 @@ extension Value {
             }
 
             if let popped = stack.popLast() {
-                let list = Value.list(done)
+                let list = MyronValue.list(done)
                 (done, remaining) = popped
                 done.append(list)
                 continue
@@ -72,7 +75,7 @@ extension Value {
         }
     }
 
-    static func makeValue(from atom: Atom) -> Value {
+    static func makeValue(from atom: Atom) -> MyronValue {
         switch atom {
         case .boolean(let boolean): .boolean(boolean)
         case .double(let double): .double(double)
@@ -84,67 +87,9 @@ extension Value {
 
 }
 
-// MARK: - Kind
-
-extension Value {
-
-    public enum Kind: Equatable, CustomStringConvertible, Sendable {
-        case boolean
-        case double
-        case hashmap
-        case higherOrder
-        case higherProbe
-        case integer
-        case list
-        case nothing
-        case string
-        case symbol
-        case primitive
-        case procedure
-        case define
-
-        public var description: String {
-            switch self {
-            case .boolean: return "boolean"
-            case .double: return "double"
-            case .hashmap: return "hashmap"
-            case .higherOrder: return "procedure"
-            case .higherProbe: return "procedure"
-            case .integer: return "integer"
-            case .list: return "list"
-            case .nothing: return "nothing"
-            case .string: return "string"
-            case .symbol: return "symbol"
-            case .primitive: return "primitive"
-            case .procedure: return "procedure"
-            case .define: return "define"
-            }
-        }
-    }
-
-    public var kind: Kind {
-        switch self {
-        case .boolean: return .boolean
-        case .double: return .double
-        case .hashmap: return .hashmap
-        case .higherOrder: return .higherOrder
-        case .higherProbe: return .higherProbe
-        case .integer: return .integer
-        case .list: return .list
-        case .nothing: return .nothing
-        case .string: return .string
-        case .symbol: return .symbol
-        case .primitive: return .primitive
-        case .procedure: return .procedure
-        case .define: return .define
-        }
-    }
-
-}
-
 // MARK: - Description
 
-extension Value: CustomStringConvertible {
+extension MyronValue: CustomStringConvertible {
 
     public var description: String {
         switch self {

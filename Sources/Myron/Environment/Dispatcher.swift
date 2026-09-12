@@ -6,10 +6,10 @@ struct Dispatcher: @unchecked Sendable {
 
     struct Pattern {
         let argumentIndex: Int
-        let match: Value.Kind
-        let target:  Primitive
+        let match: MyronValue.Kind
+        let target:  MyronPrimitive
 
-        init(_ argumentIndex: Int, _ match: Value.Kind, _ target: @escaping Primitive) {
+        init(_ argumentIndex: Int, _ match: MyronValue.Kind, _ target: @escaping MyronPrimitive) {
             self.argumentIndex = argumentIndex
             self.match = match
             self.target = target
@@ -24,9 +24,9 @@ struct Dispatcher: @unchecked Sendable {
         self.sharedArity = sharedArity
     }
 
-    func dispatch(_ args: [Value], _ location: Location?) throws -> Value {
+    func dispatch(_ args: [MyronValue], _ location: MyronLocation?) throws -> MyronValue {
         var arityMet = false
-        var gotKinds = Set<Value.Kind>()
+        var gotKinds = Set<MyronValue.Kind>()
 
         for pattern in patterns {
             guard

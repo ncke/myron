@@ -11,40 +11,40 @@ struct SwiftInteropTests {
 
     @Test("a value yields its Swift counterpart")
     func valueAccessors() {
-        #expect(Value.boolean(true).asBoolean == true)
-        #expect(Value.integer(7).asInteger == 7)
-        #expect(Value.double(1.5).asDouble == 1.5)
-        #expect(Value.string("a").asString == "a")
-        #expect(Value.symbol("s").asSymbol == "s")
-        #expect(Value.list([.integer(1)]).asList?.count == 1)
-        #expect(Value.hashmap(["a": 1]).asHashmap?.count == 1)
+        #expect(MyronValue.boolean(true).asBoolean == true)
+        #expect(MyronValue.integer(7).asInteger == 7)
+        #expect(MyronValue.double(1.5).asDouble == 1.5)
+        #expect(MyronValue.string("a").asString == "a")
+        #expect(MyronValue.symbol("s").asSymbol == "s")
+        #expect(MyronValue.list([.integer(1)]).asList?.count == 1)
+        #expect(MyronValue.hashmap(["a": 1]).asHashmap?.count == 1)
     }
 
     @Test("an accessor for the wrong case is nil")
     func valueAccessorsMiss() {
-        let value = Value.integer(1)
+        let value = MyronValue.integer(1)
         #expect(value.asBoolean == nil)
         #expect(value.asDouble == nil)
         #expect(value.asString == nil)
         #expect(value.asSymbol == nil)
         #expect(value.asList == nil)
         #expect(value.asHashmap == nil)
-        #expect(Value.nothing.asInteger == nil)
+        #expect(MyronValue.nothing.asInteger == nil)
     }
 
     @Test("integers and doubles do not stand in for each other")
     func noNumericCoercion() {
-        #expect(Value.integer(1).asDouble == nil)
-        #expect(Value.double(1).asInteger == nil)
+        #expect(MyronValue.integer(1).asDouble == nil)
+        #expect(MyronValue.double(1).asInteger == nil)
     }
 
     @Test("every value reports a kind")
     func valueKind() {
-        #expect(Value.boolean(true).kind == .boolean)
-        #expect(Value.nothing.kind == .nothing)
-        #expect(Value.list([]).kind == .list)
-        #expect(Value.hashmap([:]).kind == .hashmap)
-        #expect(Value.integer(1).kind != Value.double(1).kind)
+        #expect(MyronValue.boolean(true).kind == .boolean)
+        #expect(MyronValue.nothing.kind == .nothing)
+        #expect(MyronValue.list([]).kind == .list)
+        #expect(MyronValue.hashmap([:]).kind == .hashmap)
+        #expect(MyronValue.integer(1).kind != MyronValue.double(1).kind)
     }
 
     // MARK: Building a Value
@@ -59,7 +59,7 @@ struct SwiftInteropTests {
 
     @Test("a value represents itself")
     func valueIsRepresentable() {
-        let value = Value.symbol("s")
+        let value = MyronValue.symbol("s")
         #expect(value.myronValue.asSymbol == "s")
     }
 
@@ -96,11 +96,11 @@ struct SwiftInteropTests {
 
     @Test("a value can be written as a literal")
     func valueLiterals() {
-        let nothing: Value = nil
-        let boolean: Value = true
-        let integer: Value = 42
-        let double: Value = 1.5
-        let string: Value = "a"
+        let nothing: MyronValue = nil
+        let boolean: MyronValue = true
+        let integer: MyronValue = 42
+        let double: MyronValue = 1.5
+        let string: MyronValue = "a"
 
         #expect(nothing.kind == .nothing)
         #expect(boolean.asBoolean == true)
@@ -112,8 +112,8 @@ struct SwiftInteropTests {
     @Test("an array literal mixes Swift values, Myron values and nesting")
     func arrayLiteral() {
         let n = 5
-        let existing = Value.string("v")
-        let list: Value = [1, "two", true, n, existing, [1, 2]]
+        let existing = MyronValue.string("v")
+        let list: MyronValue = [1, "two", true, n, existing, [1, 2]]
 
         #expect(list.asList?.count == 6)
         #expect(list.asList?[3].asInteger == 5)
@@ -125,34 +125,34 @@ struct SwiftInteropTests {
 
     @Test("a key can be made from a value")
     func keyFromValue() throws {
-        #expect(try Value.Key(.integer(1)) == .integer(1))
-        #expect(try Value.Key(.string("a")) == .string("a"))
-        #expect(try Value.Key(.boolean(true)) == .boolean(true))
-        #expect(try Value.Key(.double(1.5)) == .double(1.5))
+        #expect(try MyronValue.Key(.integer(1)) == .integer(1))
+        #expect(try MyronValue.Key(.string("a")) == .string("a"))
+        #expect(try MyronValue.Key(.boolean(true)) == .boolean(true))
+        #expect(try MyronValue.Key(.double(1.5)) == .double(1.5))
     }
 
     @Test("a key rejects values that cannot be keys")
     func keyRejectsValues() {
-        #expect(throws: MyronError.self) { try Value.Key(.symbol("s")) }
-        #expect(throws: MyronError.self) { try Value.Key(.list([])) }
-        #expect(throws: MyronError.self) { try Value.Key(.nothing) }
-        #expect(throws: MyronError.self) { try Value.Key(.double(.nan)) }
-        #expect(throws: MyronError.self) { try Value.Key(.double(.infinity)) }
+        #expect(throws: MyronError.self) { try MyronValue.Key(.symbol("s")) }
+        #expect(throws: MyronError.self) { try MyronValue.Key(.list([])) }
+        #expect(throws: MyronError.self) { try MyronValue.Key(.nothing) }
+        #expect(throws: MyronError.self) { try MyronValue.Key(.double(.nan)) }
+        #expect(throws: MyronError.self) { try MyronValue.Key(.double(.infinity)) }
     }
 
     @Test("a key round trips through its value")
     func keyRoundTrip() throws {
-        let key = Value.Key.string("a")
-        #expect(try Value.Key(key.value) == key)
+        let key = MyronValue.Key.string("a")
+        #expect(try MyronValue.Key(key.value) == key)
         #expect(key.value.asString == "a")
     }
 
     @Test("a key can be written as a literal")
     func keyLiterals() {
-        let boolean: Value.Key = true
-        let integer: Value.Key = 42
-        let double: Value.Key = 1.5
-        let string: Value.Key = "a"
+        let boolean: MyronValue.Key = true
+        let integer: MyronValue.Key = 42
+        let double: MyronValue.Key = 1.5
+        let string: MyronValue.Key = "a"
 
         #expect(boolean == .boolean(true))
         #expect(integer == .integer(42))
@@ -162,7 +162,7 @@ struct SwiftInteropTests {
 
     @Test("a key represents itself")
     func keyIsRepresentable() {
-        #expect(Value.Key.integer(1).myronKey == .integer(1))
+        #expect(MyronValue.Key.integer(1).myronKey == .integer(1))
         #expect(1.myronKey == .integer(1))
         #expect("a".myronKey == .string("a"))
         #expect(true.myronKey == .boolean(true))
@@ -170,8 +170,8 @@ struct SwiftInteropTests {
 
     @Test("keys of different types are distinct")
     func keysAreTyped() {
-        #expect(Value.Key.integer(1) != Value.Key.double(1))
-        #expect(Value.Key.integer(1) != Value.Key.string("1"))
+        #expect(MyronValue.Key.integer(1) != MyronValue.Key.double(1))
+        #expect(MyronValue.Key.integer(1) != MyronValue.Key.string("1"))
     }
 
     // MARK: Hashmap from a Swift dictionary
@@ -186,7 +186,7 @@ struct SwiftInteropTests {
 
     @Test("a hashmap can be built from Myron keys and values")
     func hashmapFromMyronDictionary() throws {
-        let hashmap = try MyronHashmap([Value.Key.string("a"): Value.integer(1)])
+        let hashmap = try MyronHashmap([MyronValue.Key.string("a"): MyronValue.integer(1)])
         #expect(hashmap.count == 1)
         #expect(hashmap["a"]?.asInteger == 1)
     }
@@ -194,17 +194,17 @@ struct SwiftInteropTests {
     @Test("building from Myron types rejects a stored nothing")
     func hashmapRejectsNothing() {
         #expect(throws: MyronError.self) {
-            try MyronHashmap([Value.Key.string("a"): Value.nothing])
+            try MyronHashmap([MyronValue.Key.string("a"): MyronValue.nothing])
         }
     }
 
     @Test("building from Myron types rejects a non-finite key")
     func hashmapRejectsNonFiniteKey() {
         #expect(throws: MyronError.self) {
-            try MyronHashmap([Value.Key.double(.nan): Value.integer(1)])
+            try MyronHashmap([MyronValue.Key.double(.nan): MyronValue.integer(1)])
         }
         #expect(throws: MyronError.self) {
-            try MyronHashmap([Value.Key.double(.infinity): Value.integer(1)])
+            try MyronHashmap([MyronValue.Key.double(.infinity): MyronValue.integer(1)])
         }
     }
 
@@ -263,7 +263,7 @@ struct SwiftInteropTests {
     @Test("a hashmap iterates as key and value")
     func hashmapIteration() throws {
         let hashmap = try MyronHashmap(["a": 1, "b": 2])
-        var seen = [Value.Key: Int]()
+        var seen = [MyronValue.Key: Int]()
 
         for (key, value) in hashmap {
             seen[key] = value.asInteger
@@ -305,8 +305,8 @@ struct SwiftInteropTests {
 
     @Test("a hashmap literal takes Myron keys and values")
     func hashmapLiteralOfMyronTypes() {
-        let key = Value.Key.string("k")
-        let value = Value.integer(9)
+        let key = MyronValue.Key.string("k")
+        let value = MyronValue.integer(9)
         let hashmap: MyronHashmap = [key: value]
 
         #expect(hashmap.count == 1)

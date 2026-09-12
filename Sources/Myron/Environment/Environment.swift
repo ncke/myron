@@ -2,8 +2,8 @@ import Foundation
 
 // MARK: - Environment
 
-public final class Environment {
-    private var mappings: [String: Value] = [:]
+final class Environment {
+    private var mappings: [String: MyronValue] = [:]
     private var outer: Environment?
     private(set) weak var registry: EnvironmentRegistry!
 
@@ -23,11 +23,11 @@ public final class Environment {
         mappings = [:]
     }
 
-    func insert(_ name: String, value: Value) {
+    func insert(_ name: String, value: MyronValue) {
         mappings[name] = value
     }
 
-    func lookup(_ name: String) -> Value? {
+    func lookup(_ name: String) -> MyronValue? {
         return mappings[name]
             ?? outer?.lookup(name)
             ?? standardLookup(name)

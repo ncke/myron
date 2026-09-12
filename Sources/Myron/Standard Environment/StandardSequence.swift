@@ -4,51 +4,51 @@ import Foundation
 
 struct StandardSequence {
 
-    static func head(args: [Value], location: Location?) throws -> Value {
+    static func head(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.headDispatcher.dispatch(args, location)
     }
 
-    static func tail(args: [Value], location: Location?) throws -> Value {
+    static func tail(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.tailDispatcher.dispatch(args, location)
     }
 
-    static func initial(args: [Value], location: Location?) throws -> Value {
+    static func initial(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.initialDispatcher.dispatch(args, location)
     }
 
-    static func last(args: [Value], location: Location?) throws -> Value {
+    static func last(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.lastDispatcher.dispatch(args, location)
     }
 
-    static func take(args: [Value], location: Location?) throws -> Value {
+    static func take(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.takeDispatcher.dispatch(args, location)
     }
 
-    static func drop(args: [Value], location: Location?) throws -> Value {
+    static func drop(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.dropDispatcher.dispatch(args, location)
     }
 
-    static func length(args: [Value], location: Location?) throws -> Value {
+    static func length(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.lengthDispatcher.dispatch(args, location)
     }
 
-    static func empty(args: [Value], location: Location?) throws -> Value {
+    static func empty(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.emptyDispatcher.dispatch(args, location)
     }
 
-    static func append(args: [Value], location: Location?) throws -> Value {
+    static func append(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.appendDispatcher.dispatch(args, location)
     }
 
-    static func reverse(args: [Value], location: Location?) throws -> Value {
+    static func reverse(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.reverseDispatcher.dispatch(args, location)
     }
 
-    static func nth(args: [Value], location: Location?) throws -> Value {
+    static func nth(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.nthDispatcher.dispatch(args, location)
     }
 
-    static func contains(args: [Value], location: Location?) throws -> Value {
+    static func contains(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardSequence.containsDispatcher.dispatch(args, location)
     }
 

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Key
 
-extension Value {
+extension MyronValue {
 
     public enum Key {
         case boolean(Bool)
@@ -15,9 +15,9 @@ extension Value {
 
 // MARK: - Conformances
 
-extension Value.Key: Equatable, Hashable, Sendable {}
+extension MyronValue.Key: Equatable, Hashable, Sendable {}
 
-extension Value.Key: CustomStringConvertible {
+extension MyronValue.Key: CustomStringConvertible {
 
     public var description: String {
         return "\(self.value)"
@@ -27,13 +27,13 @@ extension Value.Key: CustomStringConvertible {
 
 // MARK: - Key Helpers
 
-extension Value.Key {
+extension MyronValue.Key {
 
-    public init(_ value: Value) throws {
+    public init(_ value: MyronValue) throws {
         try self.init(value, at: nil)
     }
 
-    init(_ value: Value, at location: Location?) throws {
+    init(_ value: MyronValue, at location: MyronLocation?) throws {
         switch value {
         case .boolean(let b): self = .boolean(b)
         case .double(let d) where d.isFinite: self = .double(d)
@@ -44,7 +44,7 @@ extension Value.Key {
         }
     }
 
-    public var value: Value {
+    public var value: MyronValue {
         switch self {
         case .boolean(let b): return .boolean(b)
         case .double(let d): return .double(d)

@@ -7,8 +7,8 @@ import Testing
 
 struct StandardSequenceTests {
 
-    private static let sequenceKinds: Set<Value.Kind> = [.list, .string]
-    private static let extendedSequenceKinds: Set<Value.Kind> = [.hashmap, .list, .string]
+    private static let sequenceKinds: Set<MyronValue.Kind> = [.list, .string]
+    private static let extendedSequenceKinds: Set<MyronValue.Kind> = [.hashmap, .list, .string]
 
     @Test("a shared name works over either sequence type", arguments: [
         ("(head '(1 2 3))", "1"),

@@ -69,7 +69,7 @@ extension Expression {
 
 extension Expression {
 
-    func asValueKind() -> Value.Kind {
+    func asValueKind() -> MyronValue.Kind {
         switch self {
         case let .atom(atom, _): return atom.asValueKind()
         case .list: return .list

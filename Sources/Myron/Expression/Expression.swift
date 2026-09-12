@@ -7,21 +7,21 @@ indirect enum Expression {
     case list([Expression], Metadata)
 
     struct Metadata {
-        let location: Location?
+        let location: MyronLocation?
     }
 }
 
 // MARK: - Location
 
-public typealias Location = Range<Int>
+public typealias MyronLocation = Range<Int>
 
 protocol Locatable {
-    var location: Location? { get }
+    var location: MyronLocation? { get }
 }
 
 extension Expression: Locatable {
 
-    var location: Location? {
+    var location: MyronLocation? {
         switch self {
         case let .atom(_, metadata): return metadata.location
         case let .list(_, metadata): return metadata.location

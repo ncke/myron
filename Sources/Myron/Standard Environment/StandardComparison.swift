@@ -4,7 +4,7 @@ import Foundation
 
 struct StandardComparison {
 
-    static func eq(args: [Value], location: Location?) throws -> Value {
+    static func eq(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
         guard fst.kind == snd.kind else { return .boolean(false) }
 
@@ -41,7 +41,7 @@ struct StandardComparison {
         throw MyronError(.inequatableTypes, at: location)
     }
 
-    static func neq(args: [Value], location: Location?) throws -> Value {
+    static func neq(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let compare = try eq(args: args, location: location)
         if let bool = compare.asBoolean { return .boolean(!bool) }
 
@@ -49,7 +49,7 @@ struct StandardComparison {
         throw MyronError(.internalError(message), at: location)
     }
 
-    static func gt(args: [Value], location: Location?) throws -> Value {
+    static func gt(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
@@ -63,14 +63,14 @@ struct StandardComparison {
         throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func gte(args: [Value], location: Location?) throws -> Value {
+    static func gte(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let greater = try gt(args: args, location: location)
         if try greater.unwrapBoolean(location) { return greater }
         let equal = try eq(args: args, location: location)
         return equal
     }
 
-    static func lt(args: [Value], location: Location?) throws -> Value {
+    static func lt(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
 
         guard fst.kind == snd.kind else {
@@ -84,7 +84,7 @@ struct StandardComparison {
         throw MyronError(.incomparableTypes, at: location)
     }
 
-    static func lte(args: [Value], location: Location?) throws -> Value {
+    static func lte(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let lesser = try lt(args: args, location: location)
         if try lesser.unwrapBoolean(location) { return lesser }
         let equal = try eq(args: args, location: location)

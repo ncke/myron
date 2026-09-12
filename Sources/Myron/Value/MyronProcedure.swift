@@ -1,8 +1,8 @@
 import Foundation
 
-// MARK: - Procedure
+// MARK: - MyronProcedure
 
-public struct Procedure {
+public struct MyronProcedure {
     let parameters: [String]
     let bodies: [Expression]
     let environment: Environment
@@ -10,15 +10,17 @@ public struct Procedure {
 
 // MARK: - Higher Order and Probe
 
-public enum HigherOrder {
+public enum MyronHigherOrder {
     case map, filter, reduce
 }
 
-public enum HigherProbe {
+public enum MyronHigherProbe {
     case all, any
 }
 
-extension HigherOrder: CustomStringConvertible {
+// MARK: - Description
+
+extension MyronHigherOrder: CustomStringConvertible {
 
     public var description: String {
         switch self {
@@ -30,7 +32,7 @@ extension HigherOrder: CustomStringConvertible {
 
 }
 
-extension HigherProbe: CustomStringConvertible {
+extension MyronHigherProbe: CustomStringConvertible {
 
     public var description: String {
         switch self {
@@ -38,4 +40,5 @@ extension HigherProbe: CustomStringConvertible {
         case .any: return "any"
         }
     }
+    
 }

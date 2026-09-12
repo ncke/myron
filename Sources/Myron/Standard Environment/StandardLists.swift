@@ -6,31 +6,31 @@ import Foundation
 
 struct StandardLists {
 
-    static func head(args: [Value], location: Location?) throws -> Value {
+    static func head(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let elements = try args.unwrap1(location).unwrapList(location)
         guard let head = elements.first else { return .nothing }
         return head
     }
 
-    static func tail(args: [Value], location: Location?) throws -> Value {
+    static func tail(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let elements = try args.unwrap1(location).unwrapList(location)
         let tail = Array(elements.dropFirst())
         return .list(tail)
     }
 
-    static func initial(args: [Value], location: Location?) throws -> Value {
+    static func initial(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let elements = try args.unwrap1(location).unwrapList(location)
         let result = Array(elements.dropLast())
         return .list(result)
     }
 
-    static func last(args: [Value], location: Location?) throws -> Value {
+    static func last(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let elements = try args.unwrap1(location).unwrapList(location)
         guard let last = elements.last else { return .nothing }
         return last
     }
 
-    static func take(args: [Value], location: Location?) throws -> Value {
+    static func take(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
         let count = try fst.unwrapInteger(location)
         guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
@@ -40,7 +40,7 @@ struct StandardLists {
         return .list(take)
     }
 
-    static func drop(args: [Value], location: Location?) throws -> Value {
+    static func drop(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
         let count = try fst.unwrapInteger(location)
         guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
@@ -50,19 +50,19 @@ struct StandardLists {
         return .list(drop)
     }
 
-    static func length(args: [Value], location: Location?) throws -> Value {
+    static func length(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let elements = try args.unwrap1(location).unwrapList(location)
         return .integer(elements.count)
     }
 
-    static func empty(args: [Value], location: Location?) throws -> Value {
+    static func empty(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let n = try length(args: args, location: location).unwrapInteger(location)
         return .boolean(n == 0)
     }
 
-    static func append(args: [Value], location: Location?) throws -> Value {
+    static func append(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         try args.mustHaveAtLeast(1, location)
-        var result = [Value]()
+        var result = [MyronValue]()
         for arg in args {
             let list = try arg.unwrapList(location)
             result.append(contentsOf: list)
@@ -70,13 +70,13 @@ struct StandardLists {
         return .list(result)
     }
 
-    static func reverse(args: [Value], location: Location?) throws -> Value {
+    static func reverse(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let list = try args.unwrap1(location).unwrapList(location)
         let reversed = Array(list.reversed())
         return .list(reversed)
     }
 
-    static func nth(args: [Value], location: Location?) throws -> Value {
+    static func nth(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
         let index = try fst.unwrapInteger(location)
         let list = try snd.unwrapList(location)
@@ -88,7 +88,7 @@ struct StandardLists {
         return list[index]
     }
 
-    static func contains(args: [Value], location: Location?) throws -> Value {
+    static func contains(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (element, snd) = try args.unwrap2(location)
         let list = try snd.unwrapList(location)
         let isContained = try list.contains { value in
@@ -104,14 +104,14 @@ struct StandardLists {
 
 extension StandardLists {
 
-    static func cons(args: [Value], location: Location?) throws -> Value {
+    static func cons(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
         let list = try snd.unwrapList(location)
         let result = [fst] + list
         return .list(result)
     }
 
-    static func list(args: [Value], location: Location?) throws -> Value {
+    static func list(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return .list(args)
     }
 
@@ -130,9 +130,9 @@ extension StandardLists {
 extension StandardLists {
 
     static func typeInsensitiveEq(
-        _ lhs: Value,
-        _ rhs: Value,
-        location: Location?
+        _ lhs: MyronValue,
+        _ rhs: MyronValue,
+        location: MyronLocation?
     ) throws -> Bool {
         do {
             return try StandardComparison.eq(

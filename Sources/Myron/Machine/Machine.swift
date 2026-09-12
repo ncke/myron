@@ -22,23 +22,23 @@ final class Machine {
 
 extension Machine {
     enum Frame {
-        case arguments(ArraySlice<Expression>, [Value], Environment, Location?)
-        case bind(String, ArraySlice<Expression>, ArraySlice<Expression>, Environment, Location?)
-        case branch(Expression, Expression, Environment, Location?)
-        case condition(ArraySlice<Expression>, ArraySlice<Expression>, Environment, Location?)
-        case conjunction(ArraySlice<Expression>, Environment, Location?)
+        case arguments(ArraySlice<Expression>, [MyronValue], Environment, MyronLocation?)
+        case bind(String, ArraySlice<Expression>, ArraySlice<Expression>, Environment, MyronLocation?)
+        case branch(Expression, Expression, Environment, MyronLocation?)
+        case condition(ArraySlice<Expression>, ArraySlice<Expression>, Environment, MyronLocation?)
+        case conjunction(ArraySlice<Expression>, Environment, MyronLocation?)
         case define(String, Environment)
-        case disjunction(ArraySlice<Expression>, Environment, Location?)
-        case filtering(Value, Value, ArraySlice<Value>, [Value], Location?)
-        case mapping(Value, ArraySlice<Value>, [Value], Location?)
-        case probing(HigherProbe, Value, ArraySlice<Value>, Location?)
-        case reducing(Value, ArraySlice<Value>, Location?)
-        case sequence(ArraySlice<Expression>, Environment, Location?)
+        case disjunction(ArraySlice<Expression>, Environment, MyronLocation?)
+        case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], MyronLocation?)
+        case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], MyronLocation?)
+        case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
+        case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
+        case sequence(ArraySlice<Expression>, Environment, MyronLocation?)
     }
 
     enum Control {
         case eval(Expression, Environment)
-        case value(Value)
+        case value(MyronValue)
     }
 
 }
@@ -47,13 +47,13 @@ extension Machine {
 
 extension Machine {
 
-    func eval(_ expression: Expression) throws -> Value {
+    func eval(_ expression: Expression) throws -> MyronValue {
         stack = []
         control = .eval(expression, rootEnvironment)
         return try run()
     }
 
-    private func checkStackDepth(at location: @autoclosure () -> Location?) throws {
+    private func checkStackDepth(at location: @autoclosure () -> MyronLocation?) throws {
         guard let limit = maximumStackDepth, stack.count > limit else { return }
 
         throw MyronError(
@@ -61,7 +61,7 @@ extension Machine {
             at: location())
     }
 
-    private func run() throws -> Value {
+    private func run() throws -> MyronValue {
         while true {
             switch control {
 
@@ -92,7 +92,7 @@ extension Machine {
             control = .value(value)
 
         case .atom(let atom, _):
-            let value = Value.makeValue(from: atom)
+            let value = MyronValue.makeValue(from: atom)
             control = .value(value)
 
         case .list(let elements, let meta):
@@ -177,7 +177,7 @@ extension Machine {
             let name = try nameExpr.unwrapSymbolName()
             let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(tail[(tail.startIndex + 1)...])
-            let proc = Procedure(parameters: params, bodies: bodies, environment: environment)
+            let proc = MyronProcedure(parameters: params, bodies: bodies, environment: environment)
             return (.define(name, environment), .value(.procedure(proc)))
 
         case "if":
@@ -192,7 +192,7 @@ extension Machine {
             let (paramExprs, _) = try head.unwrapList()
             let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(remainder)
-            let proc = Procedure(parameters: params, bodies: bodies, environment: environment)
+            let proc = MyronProcedure(parameters: params, bodies: bodies, environment: environment)
             return (nil, .value(.procedure(proc)))
 
         case "let":
@@ -224,7 +224,7 @@ extension Machine {
 
         case "quote":
             let quotation = try tail.unwrap1(meta.location)
-            let value = try Value.makeValue(from: quotation, at: meta.location)
+            let value = try MyronValue.makeValue(from: quotation, at: meta.location)
             return (nil, .value(value))
 
         default: return nil
@@ -237,7 +237,7 @@ extension Machine {
 
 extension Machine {
 
-    private func kontinue(_ frame: Frame, with value: Value) throws {
+    private func kontinue(_ frame: Frame, with value: MyronValue) throws {
         switch frame {
 
         case .arguments(let remaining, var done, let environment, let location):
@@ -396,9 +396,9 @@ extension Machine {
 extension Machine {
 
     private func apply(
-        _ value: Value,
-        to arguments: ArraySlice<Value>,
-        at location: Location?
+        _ value: MyronValue,
+        to arguments: ArraySlice<MyronValue>,
+        at location: MyronLocation?
     ) throws {
         switch value {
 

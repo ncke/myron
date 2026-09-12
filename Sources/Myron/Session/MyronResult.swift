@@ -3,7 +3,7 @@ import Foundation
 // MARK: - MyronResult
 
 public enum MyronResult {
-    case success(Value)
+    case success(MyronValue)
     case failure([MyronError])
     case nothing
 }
@@ -19,7 +19,7 @@ extension MyronResult {
         }
     }
 
-    public var asSuccess: Value? {
+    public var asSuccess: MyronValue? {
         switch self {
         case .success(let value): return value
         default: return nil

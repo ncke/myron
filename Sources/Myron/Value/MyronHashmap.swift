@@ -3,13 +3,13 @@ import Foundation
 // MARK: - MyronHashmap
 
 public struct MyronHashmap {
-    private var contents: [Myron.Value.Key: Myron.Value]
+    private var contents: [MyronValue.Key: MyronValue]
 
     init() {
         contents = [:]
     }
 
-    init(contents: [Myron.Value.Key: Myron.Value]) {
+    init(contents: [MyronValue.Key: MyronValue]) {
         self.contents = contents
     }
 
@@ -19,28 +19,28 @@ public struct MyronHashmap {
 
 extension MyronHashmap {
 
-    func get(key: Myron.Value.Key) -> Myron.Value? {
+    func get(key: MyronValue.Key) -> MyronValue? {
         contents[key]
     }
     
-    func put(key: Myron.Value.Key, value: Myron.Value) -> MyronHashmap {
+    func put(key: MyronValue.Key, value: MyronValue) -> MyronHashmap {
         var result = MyronHashmap(contents: contents)
         result.contents[key] = value
         return result
     }
 
-    func remove(key: Myron.Value.Key) -> MyronHashmap {
+    func remove(key: MyronValue.Key) -> MyronHashmap {
         if contents[key] == nil { return self }
         var result = MyronHashmap(contents: contents)
         result.contents.removeValue(forKey: key)
         return result
     }
 
-    func hasKey(_ key: Myron.Value.Key) -> Bool {
+    func hasKey(_ key: MyronValue.Key) -> Bool {
         return contents[key] != nil
     }
 
-    func keysValues() -> [(Myron.Value.Key, Myron.Value)] {
+    func keysValues() -> [(MyronValue.Key, MyronValue)] {
         return contents.map { element in (element.key, element.value) }
     }
 
@@ -72,15 +72,15 @@ extension MyronHashmap: CustomStringConvertible {
 
 extension MyronHashmap {
 
-    public var pairs: [(key: Myron.Value.Key, value: Myron.Value)] {
+    public var pairs: [(key: MyronValue.Key, value: MyronValue)] {
         return keysValues()
     }
 
-    public var keys: [Myron.Value.Key] {
+    public var keys: [MyronValue.Key] {
         return Array(contents.keys)
     }
 
-    public var values: [Myron.Value] {
+    public var values: [MyronValue] {
         return Array(contents.values)
     }
 
@@ -92,11 +92,11 @@ extension MyronHashmap {
         return empty()
     }
 
-    public subscript(key: Myron.Value.Key) -> Myron.Value? {
+    public subscript(key: MyronValue.Key) -> MyronValue? {
         return contents[key]
     }
 
-    public var dictionary: [Myron.Value.Key: Myron.Value] {
+    public var dictionary: [MyronValue.Key: MyronValue] {
         return contents
     }
 

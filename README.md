@@ -31,7 +31,7 @@ looking things up later.
 - [Getting started](#getting-started)
 - [The Swift interface](#the-swift-interface)
   — [`MyronSession`](#myronsession) · [`MyronResult`](#myronresult) ·
-  [`Value`](#value) · [`MyronError`](#myronerror) ·
+  [`MyronValue`](#myronvalue) · [`MyronError`](#myronerror) ·
   [Swift interoperability](#swift-interoperability) ·
   [Configuration](#configuration) ·
   [Lifetime and threading](#lifetime-and-threading)
@@ -62,9 +62,9 @@ looking things up later.
   staples (`map`, `filter`, `reduce`, `all`, `any`).
 - Two associative types behind one set of names: `get`, `put` and friends
   dispatch over alists and hashmaps alike.
-- Swift interoperability in both directions. Swift values convert to `Value`,
-  `Value` reads back through typed accessors, and both are expressible as Swift
-  literals.
+- Swift interoperability in both directions. Swift values convert to
+  `MyronValue`, which reads back through typed accessors, and both are
+  expressible as Swift literals.
 - Sequence primitives that work on both lists and strings, dispatched on the
   argument's type: `(length '(1 2 3))` and `(length "abc")` are both `3`.
 - Strict, coercion-free numerics: integers and doubles never mix silently.
@@ -113,7 +113,7 @@ depend on the `Myron` library product:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ncke/myron.git", from: "0.1.0")
+    .package(url: "https://github.com/ncke/myron.git", from: "0.1.1")
 ],
 targets: [
     .target(
@@ -126,9 +126,10 @@ targets: [
 ## The Swift interface
 
 Myron is a library first. The public surface is deliberately small: a session,
-its configuration, a result, the `Value` enum and its `Key`, `MyronHashmap`,
-`MyronError`, and the language version. The `myron-repl` executable is itself
-just another host of the library, in a few dozen lines of Swift.
+its configuration, a result, the `MyronValue` enum and its `Key`,
+`MyronHashmap`, `MyronError`, and the language version. The `myron-repl`
+executable is itself just another host of the library, in a few dozen lines of
+Swift.
 
 ```swift
 import Myron
@@ -184,7 +185,7 @@ environment; there is no way to reset an existing one.
 
 ```swift
 public enum MyronResult {
-    case success(Value)
+    case success(MyronValue)
     case failure([MyronError])
     case nothing
 }
@@ -194,7 +195,7 @@ public enum MyronResult {
 switch session.eval(source) {
 
 case .success(let value):
-    print(value)                          // Value is CustomStringConvertible
+    print(value)                          // MyronValue is CustomStringConvertible
 
 case .failure(let errors):
     for error in errors {
@@ -221,30 +222,30 @@ Each case has a test and, where there is something to extract, an accessor:
 let result = session.eval(source)
 
 result.isSuccess                          // Bool
-result.asSuccess                          // Value?
+result.asSuccess                          // MyronValue?
 result.isFailure                          // Bool
 result.asFailure                          // [MyronError]?
 result.isNothing                          // Bool
 ```
 
-### `Value`
+### `MyronValue`
 
-`Value` is an enum covering every kind of Myron value:
+`MyronValue` is an enum covering every kind of Myron value:
 
 ```swift
-public enum Value {
+public enum MyronValue {
     case boolean(Bool)
     case double(Double)
     case integer(Int)
     case string(String)
     case symbol(String)
-    case list([Value])
+    case list([MyronValue])
     case hashmap(MyronHashmap)
     case nothing
-    case procedure(Procedure)             // a lambda or a defined procedure
-    case primitive(Primitive)             // a built-in function
-    case higherOrder(HigherOrder)         // map, filter, reduce
-    case higherProbe(HigherProbe)         // all, any
+    case procedure(MyronProcedure)        // a lambda or a defined procedure
+    case primitive(MyronPrimitive)        // a built-in function
+    case higherOrder(MyronHigherOrder)    // map, filter, reduce
+    case higherProbe(MyronHigherProbe)    // all, any
     case define(String)                   // the marker a definition returns
 }
 ```
@@ -269,19 +270,20 @@ value.asInteger                           // Int?
 value.asDouble                            // Double?
 value.asString                            // String?
 value.asSymbol                            // String?
-value.asList                              // [Value]?
+value.asList                              // [MyronValue]?
 value.asHashmap                           // MyronHashmap?
 ```
 
-These do not coerce: `Value.integer(1).asDouble` is `nil`, exactly as `(== 1
-1.0)` is `false` in Myron. `.procedure`, `.primitive` and `.define` have no
-accessor — match on them if you need them.
+These do not coerce: `MyronValue.integer(1).asDouble` is `nil`, exactly as
+`(== 1 1.0)` is `false` in Myron. `.procedure`, `.primitive` and `.define` have
+no accessor — match on them if you need them.
 
-`Value` conforms to `CustomStringConvertible`, and its `description` renders a
-value the way Myron prints it: lists in brackets, strings in quotes, callables
-as `<procedure>` or `<primitive>`, and the absence of a value as `<nothing>`.
+`MyronValue` conforms to `CustomStringConvertible`, and its `description`
+renders a value the way Myron prints it: lists in brackets, strings in quotes,
+callables as `<procedure>` or `<primitive>`, and the absence of a value as
+`<nothing>`.
 
-Every value also reports a `Value.Kind` — a plain, `Equatable` enum with no
+Every value also reports a `MyronValue.Kind` — a plain, `Equatable` enum with no
 associated values — which is what error messages talk about and what you want
 when you only care about the type:
 
@@ -289,15 +291,15 @@ when you only care about the type:
 guard value.kind == .list else { return nil }        // not a list
 ```
 
-Note that `Value` is not `Equatable`: comparing two values means comparing them
-in Myron with `eq`, or matching on the cases yourself.
+Note that `MyronValue` is not `Equatable`: comparing two values means comparing
+them in Myron with `eq`, or matching on the cases yourself.
 
 ### `MyronError`
 
 ```swift
 public struct MyronError: Error, Sendable {
     public let reason: Reason             // what went wrong
-    public let location: Location?        // where, a Range<Int> of offsets
+    public let location: MyronLocation?   // where, a Range<Int> of offsets
     public let message: String?           // a pre-rendered diagnostic
 }
 ```
@@ -325,20 +327,20 @@ also has a `description`, which is the first line of the rendered message.
 | `emptyApplication` | The form `()` was evaluated. |
 | `exceededMaximumStackDepth(Int)` | Recursion passed the configured limit; carries the depth reached. |
 | `expectedExpressionAfterTick` | A `'` was not followed by an expression. |
-| `expectedFunction(Value.Kind)` | The head of an application was not callable. |
+| `expectedFunction(MyronValue.Kind)` | The head of an application was not callable. |
 | `expectedQuote` | A string literal was never closed. |
 | `expectedRightBracket` | A list was never closed. |
 | `incomparableTypes` | `gt`/`lt` and friends were given types with no ordering. |
 | `inequatableTypes` | `eq` was given types with no equality — procedures. |
 | `internalError(String)` | An invariant inside the interpreter broke. Please report these. |
-| `invalidKey(Value.Kind)` | A key was not an atomic, finite value. |
+| `invalidKey(MyronValue.Kind)` | A key was not an atomic, finite value. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
-| `typeCastFailed(Value.Kind, Value.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
+| `typeCastFailed(MyronValue.Kind, MyronValue.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
 | `unexpectedArity(Int, IntegerExpectation)` | Wrong number of arguments; carries what was given and what was wanted. |
-| `unexpectedType(Value.Kind?, Set<Value.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
+| `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
 | `unimplementedFeature` | Reserved for primitives that are declared but not yet implemented. Nothing raises it today. |
 | `unmatchedParenthesis` | A `)` appeared with no opening `(`. |
 | `unrecognisedSymbol` | A symbol had no binding. |
@@ -346,10 +348,10 @@ also has a `description`, which is the first line of the rendered message.
 ### Swift interoperability
 
 Values cross the boundary in both directions. Reading is covered by the
-accessors [above](#value); writing is covered by two protocols.
+accessors [above](#myronvalue); writing is covered by two protocols.
 
-`MyronValueRepresentable` turns a Swift value into a `Value`, and
-`MyronKeyRepresentable` turns one into a `Value.Key`:
+`MyronValueRepresentable` turns a Swift value into a `MyronValue`, and
+`MyronKeyRepresentable` turns one into a `MyronValue.Key`:
 
 ```swift
 7.myronValue                              // .integer(7)
@@ -358,50 +360,51 @@ accessors [above](#value); writing is covered by two protocols.
 ["a": 1].myronValue                       // .hashmap(...)
 Optional<Int>.none.myronValue             // .nothing
 
-"a".myronKey                              // Value.Key.string("a")
+"a".myronKey                              // MyronValue.Key.string("a")
 ```
 
 `Bool`, `Double`, `Int`, `String`, `Array`, `Dictionary` and `Optional` conform,
-as do `Value` and `Value.Key` themselves, so a value you already hold can be
-used wherever a representable one is wanted. `Double` is deliberately **not**
-`MyronKeyRepresentable`: a key must be finite, and there is no way for a
-non-throwing conversion to say otherwise. Use `Value.Key.double(_:)` directly if
-you need one.
+as do `MyronValue` and `MyronValue.Key` themselves, so a value you already hold
+can be used wherever a representable one is wanted. `Double` is deliberately
+**not** `MyronKeyRepresentable`: a key must be finite, and there is no way for a
+non-throwing conversion to say otherwise. Use `MyronValue.Key.double(_:)`
+directly if you need one.
 
 Both types are expressible as Swift literals, which is usually the shortest way
 to build one:
 
 ```swift
-let a: Value = 42
-let b: Value = "text"
-let c: Value = nil                        // .nothing
-let d: Value = [1, "two", true]           // a list of mixed types
-let e: Value.Key = "a"
+let a: MyronValue = 42
+let b: MyronValue = "text"
+let c: MyronValue = nil                   // .nothing
+let d: MyronValue = [1, "two", true]      // a list of mixed types
+let e: MyronValue.Key = "a"
 ```
 
-A `Value` can be made into a `Value.Key`, which fails if it cannot be one:
+A `MyronValue` can be made into a `MyronValue.Key`, which fails if it cannot be
+one:
 
 ```swift
-let key = try Value.Key(.string("a"))     // Value.Key.string("a")
-key.value                                 // back to Value.string("a")
+let key = try MyronValue.Key(.string("a"))
+key.value                                 // back to .string("a")
 
-try Value.Key(.symbol("s"))               // throws invalidKey
-try Value.Key(.double(.nan))              // throws invalidKey
+try MyronValue.Key(.symbol("s"))          // throws invalidKey
+try MyronValue.Key(.double(.nan))         // throws invalidKey
 ```
 
 #### `MyronHashmap`
 
-The payload of `Value.hashmap`. It is an immutable value type with a
+The payload of `MyronValue.hashmap`. It is an immutable value type with a
 dictionary-shaped Swift interface:
 
 ```swift
 hashmap.count                             // Int
 hashmap.isEmpty                           // Bool
-hashmap["a"]                              // Value?
-hashmap.keys                              // [Value.Key]
-hashmap.values                            // [Value]
-hashmap.pairs                             // [(key: Value.Key, value: Value)]
-hashmap.dictionary                        // [Value.Key: Value]
+hashmap["a"]                              // MyronValue?
+hashmap.keys                              // [MyronValue.Key]
+hashmap.values                            // [MyronValue]
+hashmap.pairs                             // [(key: MyronValue.Key, value: MyronValue)]
+hashmap.dictionary                        // [MyronValue.Key: MyronValue]
 ```
 
 It conforms to `Sequence`, so it iterates and composes like any other
@@ -419,7 +422,7 @@ Build one from a Swift dictionary, or from Myron types directly:
 
 ```swift
 let a = try MyronHashmap(["a": 1, "b": 2])
-let b = try MyronHashmap([Value.Key.string("a"): Value.integer(1)])
+let b = try MyronHashmap([MyronValue.Key.string("a"): MyronValue.integer(1)])
 ```
 
 Both initialisers throw, because not every dictionary is a legal hashmap. A
@@ -445,9 +448,9 @@ let hashmap: MyronHashmap = [
 
 Two rules apply to literals, both of which would otherwise be silent. A
 duplicated key keeps the first entry and discards the rest. A non-finite key
-traps — it can only arise from writing `Value.Key.double(_:)` with a computed
-value, which is a mistake at the call site rather than something the data can
-do.
+traps — it can only arise from writing `MyronValue.Key.double(_:)` with a
+computed value, which is a mistake at the call site rather than something the
+data can do.
 
 Note that iteration order is unspecified, so `keys`, `values`, `pairs` and
 `description` may come back in a different order on each run.

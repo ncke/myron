@@ -19,7 +19,7 @@ extension Atom {
         }
     }
 
-    func asValueKind() -> Value.Kind {
+    func asValueKind() -> MyronValue.Kind {
         switch self {
         case .boolean: return .boolean
         case .integer: return .integer

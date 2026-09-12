@@ -4,7 +4,7 @@ import Foundation
 
 extension Environment {
 
-    func standardLookup(_ name: String) -> Value? {
+    func standardLookup(_ name: String) -> MyronValue? {
         switch name {
 
         // Types
@@ -125,7 +125,7 @@ extension Environment {
         }
     }
 
-    static func unimplemented(args: [Value], location: Location?) throws -> Value {
+    static func unimplemented(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         throw MyronError(.unimplementedFeature, at: location)
     }
 

@@ -12,32 +12,32 @@ public struct MyronError: Error, Sendable {
         case emptyApplication
         case exceededMaximumStackDepth(Int)
         case expectedExpressionAfterTick
-        case expectedFunction(Value.Kind)
+        case expectedFunction(MyronValue.Kind)
         case expectedQuote
         case expectedRightBracket
         case incomparableTypes
         case inequatableTypes
         case internalError(String)
-        case invalidKey(Value.Kind)
+        case invalidKey(MyronValue.Kind)
         case invalidNumber
         case malformedAlist(Int)
         case overflow
         case subscriptOutOfBounds(Int, Int)
         case unexpectedArity(Int, IntegerExpectation)
-        case typeCastFailed(Value.Kind, Value.Kind)
-        case unexpectedType(Value.Kind?, Set<Value.Kind>)
+        case typeCastFailed(MyronValue.Kind, MyronValue.Kind)
+        case unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)
         case unimplementedFeature
         case unmatchedParenthesis
         case unrecognisedSymbol
     }
 
     public let reason: Reason
-    public let location: Location?
+    public let location: MyronLocation?
     public let message: String?
 
     init(
         reason: Reason,
-        location: Location?,
+        location: MyronLocation?,
         message: String? = nil
     ) {
         self.reason = reason
@@ -45,7 +45,7 @@ public struct MyronError: Error, Sendable {
         self.message = message
     }
 
-    init(_ reason: Reason, at location: Location?) {
+    init(_ reason: Reason, at location: MyronLocation?) {
         self.reason = reason
         self.location = location
         self.message = nil
@@ -121,7 +121,7 @@ extension MyronError.Reason: CustomStringConvertible {
             return "Type cast failed: \(src) -> \(dst)"
         case .unexpectedType(let got, let expected):
             let expectedString = expected
-                .map(\Value.Kind.description)
+                .map(\MyronValue.Kind.description)
                 .sorted()
                 .joined(separator: ", ")
             switch (got, expectedString) {

@@ -3,21 +3,21 @@ import Foundation
 // MARK: - MyronValueRepresentable
 
 public protocol MyronValueRepresentable {
-    var myronValue: Value { get }
+    var myronValue: MyronValue { get }
 }
 
-extension Value: MyronValueRepresentable  { public var myronValue: Value { return self } }
+extension MyronValue: MyronValueRepresentable  { public var myronValue: MyronValue { return self } }
 
-extension Bool: MyronValueRepresentable   { public var myronValue: Value { .boolean(self) } }
+extension Bool: MyronValueRepresentable   { public var myronValue: MyronValue { .boolean(self) } }
 
-extension Double: MyronValueRepresentable { public var myronValue: Value { .double(self) } }
+extension Double: MyronValueRepresentable { public var myronValue: MyronValue { .double(self) } }
 
-extension Int: MyronValueRepresentable    { public var myronValue: Value { .integer(self) } }
+extension Int: MyronValueRepresentable    { public var myronValue: MyronValue { .integer(self) } }
 
-extension String: MyronValueRepresentable { public var myronValue: Value { .string(self) } }
+extension String: MyronValueRepresentable { public var myronValue: MyronValue { .string(self) } }
 
 extension Optional: MyronValueRepresentable where Wrapped: MyronValueRepresentable {
-    public var myronValue: Value {
+    public var myronValue: MyronValue {
         switch self {
         case .some(let wrapped): return wrapped.myronValue
         case .none: return .nothing
@@ -26,7 +26,7 @@ extension Optional: MyronValueRepresentable where Wrapped: MyronValueRepresentab
 }
 
 extension Array: MyronValueRepresentable where Element: MyronValueRepresentable {
-    public var myronValue: Value {
+    public var myronValue: MyronValue {
         let myronElements = self.map { element in element.myronValue }
         return .list(myronElements)
     }
@@ -37,16 +37,16 @@ extension Dictionary: MyronValueRepresentable where
     Dictionary.Value: MyronValueRepresentable
 {
 
-    public var myronValue: Myron.Value {
-        let convert: (Dictionary.Key, Dictionary.Value) -> (Myron.Value.Key, Myron.Value)? = {
+    public var myronValue: MyronValue {
+        let convert: (Dictionary.Key, Dictionary.Value) -> (MyronValue.Key, MyronValue)? = {
             dk, dv in
             let mv = dv.myronValue
             if case .nothing = mv { return nil }
             return (dk.myronKey, mv)
         }
 
-        let pairs: [(Myron.Value.Key, Myron.Value)] = self.compactMap { k, v in convert(k, v) }
-        let contents = Dictionary<Myron.Value.Key, Myron.Value>(
+        let pairs: [(MyronValue.Key, MyronValue)] = self.compactMap { k, v in convert(k, v) }
+        let contents = Dictionary<MyronValue.Key, MyronValue>(
             pairs,
             uniquingKeysWith: { (first, _) in first })
 
@@ -57,31 +57,31 @@ extension Dictionary: MyronValueRepresentable where
 
 // MARK: - Value Expressibility
 
-extension Value: ExpressibleByNilLiteral {
+extension MyronValue: ExpressibleByNilLiteral {
     public init(nilLiteral: ()) { self = .nothing }
 }
 
-extension Value: ExpressibleByBooleanLiteral {
+extension MyronValue: ExpressibleByBooleanLiteral {
     public typealias BooleanLiteralType = Bool
     public init(booleanLiteral value: Bool) { self = .boolean(value) }
 }
 
-extension Value: ExpressibleByIntegerLiteral {
+extension MyronValue: ExpressibleByIntegerLiteral {
     public typealias IntegerLiteralType = Int
     public init(integerLiteral value: Int) { self = .integer(value) }
 }
 
-extension Value: ExpressibleByFloatLiteral {
+extension MyronValue: ExpressibleByFloatLiteral {
     public typealias FloatLiteralType = Double
     public init(floatLiteral value: Double) { self = .double(value) }
 }
 
-extension Value: ExpressibleByStringLiteral {
+extension MyronValue: ExpressibleByStringLiteral {
     public typealias StringLiteralType = String
     public init(stringLiteral value: String) { self = .string(value) }
 }
 
-extension Value: ExpressibleByArrayLiteral {
+extension MyronValue: ExpressibleByArrayLiteral {
     public typealias ArrayLiteralElement = MyronValueRepresentable
     public init(arrayLiteral elements: any ArrayLiteralElement...) {
         let listElements = elements.map { element in element.myronValue }
@@ -92,35 +92,35 @@ extension Value: ExpressibleByArrayLiteral {
 // MARK: - MyronKeyRepresentable
 
 public protocol MyronKeyRepresentable: Hashable {
-    var myronKey: Value.Key { get }
+    var myronKey: MyronValue.Key { get }
 }
 
-extension Bool: MyronKeyRepresentable   { public var myronKey: Value.Key { .boolean(self) } }
+extension Bool: MyronKeyRepresentable   { public var myronKey: MyronValue.Key { .boolean(self) } }
 
-extension Int: MyronKeyRepresentable    { public var myronKey: Value.Key { .integer(self) } }
+extension Int: MyronKeyRepresentable    { public var myronKey: MyronValue.Key { .integer(self) } }
 
-extension String: MyronKeyRepresentable { public var myronKey: Value.Key { .string(self) } }
+extension String: MyronKeyRepresentable { public var myronKey: MyronValue.Key { .string(self) } }
 
-extension Value.Key: MyronKeyRepresentable { public var myronKey: Value.Key { return self } }
+extension MyronValue.Key: MyronKeyRepresentable { public var myronKey: MyronValue.Key { return self } }
 
 // MARK: - Key Expressibility
 
-extension Value.Key: ExpressibleByBooleanLiteral {
+extension MyronValue.Key: ExpressibleByBooleanLiteral {
     public typealias BooleanLiteralType = Bool
     public init(booleanLiteral value: Bool) { self = .boolean(value) }
 }
 
-extension Value.Key: ExpressibleByIntegerLiteral {
+extension MyronValue.Key: ExpressibleByIntegerLiteral {
     public typealias IntegerLiteralType = Int
     public init(integerLiteral value: Int) { self = .integer(value) }
 }
 
-extension Value.Key: ExpressibleByFloatLiteral {
+extension MyronValue.Key: ExpressibleByFloatLiteral {
     public typealias FloatLiteralType = Double
     public init(floatLiteral value: Double) { self = .double(value) }
 }
 
-extension Value.Key: ExpressibleByStringLiteral {
+extension MyronValue.Key: ExpressibleByStringLiteral {
     public typealias StringLiteralType = String
     public init(stringLiteral value: String) { self = .string(value) }
 }
@@ -129,7 +129,7 @@ extension Value.Key: ExpressibleByStringLiteral {
 
 extension MyronHashmap {
 
-    public init(_ dictionary: Dictionary<Myron.Value.Key, Myron.Value>) throws {
+    public init(_ dictionary: Dictionary<MyronValue.Key, MyronValue>) throws {
         for (key, value) in dictionary {
             if case .nothing = value { throw MyronError(.dictionaryValueCannotBeNothing) }
             if case .double(let d) = key, !d.isFinite {
@@ -143,7 +143,7 @@ extension MyronHashmap {
     public init<K, V>(_ dictionary: Dictionary<K, V>) throws
     where K: MyronKeyRepresentable, V: MyronValueRepresentable
     {
-        let convert: (K, V) throws -> (Myron.Value.Key, Myron.Value)? = { dkey, dvalue in
+        let convert: (K, V) throws -> (MyronValue.Key, MyronValue)? = { dkey, dvalue in
             let mkey = dkey.myronKey
             let mval = dvalue.myronValue
 
@@ -156,7 +156,7 @@ extension MyronHashmap {
             return (mkey, mval)
         }
 
-        let pairs: [(Myron.Value.Key, Myron.Value)] = try dictionary.compactMap {
+        let pairs: [(MyronValue.Key, MyronValue)] = try dictionary.compactMap {
             (dkey, dvalue) in try convert(dkey, dvalue)
         }
 
@@ -173,7 +173,7 @@ extension MyronHashmap: ExpressibleByDictionaryLiteral {
     public init(
         dictionaryLiteral elements: (any MyronKeyRepresentable, any MyronValueRepresentable)...
     ) {
-        var pairs = [(Myron.Value.Key, Myron.Value)]()
+        var pairs = [(MyronValue.Key, MyronValue)]()
 
         for (key, value) in elements {
             let mkey = key.myronKey
@@ -203,7 +203,7 @@ extension MyronHashmap: Sequence {
     }
 
     public struct Iterator: IteratorProtocol {
-        public typealias Element = (key: Myron.Value.Key, value: Myron.Value)
+        public typealias Element = (key: MyronValue.Key, value: MyronValue)
         private let pairs: [Element]
         private var index = 0
 
@@ -211,7 +211,7 @@ extension MyronHashmap: Sequence {
             self.pairs = pairs
         }
 
-        public mutating func next() -> (key: Myron.Value.Key, value: Myron.Value)? {
+        public mutating func next() -> (key: MyronValue.Key, value: MyronValue)? {
             guard index < pairs.count else { return nil }
             let it = pairs[index]
             index += 1

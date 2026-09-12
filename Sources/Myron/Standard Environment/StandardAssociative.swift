@@ -4,31 +4,31 @@ import Foundation
 
 struct StandardAssociative {
 
-    static func get(args: [Value], location: Location?) throws -> Value {
+    static func get(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardAssociative.getDispatcher.dispatch(args, location)
     }
 
-    static func getOr(args: [Value], location: Location?) throws -> Value {
+    static func getOr(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardAssociative.getOrDispatcher.dispatch(args, location)
     }
 
-    static func put(args: [Value], location: Location?) throws -> Value {
+    static func put(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardAssociative.putDispatcher.dispatch(args, location)
     }
 
-    static func remove(args: [Value], location: Location?) throws -> Value {
+    static func remove(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardAssociative.removeDispatcher.dispatch(args, location)
     }
 
-    static func hasKey(args: [Value], location: Location?) throws -> Value {
+    static func hasKey(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardAssociative.hasKeyDispatcher.dispatch(args, location)
     }
 
-    static func keys(args: [Value], location: Location?) throws -> Value {
+    static func keys(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardAssociative.keysDispatcher.dispatch(args, location)
     }
 
-    static func values(args: [Value], location: Location?) throws -> Value {
+    static func values(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         return try StandardAssociative.valuesDispatcher.dispatch(args, location)
     }
 

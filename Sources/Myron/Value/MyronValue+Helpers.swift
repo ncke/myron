@@ -2,51 +2,51 @@ import Foundation
 
 // MARK: - Value Unwrapping
 
-extension Value {
+extension MyronValue {
 
-    func unwrapBoolean(_ location: Location?) throws -> Bool {
+    func unwrapBoolean(_ location: MyronLocation?) throws -> Bool {
         guard let b = asBoolean else {
             throw MyronError(.unexpectedType(self.kind, [.boolean]), at: location)
         }
         return b
     }
 
-    func unwrapInteger(_ location: Location?) throws -> Int {
+    func unwrapInteger(_ location: MyronLocation?) throws -> Int {
         guard let n = asInteger else {
             throw MyronError(.unexpectedType(self.kind, [.integer]), at: location)
         }
         return n
     }
 
-    func unwrapDouble(_ location: Location?) throws -> Double {
+    func unwrapDouble(_ location: MyronLocation?) throws -> Double {
         guard let n = asDouble else {
             throw MyronError(.unexpectedType(self.kind, [.double]), at: location)
         }
         return n
     }
 
-    func unwrapList(_ location: Location?) throws -> [Value] {
+    func unwrapList(_ location: MyronLocation?) throws -> [MyronValue] {
         guard let l = asList else {
             throw MyronError(.unexpectedType(self.kind, [.list]), at: location)
         }
         return l
     }
 
-    func unwrapHashmap(_ location: Location?) throws -> MyronHashmap {
+    func unwrapHashmap(_ location: MyronLocation?) throws -> MyronHashmap {
         guard let h = asHashmap else {
             throw MyronError(.unexpectedType(self.kind, [.hashmap]), at: location)
         }
         return h
     }
 
-    func unwrapString(_ location: Location?) throws -> String {
+    func unwrapString(_ location: MyronLocation?) throws -> String {
         guard let s = asString else {
             throw MyronError(.unexpectedType(self.kind, [.string]), at: location)
         }
         return s
     }
 
-    func unwrapSymbol(_ location: Location?) throws -> String {
+    func unwrapSymbol(_ location: MyronLocation?) throws -> String {
         guard let s = asSymbol else {
             throw MyronError(.unexpectedType(self.kind, [.symbol]), at: location)
         }
@@ -57,7 +57,7 @@ extension Value {
 
 // MARK: - Public Value Probing
 
-extension Value {
+extension MyronValue {
 
     public var asBoolean: Bool? {
         if case .boolean(let b) = self { return b }
@@ -74,7 +74,7 @@ extension Value {
         return nil
     }
 
-    public var asList: [Value]? {
+    public var asList: [MyronValue]? {
         if case .list(let l) = self { return l }
         return nil
     }
@@ -98,7 +98,7 @@ extension Value {
 
 // MARK: - Internal Value Probing
 
-extension Value {
+extension MyronValue {
 
     var isNothing: Bool {
         if case .nothing = self { return true }
@@ -112,12 +112,12 @@ extension Value {
         }
     }
 
-    var asPrimitive: Primitive? {
+    var asPrimitive: MyronPrimitive? {
         if case .primitive(let p) = self { return p }
         return nil
     }
 
-    var asProcedure: Procedure? {
+    var asProcedure: MyronProcedure? {
         if case .procedure(let p) = self { return p }
         return nil
     }
