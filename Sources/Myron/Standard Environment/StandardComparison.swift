@@ -6,39 +6,11 @@ struct StandardComparison {
 
     static func eq(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
         let (fst, snd) = try args.unwrap2(location)
-        guard fst.kind == snd.kind else { return .boolean(false) }
-
-        if let f = fst.asInteger, let s = snd.asInteger { return .boolean(f == s) }
-        if let f = fst.asDouble, let s = snd.asDouble { return .boolean(f == s) }
-        if let f = fst.asBoolean, let s = snd.asBoolean { return .boolean(f == s) }
-        if let f = fst.asString, let s = snd.asString { return .boolean(f == s) }
-        if let f = fst.asSymbol, let s = snd.asSymbol { return .boolean(f == s) }
-        if case .nothing = fst { return .boolean(true) }
-
-        if let f = fst.asList, let s = snd.asList {
-            if f.count != s.count { return .boolean(false) }
-
-            for (ef, es) in zip(f, s) {
-                let compare = try eq(args: [ef, es], location: location)
-                if try !compare.unwrapBoolean(location) { return .boolean(false) }
-            }
-
-            return .boolean(true)
+        guard fst.isEquatable, snd.isEquatable else {
+            throw MyronError(.inequatableTypes, at: location)
         }
 
-        if let f = fst.asHashmap, let s = snd.asHashmap {
-            if f.length() != s.length() { return .boolean(false) }
-
-            for (fk, fv) in f.keysValues() {
-                guard let sv = s.get(key: fk) else { return .boolean(false) }
-                let compare = try eq(args: [fv, sv], location: location)
-                if try !compare.unwrapBoolean(location) { return .boolean(false) }
-            }
-
-            return .boolean(true)
-        }
-
-        throw MyronError(.inequatableTypes, at: location)
+        return .boolean(fst.isEqual(snd))
     }
 
     static func neq(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {

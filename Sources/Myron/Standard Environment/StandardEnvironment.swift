@@ -37,6 +37,7 @@ extension Environment {
         case "zero?": return .primitive(StandardPredicates.isZero)
         case "finite?": return .primitive(StandardPredicates.isFinite)
         case "infinite?": return .primitive(StandardPredicates.isInfinite)
+        case "equatable?": return .primitive(StandardPredicates.isEquatable)
 
         // Logic.
         case "not": return .primitive(StandardLogic.not)

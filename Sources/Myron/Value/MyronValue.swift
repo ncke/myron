@@ -111,3 +111,51 @@ extension MyronValue: CustomStringConvertible {
     }
 
 }
+
+extension MyronValue {
+
+    func flatFirstWhere(
+        _ predicate: (MyronValue) -> Bool
+    ) -> MyronValue? {
+        var work = [self]
+
+        while let value = work.popLast() {
+            if predicate(value) { return value }
+
+            switch value {
+            case .list(let elements):
+                work.append(contentsOf: elements)
+            case .hashmap(let hm):
+                work.append(contentsOf: hm.keysValues().flatMap { (k, v) in [k.value, v] } )
+            default:
+                break
+            }
+        }
+
+        return nil
+    }
+
+    func flatReduce<T>(
+        initial: T,
+        applying reducer: (T, MyronValue) -> T
+    ) -> T {
+        var partial = initial
+        var work = [self]
+
+        while let value = work.popLast() {
+            partial = reducer(partial, value)
+
+            switch value {
+            case .list(let elements):
+                work.append(contentsOf: elements)
+            case .hashmap(let hm):
+                work.append(contentsOf: hm.keysValues().flatMap { (k, v) in [k.value, v] } )
+            default:
+                break
+            }
+        }
+
+        return partial
+    }
+
+}

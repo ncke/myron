@@ -21,6 +21,7 @@ public struct MyronError: Error, Sendable {
         case internalError(String)
         case invalidKey(MyronValue.Kind)
         case invalidNumber
+        case invalidSetMember(MyronValue.Kind)
         case malformedAlist(Int)
         case overflow
         case subscriptOutOfBounds(Int, Int)
@@ -108,6 +109,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .internalError(let message): return "Internal error: \(message)"
         case .invalidKey(let kind): return "Invalid key, got: \(kind)"
         case .invalidNumber: return "Invalid number"
+        case .invalidSetMember(let kind): return "Invalid set member, bad kind: \(kind)"
         case .malformedAlist(let idx): return "Malformed alist at index: \(idx)"
         case .overflow: return "Overflow"
         case .subscriptOutOfBounds(let got, let length):

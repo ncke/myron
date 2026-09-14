@@ -69,4 +69,9 @@ struct StandardPredicates {
         return .boolean(false)
     }
 
+    static func isEquatable(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+        let value = try args.unwrap1(location)
+        return .boolean(value.isEquatable)
+    }
+
 }
