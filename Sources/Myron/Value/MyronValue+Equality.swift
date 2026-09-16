@@ -43,22 +43,30 @@ extension MyronValue {
     }
 
     var isEquatable: Bool {
-        var work = [self]
-
-        while let value = work.popLast() {
-            switch value {
-            case .boolean, .double, .hashmap, .integer, .list, .nothing, .string, .symbol: break
-            default: return false
-            }
-
-            switch value {
-            case .list(let elements): work.append(contentsOf: elements)
-            case .hashmap(let hm): work.append(contentsOf: hm.values)
-            default: break
+        let unequatable = self.flat.first { element in
+            switch element {
+            case .boolean, .double, .hashmap, .integer, .list, .nothing, .string, .symbol:
+                return false
+            default:
+                return true
             }
         }
-
-        return true
+        
+        return unequatable == nil
     }
 
+}
+
+// MARK: - Equatable & Hashable
+
+extension MyronValue: Equatable, Hashable {
+    
+    public static func == (lhs: MyronValue, rhs: MyronValue) -> Bool {
+        lhs.isEqual(rhs)
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(1234)
+    }
+    
 }

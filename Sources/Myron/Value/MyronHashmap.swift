@@ -101,3 +101,20 @@ extension MyronHashmap {
     }
 
 }
+
+// MARK: - Equatable & Hashable
+
+extension MyronHashmap: Equatable, Hashable {
+    
+    public static func == (lhs: MyronHashmap, rhs: MyronHashmap) -> Bool {
+        MyronValue.hashmap(lhs).isEqual(MyronValue.hashmap(rhs))
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        keysValues().forEach { (k, v) in
+            hasher.combine(k)
+            v.flat.forEach { element in hasher.combine(element) }
+        }
+    }
+    
+}

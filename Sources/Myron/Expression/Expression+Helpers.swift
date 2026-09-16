@@ -88,3 +88,69 @@ extension Expression {
     }
 
 }
+
+// MARK: - Flat
+
+//extension Expression {
+//    var flat: FlatSequence { FlatSequence(base: self) }
+//    
+//    struct FlatSequence: Sequence {
+//        typealias Iterator = Expression.FlatIterator
+//        let base: Expression
+//        func makeIterator() -> Expression.FlatIterator { FlatIterator(value: base) }
+//    }
+//    
+//    struct FlatIterator: IteratorProtocol {
+//        typealias Element = Expression
+//        private var work: [Expression]
+//        
+//        init(value: Expression) {
+//            self.work = [value]
+//        }
+//        
+//        mutating func next() -> Expression? {
+//            guard let value = work.popLast() else { return nil }
+//            if case .list(let elements, _) = value { work.append(contentsOf: elements) }
+//            return value
+//        }
+//    }
+//    
+//}
+
+//// MARK: - Hashable
+//
+//extension Expression: Equatable, Hashable {
+//    
+//    public static func == (lhs: Expression, rhs: Expression) -> Bool {
+//        var work = [(lhs, rhs)]
+//
+//        while let (fst, snd) = work.popLast() {
+//            switch (fst, snd) {
+//                
+//            case (.atom(let left, _), .atom(let right, _)):
+//                guard left == right else { return false }
+//                
+//            case (.list(let left, _), .list(let right, _)):
+//                guard left.count == right.count else { return false }
+//                work.append(contentsOf: zip(left, right))
+//                
+//            default:
+//                return false
+//            }
+//        }
+//
+//        return true
+//    }
+//    
+//    public func hash(into hasher: inout Hasher) {
+//        flat.forEach { expression in
+//            switch expression {
+//            case .atom(let atom, _):
+//                atom.hash(into: &hasher)
+//            case .list:
+//                break
+//            }
+//        }
+//    }
+//    
+//}

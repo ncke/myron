@@ -10,6 +10,8 @@ enum Atom {
     case string(String)
 }
 
+// MARK: - Helpers
+
 extension Atom {
 
     var isSymbol: Bool {
@@ -30,6 +32,12 @@ extension Atom {
     }
 
 }
+
+// MARK: - Equatable & Hashable
+
+extension Atom: Equatable, Hashable {}
+
+// MARK: - Description
 
 extension Atom: CustomStringConvertible {
 

@@ -128,3 +128,42 @@ extension MyronValue {
     }
 
 }
+
+// MARK: - Flat
+
+extension MyronValue {
+    
+    var flat: FlatSequence { FlatSequence(base: self) }
+    
+    struct FlatSequence: Sequence {
+        typealias Iterator = MyronValue.FlatIterator
+        let base: MyronValue
+        func makeIterator() -> MyronValue.FlatIterator { FlatIterator(value: base) }
+    }
+    
+    struct FlatIterator: IteratorProtocol {
+        typealias Element = MyronValue
+        private var work: [MyronValue]
+        
+        init(value: MyronValue) {
+            self.work = [value]
+        }
+        
+        mutating func next() -> MyronValue? {
+            guard let value = work.popLast() else { return nil }
+            
+            switch value {
+            case .list(let elements):
+                work.append(contentsOf: elements)
+            case .hashmap(let hm):
+                let elements = hm.keysValues().flatMap { (k, v) in [k.value, v] }
+                work.append(contentsOf: elements)
+            default:
+                break
+            }
+            
+            return value
+        }
+    }
+    
+}
