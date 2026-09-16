@@ -84,7 +84,7 @@ extension StandardHashmap {
 
 extension StandardHashmap {
 
-    static func makeHashmap(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let makeHashmap = MyronXPrimitive(name: "hashmap.make-hashmap") { args, location in
         try args.mustHaveAtMost(1, location)
         guard let alist = try args.first?.unwrapList(location) else {
             return .hashmap(MyronHashmap())
@@ -115,7 +115,7 @@ extension StandardHashmap {
         return .hashmap(MyronHashmap(contents: contents))
     }
 
-    static func keysValues(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let keysValues = MyronXPrimitive(name: "hashmap.keys-values") { args, location in
         let hashmap = try args.unwrap1(location).unwrapHashmap(location)
         let kvs = hashmap.keysValues()
         let pairs = kvs.map { (k, v) in MyronValue.list([k.value, v])  }

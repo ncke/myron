@@ -102,13 +102,13 @@ struct StandardStrings {
 
 extension StandardStrings {
 
-    static func explode(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let explode = MyronXPrimitive(name: "string.explode") { args, location in
         let str = try args.unwrap1(location).unwrapString(location)
         let pieces = str.map { ch in MyronValue.string(String(ch)) }
         return .list(pieces)
     }
 
-    static func implode(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let implode = MyronXPrimitive(name: "string.implode") { args, location in
         try args.mustHaveAtLeast(1, location)
         let sep: String
         let elements: [MyronValue]
@@ -137,28 +137,28 @@ extension StandardStrings {
         return .string(descriptions.joined(separator: sep))
     }
 
-    static func string(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let string = MyronXPrimitive(name: "string.string") { args, location in
         let src = try args.unwrap1(location)
         if src.kind == .string { return src }
         return .string(src.description)
     }
 
-    static func lowercase(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let lowercase = MyronXPrimitive(name: "string.lowercase") { args, location in
         let str = try args.unwrap1(location).unwrapString(location)
         return .string(str.lowercased())
     }
 
-    static func uppercase(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let uppercase = MyronXPrimitive(name: "string.uppercase") { args, location in
         let str = try args.unwrap1(location).unwrapString(location)
         return .string(str.uppercased())
     }
 
-    static func trim(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trim = MyronXPrimitive(name: "string.trim") { args, location in
         let str = try args.unwrap1(location).unwrapString(location)
         return .string(str.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
-    static func lines(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let lines = MyronXPrimitive(name: "string.lines") { args, location in
         let str = try args.unwrap1(location).unwrapString(location)
         let lines = str
             .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
@@ -167,7 +167,7 @@ extension StandardStrings {
         return .list(lines)
     }
 
-    static func words(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let words = MyronXPrimitive(name: "string.words") { args, location in
         let str = try args.unwrap1(location).unwrapString(location)
         let words = str
             .split(omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)

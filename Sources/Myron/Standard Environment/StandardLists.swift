@@ -104,14 +104,14 @@ struct StandardLists {
 
 extension StandardLists {
 
-    static func cons(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let cons = MyronXPrimitive(name: "list.cons") { args, location in
         let (fst, snd) = try args.unwrap2(location)
         let list = try snd.unwrapList(location)
         let result = [fst] + list
         return .list(result)
     }
 
-    static func list(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let list = MyronXPrimitive(name: "list.list") { args, location in
         return .list(args)
     }
 
@@ -135,9 +135,7 @@ extension StandardLists {
         location: MyronLocation?
     ) throws -> Bool {
         do {
-            return try StandardComparison.eq(
-                args: [lhs, rhs],
-                location: location).unwrapBoolean(location)
+            return try StandardComparison.compareEq([lhs, rhs], at: location)
 
         } catch let error as MyronError {
             if case .unexpectedType(_, _) = error.reason {

@@ -11,36 +11,36 @@ extension Environment {
         case "nothing": return .nothing
 
         // Comparison.
-        case "eq": return .primitive(StandardComparison.eq)
-        case "==": return .primitive(StandardComparison.eq)
-        case "neq": return .primitive(StandardComparison.neq)
-        case "!=": return .primitive(StandardComparison.neq)
-        case "gt": return .primitive(StandardComparison.gt)
-        case ">": return .primitive(StandardComparison.gt)
-        case "gte": return .primitive(StandardComparison.gte)
-        case ">=": return .primitive(StandardComparison.gte)
-        case "lt": return .primitive(StandardComparison.lt)
-        case "<": return .primitive(StandardComparison.lt)
-        case "lte": return .primitive(StandardComparison.lte)
-        case "<=": return .primitive(StandardComparison.lte)
+        case "eq": return .xprimitive(StandardComparison.eq)
+        case "==": return .xprimitive(StandardComparison.eq)
+        case "neq": return .xprimitive(StandardComparison.neq)
+        case "!=": return .xprimitive(StandardComparison.neq)
+        case "gt": return .xprimitive(StandardComparison.gt)
+        case ">": return .xprimitive(StandardComparison.gt)
+        case "gte": return .xprimitive(StandardComparison.gte)
+        case ">=": return .xprimitive(StandardComparison.gte)
+        case "lt": return .xprimitive(StandardComparison.lt)
+        case "<": return .xprimitive(StandardComparison.lt)
+        case "lte": return .xprimitive(StandardComparison.lte)
+        case "<=": return .xprimitive(StandardComparison.lte)
 
         // Predicates.
-        case "nothing?": return .primitive(StandardPredicates.isNothing)
-        case "number?": return .primitive(StandardPredicates.isNumber)
-        case "integer?": return .primitive(StandardPredicates.isInteger)
-        case "double?": return .primitive(StandardPredicates.isDouble)
-        case "string?": return .primitive(StandardPredicates.isString)
-        case "boolean?": return .primitive(StandardPredicates.isBoolean)
-        case "list?": return .primitive(StandardPredicates.isList)
-        case "positive?": return .primitive(StandardPredicates.isPositive)
-        case "negative?": return .primitive(StandardPredicates.isNegative)
-        case "zero?": return .primitive(StandardPredicates.isZero)
-        case "finite?": return .primitive(StandardPredicates.isFinite)
-        case "infinite?": return .primitive(StandardPredicates.isInfinite)
-        case "equatable?": return .primitive(StandardPredicates.isEquatable)
+        case "nothing?": return .xprimitive(StandardPredicates.isNothing)
+        case "number?": return .xprimitive(StandardPredicates.isNumber)
+        case "integer?": return .xprimitive(StandardPredicates.isInteger)
+        case "double?": return .xprimitive(StandardPredicates.isDouble)
+        case "string?": return .xprimitive(StandardPredicates.isString)
+        case "boolean?": return .xprimitive(StandardPredicates.isBoolean)
+        case "list?": return .xprimitive(StandardPredicates.isList)
+        case "positive?": return .xprimitive(StandardPredicates.isPositive)
+        case "negative?": return .xprimitive(StandardPredicates.isNegative)
+        case "zero?": return .xprimitive(StandardPredicates.isZero)
+        case "finite?": return .xprimitive(StandardPredicates.isFinite)
+        case "infinite?": return .xprimitive(StandardPredicates.isInfinite)
+        case "equatable?": return .xprimitive(StandardPredicates.isEquatable)
 
         // Logic.
-        case "not": return .primitive(StandardLogic.not)
+        case "not": return .xprimitive(StandardLogic.not)
 
         // Mathematics.
         case "pi": return .double(Double.pi)
@@ -85,18 +85,18 @@ extension Environment {
         case "contains": return .primitive(StandardSequence.contains)
 
         // Native String.
-        case "explode": return .primitive(StandardStrings.explode)
-        case "implode": return .primitive(StandardStrings.implode)
-        case "string": return .primitive(StandardStrings.string)
-        case "lowercase": return .primitive(StandardStrings.lowercase)
-        case "uppercase": return .primitive(StandardStrings.uppercase)
-        case "trim": return .primitive(StandardStrings.trim)
-        case "lines": return .primitive(StandardStrings.lines)
-        case "words": return .primitive(StandardStrings.words)
+        case "explode": return .xprimitive(StandardStrings.explode)
+        case "implode": return .xprimitive(StandardStrings.implode)
+        case "string": return .xprimitive(StandardStrings.string)
+        case "lowercase": return .xprimitive(StandardStrings.lowercase)
+        case "uppercase": return .xprimitive(StandardStrings.uppercase)
+        case "trim": return .xprimitive(StandardStrings.trim)
+        case "lines": return .xprimitive(StandardStrings.lines)
+        case "words": return .xprimitive(StandardStrings.words)
 
         // Native Lists.
-        case "cons": return .primitive(StandardLists.cons)
-        case "list": return .primitive(StandardLists.list)
+        case "cons": return .xprimitive(StandardLists.cons)
+        case "list": return .xprimitive(StandardLists.list)
 
         // Higher-order lists.
         case "map": return .higherOrder(.map)
@@ -115,11 +115,11 @@ extension Environment {
         case "values": return .primitive(StandardAssociative.values)
 
         // Native Alist.
-        case "key-index": return .primitive(StandardAlist.keyIndex)
+        case "key-index": return .xprimitive(StandardAlist.keyIndex)
 
         // Native Hashmap.
-        case "make-hashmap": return .primitive(StandardHashmap.makeHashmap)
-        case "keys-values": return .primitive(StandardHashmap.keysValues)
+        case "make-hashmap": return .xprimitive(StandardHashmap.makeHashmap)
+        case "keys-values": return .xprimitive(StandardHashmap.keysValues)
 
         default:
             return nil

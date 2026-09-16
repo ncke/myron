@@ -4,7 +4,7 @@ import Foundation
 
 struct StandardLogic {
 
-    static func not(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let not = MyronXPrimitive(name: "logic.not") { args, location in
         let bool = try args.unwrap1(location).unwrapBoolean(location)
         return .boolean(!bool)
     }
