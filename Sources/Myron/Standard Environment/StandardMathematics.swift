@@ -5,8 +5,8 @@ import Foundation
 // MARK: - Arithmetic
 
 struct StandardMathematics {
-
-    static func add(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    
+    static let add = MyronXPrimitive(name: "mathematics.add") { args, location in
         try args.mustHaveAtLeast(2, location)
 
         let fst = try args.unwrapFirst(location)
@@ -28,7 +28,7 @@ struct StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func sub(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let sub = MyronXPrimitive(name: "mathematics.sub") { args, location in
         if args.hasArity(1) {
             return try negation(args: args, location: location)
         }
@@ -44,7 +44,7 @@ struct StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func mul(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let mul = MyronXPrimitive(name: "mathematics.mul") { args, location in
         try args.mustHaveAtLeast(2, location)
         let fst = try args.unwrapFirst(location)
         let tail = args.dropFirst()
@@ -66,7 +66,7 @@ struct StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func div(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let div = MyronXPrimitive(name: "mathematics.div") { args, location in
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -88,7 +88,7 @@ struct StandardMathematics {
 
 extension StandardMathematics {
 
-    static func mod(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let mod = MyronXPrimitive(name: "mathematics.mod") { args, location in
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -108,7 +108,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(got, [.integer]), at: location)
     }
 
-    static func rem(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let rem = MyronXPrimitive(name: "mathematics.rem") { args, location in
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -130,10 +130,7 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func castToInteger(
-        args: [MyronValue],
-        location: MyronLocation?
-    ) throws -> MyronValue {
+    static let integerCast = MyronXPrimitive(name: "mathematics.integer") { args, location in
         let arg = try args.unwrap1(location)
 
         if let d = arg.asDouble {
@@ -162,10 +159,7 @@ extension StandardMathematics {
         throw MyronError(.typeCastFailed(arg.kind, .integer), at: location)
     }
 
-    static func castToDouble(
-        args: [MyronValue],
-        location: MyronLocation?
-    ) throws -> MyronValue {
+    static let doubleCast = MyronXPrimitive(name: "mathematics.double") { args, location in
         let arg = try args.unwrap1(location)
 
         if let i = arg.asInteger { return .double(Double(i)) }
@@ -190,7 +184,7 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func minimum(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let minimum = MyronXPrimitive(name: "mathematics.min") { args, location in
         try args.mustHaveAtLeast(1, location)
 
         let fst = try args.unwrapFirst(location)
@@ -209,7 +203,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func maximum(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let maximum = MyronXPrimitive(name: "mathematics.max") { args, location in
         try args.mustHaveAtLeast(1, location)
 
         let fst = try args.unwrapFirst(location)
@@ -245,7 +239,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(number.kind, [.integer, .double]), at: location)
     }
 
-    static func absolute(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let absolute = MyronXPrimitive(name: "mathematics.abs") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asInteger {
             return .integer(n < 0 ? try negateOverflow(n, at: location) : n)
@@ -260,19 +254,19 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func floored(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let floored = MyronXPrimitive(name: "mathematics.floor") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(floor(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func ceilinged(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let ceilinged = MyronXPrimitive(name: "mathematics.ceil") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(ceil(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func rounded(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let rounded = MyronXPrimitive(name: "mathematics.round") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(round(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
@@ -284,7 +278,7 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func power(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let power = MyronXPrimitive(name: "mathematics.pow") { args, location in
         let (fst, snd) = try args.unwrap2(location)
 
         if let f = fst.asInteger, let s = snd.asInteger {
@@ -298,7 +292,7 @@ extension StandardMathematics {
         throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
     }
 
-    static func squareRoot(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let squareRoot = MyronXPrimitive(name: "mathematics.sqrt") { args, location in
         let number = try args.unwrap1(location)
 
         if let n = number.asInteger { return .double(sqrt(Double(n))) }
@@ -312,13 +306,13 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func logged(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let logged = MyronXPrimitive(name: "mathematics.log") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(log10(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func lned(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let lned = MyronXPrimitive(name: "mathematics.ln") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(log(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
@@ -330,43 +324,43 @@ extension StandardMathematics {
 
 extension StandardMathematics {
 
-    static func trigSin(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trigSin = MyronXPrimitive(name: "mathematics.sin") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(sin(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigCos(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trigCos = MyronXPrimitive(name: "mathematics.cos") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(cos(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigTan(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trigTan = MyronXPrimitive(name: "mathematics.tan") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(tan(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAsin(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trigAsin = MyronXPrimitive(name: "mathematics.asin") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(asin(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAcos(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trigAcos = MyronXPrimitive(name: "mathematics.acos") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(acos(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAtan(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trigAtan = MyronXPrimitive(name: "mathematics.atan") { args, location in
         let number = try args.unwrap1(location)
         if let n = number.asDouble { return .double(atan(n)) }
         throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
     }
 
-    static func trigAtan2(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
+    static let trigAtan2 = MyronXPrimitive(name: "mathematics.atan2") { args, location in
         let (y, x) = try args.unwrap2(location)
         if let y = y.asDouble, let x = x.asDouble { return .double(atan2(y, x)) }
 
