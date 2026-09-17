@@ -5,11 +5,13 @@ import Foundation
 final class Environment {
     private var mappings: [String: MyronValue] = [:]
     private var outer: Environment?
+    private let standard: StandardEnvironment
     private(set) weak var registry: EnvironmentRegistry?
 
     init(registry: EnvironmentRegistry) {
         self.outer = nil
         self.registry = registry
+        self.standard = StandardEnvironment()
         registry.register(self)
     }
 
@@ -19,6 +21,7 @@ final class Environment {
             throw MyronError(.containingEnvironmentNoLongerExists, at: location)
         }
 
+        self.standard = outer.standard
         self.registry = outer.registry
         registry.register(self)
     }
@@ -30,11 +33,26 @@ final class Environment {
     func insert(_ name: String, value: MyronValue) {
         mappings[name] = value
     }
-
+    
     func lookup(_ name: String) -> MyronValue? {
-        return mappings[name]
-        ?? outer?.lookup(name)
-        ?? standardLookup(name)
+        if let match = traversingLookup(name) { return match }
+        if let match = standard.lookup(name) { return match }
+        
+        // Phase out:
+        return standardLookup(name)
+    }
+
+    private func traversingLookup(_ name: String) -> MyronValue? {
+        var lookupEnvironment: Environment? = self
+        while lookupEnvironment != nil {
+            if let match = lookupEnvironment?.mappings[name] {
+                return match
+            }
+            
+            lookupEnvironment = lookupEnvironment?.outer
+        }
+        
+        return nil
     }
 
     var names: Set<String> {

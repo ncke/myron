@@ -2,233 +2,420 @@ import Foundation
 
 // MARK: - Standard Mathematics
 
-// MARK: - Arithmetic
-
-struct StandardMathematics {
+struct StandardMathematics: StandardModule {
     
-    static let add = MyronXPrimitive(name: "mathematics.add") { args, location in
-        try args.mustHaveAtLeast(2, location)
+    // MARK: Arithmetic
+    
+    static let primitiveDefinitions = [
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.add",
+            representations: ["add", "+"],
+            body: { args, location in
+                try args.mustHaveAtLeast(2, location)
 
-        let fst = try args.unwrapFirst(location)
-        let tail = args.dropFirst()
+                let fst = try args.unwrapFirst(location)
+                let tail = args.dropFirst()
 
-        if var sum = fst.asInteger {
-            for arg in tail {
-                let num = try arg.unwrapInteger(location)
-                sum = try addOverflow(sum, num, at: location)
-            }
-            return .integer(sum)
-        }
+                if var sum = fst.asInteger {
+                    for arg in tail {
+                        let num = try arg.unwrapInteger(location)
+                        sum = try addOverflow(sum, num, at: location)
+                    }
+                    return .integer(sum)
+                }
 
-        if var sum = fst.asDouble {
-            for arg in tail { sum += try arg.unwrapDouble(location) }
-            return .double(sum)
-        }
+                if var sum = fst.asDouble {
+                    for arg in tail { sum += try arg.unwrapDouble(location) }
+                    return .double(sum)
+                }
 
-        throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
-    }
+                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.sub",
+            representations: ["sub", "-"],
+            body: { args, location in
+                if args.hasArity(1) {
+                    return try negation(args: args, location: location)
+                }
 
-    static let sub = MyronXPrimitive(name: "mathematics.sub") { args, location in
-        if args.hasArity(1) {
-            return try negation(args: args, location: location)
-        }
+                let (fst, snd) = try args.unwrap2(location)
 
-        let (fst, snd) = try args.unwrap2(location)
+                if let f = fst.asInteger, let s = snd.asInteger {
+                    return .integer(try subOverflow(f, s, at: location))
+                }
 
-        if let f = fst.asInteger, let s = snd.asInteger {
-            return .integer(try subOverflow(f, s, at: location))
-        }
+                if let f = fst.asDouble, let s = snd.asDouble { return .double(f - s) }
 
-        if let f = fst.asDouble, let s = snd.asDouble { return .double(f - s) }
+                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.mul",
+            representations: ["mul", "*"],
+            body: { args, location in
+                try args.mustHaveAtLeast(2, location)
+                let fst = try args.unwrapFirst(location)
+                let tail = args.dropFirst()
 
-        throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
-    }
+                if var prod = fst.asInteger {
+                    for arg in tail {
+                        let num = try arg.unwrapInteger(location)
+                        prod = try mulOverflow(prod, num, at: location)
+                    }
 
-    static let mul = MyronXPrimitive(name: "mathematics.mul") { args, location in
-        try args.mustHaveAtLeast(2, location)
-        let fst = try args.unwrapFirst(location)
-        let tail = args.dropFirst()
+                    return .integer(prod)
+                }
 
-        if var prod = fst.asInteger {
-            for arg in tail {
-                let num = try arg.unwrapInteger(location)
-                prod = try mulOverflow(prod, num, at: location)
-            }
+                if var prod = fst.asDouble {
+                    for arg in tail { prod *= try arg.unwrapDouble(location) }
+                    return .double(prod)
+                }
 
-            return .integer(prod)
-        }
+                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.div",
+            representations: ["div", "/"],
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
 
-        if var prod = fst.asDouble {
-            for arg in tail { prod *= try arg.unwrapDouble(location) }
-            return .double(prod)
-        }
+                if let f = fst.asInteger, let s = snd.asInteger {
+                    if s == Int.zero { throw MyronError(.divisionByZero, at: location) }
+                    return .integer(try divOverflow(f, s, at: location))
+                }
 
-        throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
-    }
+                if let f = fst.asDouble, let s = snd.asDouble {
+                    if s == Double.zero { throw MyronError(.divisionByZero, at: location) }
+                    return .double(f / s)
+                }
 
-    static let div = MyronXPrimitive(name: "mathematics.div") { args, location in
-        let (fst, snd) = try args.unwrap2(location)
+                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+        }),
+        
+        // MARK: Modulo & Remainder
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.mod",
+            representations: ["mod", "%"],
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
 
-        if let f = fst.asInteger, let s = snd.asInteger {
-            if s == Int.zero { throw MyronError(.divisionByZero, at: location) }
-            return .integer(try divOverflow(f, s, at: location))
-        }
+                if let f = fst.asInteger, let s = snd.asInteger {
+                    if s == Int.zero {
+                        throw MyronError(.divisionByZero, at: location)
+                    }
 
-        if let f = fst.asDouble, let s = snd.asDouble {
-            if s == Double.zero { throw MyronError(.divisionByZero, at: location) }
-            return .double(f / s)
-        }
+                    var remainder = try remainderOverflow(f, s, at: location)
+                    if remainder != Int.zero, (remainder < 0) != (s < 0) {
+                        remainder += s
+                    }
 
-        throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
-    }
+                    return .integer(remainder)
+                }
+
+                let got = fst.kind == .integer ? snd.kind : fst.kind
+                throw MyronError(.unexpectedType(got, [.integer]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.rem",
+            representations: ["rem"],
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+
+                if let f = fst.asInteger, let s = snd.asInteger {
+                    if s == Int.zero {
+                        throw MyronError(.divisionByZero, at: location)
+                    }
+
+                    let remainder = try remainderOverflow(f, s, at: location)
+                    return .integer(remainder)
+                }
+
+                let got = fst.kind == .integer ? snd.kind : fst.kind
+                throw MyronError(.unexpectedType(got, [.integer]), at: location)
+        }),
+        
+        // MARK: Numeric Type Conversion
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.integer",
+            representations: ["integer"],
+            body: { args, location in
+                let arg = try args.unwrap1(location)
+
+                if let d = arg.asDouble {
+                    guard let i = Int(exactly: d.rounded(.towardZero)) else {
+                        throw MyronError(.invalidNumber, at: location)
+                    }
+
+                    return .integer(i)
+                }
+
+                if arg.asInteger != nil { return arg }
+
+                if let s = arg.asString?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    if let i = Int(s) { return .integer(i) }
+
+                    guard
+                        let d = Double(s),
+                        let i = Int(exactly: d.rounded(.towardZero))
+                    else {
+                        throw MyronError(.invalidNumber, at: location)
+                    }
+
+                    return .integer(i)
+                }
+
+                throw MyronError(.typeCastFailed(arg.kind, .integer), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.double",
+            representations: ["double"],
+            body: { args, location in
+                let arg = try args.unwrap1(location)
+
+                if let i = arg.asInteger { return .double(Double(i)) }
+
+                if arg.asDouble != nil { return arg }
+
+                if let s = arg.asString?.trimmingCharacters(in: .whitespacesAndNewlines) {
+                    guard let d = Double(s) else {
+                        throw MyronError(.invalidNumber, at: location)
+                    }
+
+                    return .double(d)
+                }
+
+                throw MyronError(.typeCastFailed(arg.kind, .double), at: location)
+        }),
+        
+        // MARK: Minimum & Maximum
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.min",
+            representations: ["min"],
+            body: { args, location in
+                try args.mustHaveAtLeast(1, location)
+
+                let fst = try args.unwrapFirst(location)
+                let tail = args.dropFirst()
+
+                if var minimum = fst.asInteger {
+                    for arg in tail { minimum = min(minimum, try arg.unwrapInteger(location)) }
+                    return .integer(minimum)
+                }
+
+                if var minimum = fst.asDouble {
+                    for arg in tail { minimum = min(minimum, try arg.unwrapDouble(location)) }
+                    return .double(minimum)
+                }
+
+                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.max",
+            representations: ["max"],
+            body: { args, location in
+                try args.mustHaveAtLeast(1, location)
+
+                let fst = try args.unwrapFirst(location)
+                let tail = args.dropFirst()
+
+                if var maximum = fst.asInteger {
+                    for arg in tail { maximum = max(maximum, try arg.unwrapInteger(location)) }
+                    return .integer(maximum)
+                }
+
+                if var maximum = fst.asDouble {
+                    for arg in tail { maximum = max(maximum, try arg.unwrapDouble(location)) }
+                    return .double(maximum)
+                }
+
+                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+        }),
+        
+        // MARK: Signs
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.neg",
+            representations: ["neg"],
+            body: { args, location in
+                return try Self.negation(args: args, location: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.abs",
+            representations: ["abs"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asInteger {
+                    return .integer(n < 0 ? try negateOverflow(n, at: location) : n)
+                }
+                if let n = number.asDouble { return .double(abs(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.integer, .double]), at: location)
+        }),
+        
+        // MARK: Rounding
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.floor",
+            representations: ["floor"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(floor(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.ceil",
+            representations: ["ceil"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(ceil(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.round",
+            representations: ["round"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(round(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        // MARK: Power & Root
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.pow",
+            representations: ["pow"],
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+
+                if let f = fst.asInteger, let s = snd.asInteger {
+                    return .integer(try powOverflow(f, s, at: location))
+                }
+
+                if let f = fst.asDouble, let s = snd.asDouble {
+                    return .double(pow(f, s))
+                }
+
+                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.sqrt",
+            representations: ["sqrt"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+
+                if let n = number.asInteger { return .double(sqrt(Double(n))) }
+                if let n = number.asDouble { return .double(sqrt(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.integer, .double]), at: location)
+        }),
+        
+        // MARK: Logarithms
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.log",
+            representations: ["log"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(log10(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.ln",
+            representations: ["ln"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(log(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        // MARK: Trigonometry
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.sin",
+            representations: ["sin"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(sin(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.cos",
+            representations: ["cos"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(cos(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.tan",
+            representations: ["tan"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(tan(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.asin",
+            representations: ["asin"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(asin(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.acos",
+            representations: ["acos"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(acos(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.atan",
+            representations: ["atan"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let n = number.asDouble { return .double(atan(n)) }
+                throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "mathematics.atan2",
+            representations: ["atan2"],
+            body: { args, location in
+                let (y, x) = try args.unwrap2(location)
+                if let y = y.asDouble, let x = x.asDouble { return .double(atan2(y, x)) }
+
+                let got = x.kind == .double ? y.kind : x.kind
+                throw MyronError(.unexpectedType(got, [.integer]), at: location)
+        })
+    ]
 
 }
 
-// MARK: - Modulo and Remainder
+// MARK: - Helpers
 
-extension StandardMathematics {
-
-    static let mod = MyronXPrimitive(name: "mathematics.mod") { args, location in
-        let (fst, snd) = try args.unwrap2(location)
-
-        if let f = fst.asInteger, let s = snd.asInteger {
-            if s == Int.zero {
-                throw MyronError(.divisionByZero, at: location)
-            }
-
-            var remainder = try remainderOverflow(f, s, at: location)
-            if remainder != Int.zero, (remainder < 0) != (s < 0) {
-                remainder += s
-            }
-
-            return .integer(remainder)
-        }
-
-        let got = fst.kind == .integer ? snd.kind : fst.kind
-        throw MyronError(.unexpectedType(got, [.integer]), at: location)
-    }
-
-    static let rem = MyronXPrimitive(name: "mathematics.rem") { args, location in
-        let (fst, snd) = try args.unwrap2(location)
-
-        if let f = fst.asInteger, let s = snd.asInteger {
-            if s == Int.zero {
-                throw MyronError(.divisionByZero, at: location)
-            }
-
-            let remainder = try remainderOverflow(f, s, at: location)
-            return .integer(remainder)
-        }
-
-        let got = fst.kind == .integer ? snd.kind : fst.kind
-        throw MyronError(.unexpectedType(got, [.integer]), at: location)
-    }
-
-}
-
-// MARK: - Numeric Type Conversion
-
-extension StandardMathematics {
-
-    static let integerCast = MyronXPrimitive(name: "mathematics.integer") { args, location in
-        let arg = try args.unwrap1(location)
-
-        if let d = arg.asDouble {
-            guard let i = Int(exactly: d.rounded(.towardZero)) else {
-                throw MyronError(.invalidNumber, at: location)
-            }
-
-            return .integer(i)
-        }
-
-        if arg.asInteger != nil { return arg }
-
-        if let s = arg.asString?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            if let i = Int(s) { return .integer(i) }
-
-            guard
-                let d = Double(s),
-                let i = Int(exactly: d.rounded(.towardZero))
-            else {
-                throw MyronError(.invalidNumber, at: location)
-            }
-
-            return .integer(i)
-        }
-
-        throw MyronError(.typeCastFailed(arg.kind, .integer), at: location)
-    }
-
-    static let doubleCast = MyronXPrimitive(name: "mathematics.double") { args, location in
-        let arg = try args.unwrap1(location)
-
-        if let i = arg.asInteger { return .double(Double(i)) }
-
-        if arg.asDouble != nil { return arg }
-
-        if let s = arg.asString?.trimmingCharacters(in: .whitespacesAndNewlines) {
-            guard let d = Double(s) else {
-                throw MyronError(.invalidNumber, at: location)
-            }
-
-            return .double(d)
-        }
-
-        throw MyronError(.typeCastFailed(arg.kind, .double), at: location)
-    }
-
-}
-
-
-// MARK: - Minimum and Maxiumum
-
-extension StandardMathematics {
-
-    static let minimum = MyronXPrimitive(name: "mathematics.min") { args, location in
-        try args.mustHaveAtLeast(1, location)
-
-        let fst = try args.unwrapFirst(location)
-        let tail = args.dropFirst()
-
-        if var minimum = fst.asInteger {
-            for arg in tail { minimum = min(minimum, try arg.unwrapInteger(location)) }
-            return .integer(minimum)
-        }
-
-        if var minimum = fst.asDouble {
-            for arg in tail { minimum = min(minimum, try arg.unwrapDouble(location)) }
-            return .double(minimum)
-        }
-
-        throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
-    }
-
-    static let maximum = MyronXPrimitive(name: "mathematics.max") { args, location in
-        try args.mustHaveAtLeast(1, location)
-
-        let fst = try args.unwrapFirst(location)
-        let tail = args.dropFirst()
-
-        if var maximum = fst.asInteger {
-            for arg in tail { maximum = max(maximum, try arg.unwrapInteger(location)) }
-            return .integer(maximum)
-        }
-
-        if var maximum = fst.asDouble {
-            for arg in tail { maximum = max(maximum, try arg.unwrapDouble(location)) }
-            return .double(maximum)
-        }
-
-        throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
-    }
-
-}
-
-// MARK: - Signs
-
-extension StandardMathematics {
-
-    private static func negation(
+private extension StandardMathematics {
+    
+    static func negation(
         args: [MyronValue],
         location: MyronLocation?
     ) throws -> MyronValue {
@@ -238,141 +425,6 @@ extension StandardMathematics {
 
         throw MyronError(.unexpectedType(number.kind, [.integer, .double]), at: location)
     }
-
-    static let absolute = MyronXPrimitive(name: "mathematics.abs") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asInteger {
-            return .integer(n < 0 ? try negateOverflow(n, at: location) : n)
-        }
-        if let n = number.asDouble { return .double(abs(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.integer, .double]), at: location)
-    }
-
-}
-
-// MARK: - Rounding
-
-extension StandardMathematics {
-
-    static let floored = MyronXPrimitive(name: "mathematics.floor") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(floor(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let ceilinged = MyronXPrimitive(name: "mathematics.ceil") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(ceil(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let rounded = MyronXPrimitive(name: "mathematics.round") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(round(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-}
-
-// MARK: - Power and Root
-
-extension StandardMathematics {
-
-    static let power = MyronXPrimitive(name: "mathematics.pow") { args, location in
-        let (fst, snd) = try args.unwrap2(location)
-
-        if let f = fst.asInteger, let s = snd.asInteger {
-            return .integer(try powOverflow(f, s, at: location))
-        }
-
-        if let f = fst.asDouble, let s = snd.asDouble {
-            return .double(pow(f, s))
-        }
-
-        throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
-    }
-
-    static let squareRoot = MyronXPrimitive(name: "mathematics.sqrt") { args, location in
-        let number = try args.unwrap1(location)
-
-        if let n = number.asInteger { return .double(sqrt(Double(n))) }
-        if let n = number.asDouble { return .double(sqrt(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.integer, .double]), at: location)
-    }
-
-}
-
-// MARK: - Logarithms
-
-extension StandardMathematics {
-
-    static let logged = MyronXPrimitive(name: "mathematics.log") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(log10(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let lned = MyronXPrimitive(name: "mathematics.ln") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(log(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-}
-
-// MARK: - Trigonometry
-
-extension StandardMathematics {
-
-    static let trigSin = MyronXPrimitive(name: "mathematics.sin") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(sin(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let trigCos = MyronXPrimitive(name: "mathematics.cos") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(cos(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let trigTan = MyronXPrimitive(name: "mathematics.tan") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(tan(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let trigAsin = MyronXPrimitive(name: "mathematics.asin") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(asin(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let trigAcos = MyronXPrimitive(name: "mathematics.acos") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(acos(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let trigAtan = MyronXPrimitive(name: "mathematics.atan") { args, location in
-        let number = try args.unwrap1(location)
-        if let n = number.asDouble { return .double(atan(n)) }
-        throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
-    }
-
-    static let trigAtan2 = MyronXPrimitive(name: "mathematics.atan2") { args, location in
-        let (y, x) = try args.unwrap2(location)
-        if let y = y.asDouble, let x = x.asDouble { return .double(atan2(y, x)) }
-
-        let got = x.kind == .double ? y.kind : x.kind
-        throw MyronError(.unexpectedType(got, [.integer]), at: location)
-    }
-
-}
-
-// MARK: - Overflow Helpers
-
-private extension StandardMathematics {
 
     static func addOverflow(_ lhs: Int, _ rhs: Int, at location: MyronLocation?) throws -> Int {
         let (result, isOverflow) = lhs.addingReportingOverflow(rhs)

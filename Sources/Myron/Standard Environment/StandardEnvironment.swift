@@ -1,74 +1,84 @@
 import Foundation
 
-// MARK: - Standard Environment
+// MARK: - StandardEnvironment
+
+final class StandardEnvironment {
+    private var definitions = [String: [MyronXPrimitive]]()
+    
+    init() {
+        loadPrimitives()
+    }
+    
+    fileprivate func insert(_ primitive: MyronXPrimitive) {
+        for representation in primitive.representations {
+            var primitives = definitions[representation] ?? []
+            primitives.append(primitive)
+            definitions[representation] = primitives
+        }
+    }
+    
+    func lookup(_ representation: String) -> MyronValue? {
+        switch representation {
+        case "nothing": return .nothing
+        case "pi": return .double(Double.pi)
+        default :break
+        }
+        
+        guard let primitives = definitions[representation] else {
+            return nil
+        }
+        
+        if primitives.count == 1, let primitive = primitives.first {
+            return .xprimitive(primitive)
+        }
+        
+        // Will return a resolver.
+        fatalError()
+    }
+    
+}
+
+// MARK: - Resolution
+
+extension StandardEnvironment {
+    
+    // Todo.
+    
+}
+
+// MARK: - StandardModule & Loading
+
+protocol StandardModule: Sendable {
+    static var primitiveDefinitions: [MyronXPrimitive] { get }
+}
+
+extension StandardEnvironment {
+    
+    private static let modules: [any StandardModule.Type] = [
+        StandardAlist.self,
+        StandardComparison.self,
+        StandardHashmap.self,
+        StandardLists.self,
+        StandardLogic.self,
+        StandardMathematics.self,
+        StandardPredicates.self,
+        StandardStrings.self
+    ]
+    
+    private func loadPrimitives() {
+        for module in Self.modules {
+            module.primitiveDefinitions.forEach { primitive in insert(primitive) }
+        }
+    }
+    
+}
+
+// MARK: - Legacy Standard Environment
 
 extension Environment {
 
     func standardLookup(_ name: String) -> MyronValue? {
         switch name {
-
-        // Types
-        case "nothing": return .nothing
-
-        // Comparison.
-        case "eq": return .xprimitive(StandardComparison.eq)
-        case "==": return .xprimitive(StandardComparison.eq)
-        case "neq": return .xprimitive(StandardComparison.neq)
-        case "!=": return .xprimitive(StandardComparison.neq)
-        case "gt": return .xprimitive(StandardComparison.gt)
-        case ">": return .xprimitive(StandardComparison.gt)
-        case "gte": return .xprimitive(StandardComparison.gte)
-        case ">=": return .xprimitive(StandardComparison.gte)
-        case "lt": return .xprimitive(StandardComparison.lt)
-        case "<": return .xprimitive(StandardComparison.lt)
-        case "lte": return .xprimitive(StandardComparison.lte)
-        case "<=": return .xprimitive(StandardComparison.lte)
-
-        // Predicates.
-        case "nothing?": return .xprimitive(StandardPredicates.isNothing)
-        case "number?": return .xprimitive(StandardPredicates.isNumber)
-        case "integer?": return .xprimitive(StandardPredicates.isInteger)
-        case "double?": return .xprimitive(StandardPredicates.isDouble)
-        case "string?": return .xprimitive(StandardPredicates.isString)
-        case "boolean?": return .xprimitive(StandardPredicates.isBoolean)
-        case "list?": return .xprimitive(StandardPredicates.isList)
-        case "positive?": return .xprimitive(StandardPredicates.isPositive)
-        case "negative?": return .xprimitive(StandardPredicates.isNegative)
-        case "zero?": return .xprimitive(StandardPredicates.isZero)
-        case "finite?": return .xprimitive(StandardPredicates.isFinite)
-        case "infinite?": return .xprimitive(StandardPredicates.isInfinite)
-        case "equatable?": return .xprimitive(StandardPredicates.isEquatable)
-
-        // Logic.
-        case "not": return .xprimitive(StandardLogic.not)
-
-        // Mathematics.
-        case "pi": return .double(Double.pi)
-        case "+": return .xprimitive(StandardMathematics.add)
-        case "-": return .xprimitive(StandardMathematics.sub)
-        case "*": return .xprimitive(StandardMathematics.mul)
-        case "/": return .xprimitive(StandardMathematics.div)
-        case "pow": return .xprimitive(StandardMathematics.power)
-        case "mod": return .xprimitive(StandardMathematics.mod)
-        case "rem": return .xprimitive(StandardMathematics.rem)
-        case "min": return .xprimitive(StandardMathematics.minimum)
-        case "max": return .xprimitive(StandardMathematics.maximum)
-        case "floor": return .xprimitive(StandardMathematics.floored)
-        case "ceil": return .xprimitive(StandardMathematics.ceilinged)
-        case "round": return .xprimitive(StandardMathematics.rounded)
-        case "abs": return .xprimitive(StandardMathematics.absolute)
-        case "sqrt": return .xprimitive(StandardMathematics.squareRoot)
-        case "log": return .xprimitive(StandardMathematics.logged)
-        case "ln": return .xprimitive(StandardMathematics.lned)
-        case "sin": return .xprimitive(StandardMathematics.trigSin)
-        case "cos": return .xprimitive(StandardMathematics.trigCos)
-        case "tan": return .xprimitive(StandardMathematics.trigTan)
-        case "asin": return .xprimitive(StandardMathematics.trigAsin)
-        case "acos": return .xprimitive(StandardMathematics.trigAcos)
-        case "atan": return .xprimitive(StandardMathematics.trigAtan)
-        case "atan2": return .xprimitive(StandardMathematics.trigAtan2)
-        case "integer": return .xprimitive(StandardMathematics.integerCast)
-        case "double": return .xprimitive(StandardMathematics.doubleCast)
 
         // Sequences.
         case "head": return .primitive(StandardSequence.head)
@@ -83,20 +93,6 @@ extension Environment {
         case "reverse": return .primitive(StandardSequence.reverse)
         case "nth": return .primitive(StandardSequence.nth)
         case "contains": return .primitive(StandardSequence.contains)
-
-        // Native String.
-        case "explode": return .xprimitive(StandardStrings.explode)
-        case "implode": return .xprimitive(StandardStrings.implode)
-        case "string": return .xprimitive(StandardStrings.string)
-        case "lowercase": return .xprimitive(StandardStrings.lowercase)
-        case "uppercase": return .xprimitive(StandardStrings.uppercase)
-        case "trim": return .xprimitive(StandardStrings.trim)
-        case "lines": return .xprimitive(StandardStrings.lines)
-        case "words": return .xprimitive(StandardStrings.words)
-
-        // Native Lists.
-        case "cons": return .xprimitive(StandardLists.cons)
-        case "list": return .xprimitive(StandardLists.list)
 
         // Higher-order lists.
         case "map": return .higherOrder(.map)
@@ -113,13 +109,6 @@ extension Environment {
         case "has-key?": return .primitive(StandardAssociative.hasKey)
         case "keys": return .primitive(StandardAssociative.keys)
         case "values": return .primitive(StandardAssociative.values)
-
-        // Native Alist.
-        case "key-index": return .xprimitive(StandardAlist.keyIndex)
-
-        // Native Hashmap.
-        case "make-hashmap": return .xprimitive(StandardHashmap.makeHashmap)
-        case "keys-values": return .xprimitive(StandardHashmap.keysValues)
 
         default:
             return nil

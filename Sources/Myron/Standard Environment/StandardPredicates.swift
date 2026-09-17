@@ -2,81 +2,127 @@ import Foundation
 
 // MARK: - Standard Predicates
 
-struct StandardPredicates {
-
-    static let isNothing = MyronXPrimitive(name: "comparison.nothing?") { args, location in
-        return .boolean(try args.unwrap1(location).isNothing)
-    }
-
-    static let isNumber = MyronXPrimitive(name: "comparison.number?") { args, location in
-        let value = try args.unwrap1(location)
-        if value.asInteger != nil { return .boolean(true) }
-        if value.asDouble != nil { return .boolean(true) }
-        return .boolean(false)
-    }
-
-    static let isInteger = MyronXPrimitive(name: "comparison.integer?") { args, location in
-        return .boolean(try args.unwrap1(location).asInteger != nil)
-    }
-
-    static let isDouble = MyronXPrimitive(name: "comparison.double?") { args, location in
-        return .boolean(try args.unwrap1(location).asDouble != nil)
-    }
-
-    static let isString = MyronXPrimitive(name: "comparison.string?") { args, location in
-        return .boolean(try args.unwrap1(location).asString != nil)
-    }
-
-    static let isBoolean = MyronXPrimitive(name: "comparison.boolean?") { args, location in
-        return .boolean(try args.unwrap1(location).asBoolean != nil)
-    }
-
-    static let isList = MyronXPrimitive(name: "comparison.list?") { args, location in
-        return .boolean(try args.unwrap1(location).asList != nil)
-    }
-
-    static let isPositive = MyronXPrimitive(name: "comparison.positive?") { args, location in
-        let number = try args.unwrap1(location)
-        if let i = number.asInteger { return .boolean(i > 0) }
-        if let d = number.asDouble { return .boolean(d > 0) }
-        return .boolean(false)
-    }
-
-    static let isNegative = MyronXPrimitive(name: "comparison.negative?") { args, location in
-        let number = try args.unwrap1(location)
-        if let i = number.asInteger { return .boolean(i < 0) }
-        if let d = number.asDouble { return .boolean(d < 0) }
-        return .boolean(false)
-    }
-
-    static let isZero = MyronXPrimitive(name: "comparison.zero?") { args, location in
-        let number = try args.unwrap1(location)
-        if let i = number.asInteger { return .boolean(i == Int.zero) }
-        if let d = number.asDouble { return .boolean(d == Double.zero) }
-        return .boolean(false)
-    }
-
-    static let isFinite = MyronXPrimitive(name: "comparison.finite?") { args, location in
-        let number = try args.unwrap1(location)
-        if let d = number.asDouble { return .boolean(d.isFinite) }
-        if number.asInteger != nil { return .boolean(true) }
-        return .boolean(false)
-    }
-
-    static let isInfinite = MyronXPrimitive(name: "comparison.infinite?") { args, location in
-        let number = try args.unwrap1(location)
-        if let d = number.asDouble { return .boolean(d.isInfinite) }
-        return .boolean(false)
-    }
-
-    static let isEquatable = MyronXPrimitive(name: "comparison.equatable?") { args, location in
-        let value = try args.unwrap1(location)
-        return .boolean(value.isEquatable)
-    }
-
-    static let isCallable = MyronXPrimitive(name: "comparison.callable?") { args, location in
-        let value = try args.unwrap1(location)
-        return .boolean(value.isCallable)
-    }
+struct StandardPredicates: StandardModule {
+    
+    static let primitiveDefinitions = [
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.nothing?",
+            representations: ["nothing?"],
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isNothing)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.number?",
+            representations: ["number?"],
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                if value.asInteger != nil { return .boolean(true) }
+                if value.asDouble != nil { return .boolean(true) }
+                return .boolean(false)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.integer?",
+            representations: ["integer?"],
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).asInteger != nil)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.double?",
+            representations: ["double?"],
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).asDouble != nil)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.string?",
+            representations: ["string?"],
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).asString != nil)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.boolean?",
+            representations: ["boolean?"],
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).asBoolean != nil)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.list?",
+            representations: ["list?"],
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).asList != nil)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.positive?",
+            representations: ["positive?"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let i = number.asInteger { return .boolean(i > 0) }
+                if let d = number.asDouble { return .boolean(d > 0) }
+                return .boolean(false)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.negative?",
+            representations: ["negative?"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let i = number.asInteger { return .boolean(i < 0) }
+                if let d = number.asDouble { return .boolean(d < 0) }
+                return .boolean(false)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.zero?",
+            representations: ["zero?"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let i = number.asInteger { return .boolean(i == Int.zero) }
+                if let d = number.asDouble { return .boolean(d == Double.zero) }
+                return .boolean(false)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.finite?",
+            representations: ["finite?"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let d = number.asDouble { return .boolean(d.isFinite) }
+                if number.asInteger != nil { return .boolean(true) }
+                return .boolean(false)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.infinite?",
+            representations: ["infinite?"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let d = number.asDouble { return .boolean(d.isInfinite) }
+                return .boolean(false)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.equatable?",
+            representations: ["equatable?"],
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isEquatable)
+        }),
+        
+        MyronXPrimitive(
+            primitiveName: "comparison.callable?",
+            representations: ["callable?"],
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isCallable)
+        })
+        
+    ]
     
 }

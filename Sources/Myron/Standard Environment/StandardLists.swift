@@ -100,20 +100,32 @@ struct StandardLists {
 
 }
 
-// MARK: - Native Lists
+// MARK: - StandardLists
 
-extension StandardLists {
-
-    static let cons = MyronXPrimitive(name: "list.cons") { args, location in
-        let (fst, snd) = try args.unwrap2(location)
-        let list = try snd.unwrapList(location)
-        let result = [fst] + list
-        return .list(result)
-    }
-
-    static let list = MyronXPrimitive(name: "list.list") { args, location in
-        return .list(args)
-    }
+extension StandardLists: StandardModule {
+    
+    static let primitiveDefinitions = [
+    
+        // MARK: Native Lists
+    
+        MyronXPrimitive(
+            primitiveName: "list.cons",
+            representations: ["cons"],
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let list = try snd.unwrapList(location)
+                let result = [fst] + list
+                return .list(result)
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "list.list",
+            representations: ["list"],
+            body: { args, location in
+                return .list(args)
+            })
+    
+    ]
 
 }
 

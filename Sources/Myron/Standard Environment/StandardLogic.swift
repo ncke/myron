@@ -2,11 +2,18 @@ import Foundation
 
 // MARK: - Standard Logic
 
-struct StandardLogic {
+struct StandardLogic: StandardModule {
+    
+    static let primitiveDefinitions = [
 
-    static let not = MyronXPrimitive(name: "logic.not") { args, location in
-        let bool = try args.unwrap1(location).unwrapBoolean(location)
-        return .boolean(!bool)
-    }
+        MyronXPrimitive(
+            primitiveName: "logic.not",
+            representations: ["not"],
+            body: { args, location in
+                let bool = try args.unwrap1(location).unwrapBoolean(location)
+                return .boolean(!bool)
+            })
+    
+    ]
 
 }

@@ -105,19 +105,28 @@ struct StandardAlist {
     
 }
 
-// MARK: - Native Alist
+// MARK: - StandardAlist
 
-extension StandardAlist {
+extension StandardAlist: StandardModule {
     
-    static let keyIndex = MyronXPrimitive(name: "alist.key-index") { args, location in
-        let (fst, snd) = try args.unwrap2(location)
-        let key = try MyronKey(fst, at: location)
-        let list = try snd.unwrapList(location)
-        let result = try findKey(key, in: list, validating: false, at: location)
+    static let primitiveDefinitions = [
         
-        guard let (idx, _) = result else { return .nothing }
-        return .integer(idx)
-    }
+        // MARK: Native Alist
+        
+        MyronXPrimitive(
+            primitiveName: "alist.key-index",
+            representations: ["key-index"],
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let key = try MyronKey(fst, at: location)
+                let list = try snd.unwrapList(location)
+                let result = try findKey(key, in: list, validating: false, at: location)
+                
+                guard let (idx, _) = result else { return .nothing }
+                return .integer(idx)
+            })
+    
+    ]
 
 }
 

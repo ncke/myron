@@ -80,47 +80,59 @@ extension StandardHashmap {
 
 }
 
-// MARK: - Native Hashmap
+// MARK: - StandardHasmap
 
-extension StandardHashmap {
+extension StandardHashmap: StandardModule {
+    
+    static let primitiveDefinitions = [
+        
+        // MARK: Native Hashmap
+        
+        MyronXPrimitive(
+            primitiveName: "hashmap.make-hashmap",
+            representations: ["make-hashmap"],
+            body: { args, location in
+                try args.mustHaveAtMost(1, location)
+                guard let alist = try args.first?.unwrapList(location) else {
+                    return .hashmap(MyronHashmap())
+                }
+                
+                var contents = [MyronKey: MyronValue]()
+                var seen = [MyronKey: Int]()
+                
+                for (idx, element) in alist.enumerated() {
+                    guard case .list(let pair) = element, pair.count == 2 else {
+                        throw MyronError(.malformedAlist(idx), at: location)
+                    }
+                    
+                    if case .nothing = pair[1] {
+                        throw MyronError(.malformedAlist(idx), at: location)
+                    }
+                    
+                    let key = try MyronKey(pair[0], at: location)
+                    
+                    if let dupIdx = seen[key] {
+                        throw MyronError(.duplicateKeys([dupIdx, idx]), at: location)
+                    }
+                    
+                    contents[key] = pair[1]
+                    seen[key] = idx
+                }
+                
+                return .hashmap(MyronHashmap(contents: contents))
+            }),
 
-    static let makeHashmap = MyronXPrimitive(name: "hashmap.make-hashmap") { args, location in
-        try args.mustHaveAtMost(1, location)
-        guard let alist = try args.first?.unwrapList(location) else {
-            return .hashmap(MyronHashmap())
-        }
-
-        var contents = [MyronKey: MyronValue]()
-        var seen = [MyronKey: Int]()
-
-        for (idx, element) in alist.enumerated() {
-            guard case .list(let pair) = element, pair.count == 2 else {
-                throw MyronError(.malformedAlist(idx), at: location)
-            }
-
-            if case .nothing = pair[1] {
-                throw MyronError(.malformedAlist(idx), at: location)
-            }
-
-            let key = try MyronKey(pair[0], at: location)
-
-            if let dupIdx = seen[key] {
-                throw MyronError(.duplicateKeys([dupIdx, idx]), at: location)
-            }
-
-            contents[key] = pair[1]
-            seen[key] = idx
-        }
-
-        return .hashmap(MyronHashmap(contents: contents))
-    }
-
-    static let keysValues = MyronXPrimitive(name: "hashmap.keys-values") { args, location in
-        let hashmap = try args.unwrap1(location).unwrapHashmap(location)
-        let kvs = hashmap.keysValues()
-        let pairs = kvs.map { (k, v) in MyronValue.list([k.value, v])  }
-
-        return .list(pairs)
-    }
+        MyronXPrimitive(
+            primitiveName: "hashmap.keys-values",
+            representations: ["keys-values"],
+            body: { args, location in
+                let hashmap = try args.unwrap1(location).unwrapHashmap(location)
+                let kvs = hashmap.keysValues()
+                let pairs = kvs.map { (k, v) in MyronValue.list([k.value, v])  }
+                
+                return .list(pairs)
+            })
+        
+    ]
 
 }

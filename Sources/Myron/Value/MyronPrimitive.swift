@@ -4,31 +4,25 @@ import Foundation
 
 public struct MyronXPrimitive: Sendable {
     typealias Body = @Sendable ([MyronValue], MyronLocation?) throws -> MyronValue
-    let name: String
+    let primitiveName: String
     let representations: [String]
+    let signature: [[MyronValue.Kind]]?
     let body: Body
     
-    init(name: String, representations: [String]? = nil, body: @escaping Body) {
-        self.name = name
-        if let representations = representations {
-            self.representations = representations
-        } else {
-            let representation = Self.representation(from: name)
-            self.representations = [representation]
-        }
+    init(
+        primitiveName: String,
+        representations: [String],
+        signature: [[MyronValue.Kind]]? = nil,
+        body: @escaping Body
+    ) {
+        self.primitiveName = primitiveName
+        self.representations = representations
+        self.signature = signature
         self.body = body
     }
     
     func call(_ arguments: [MyronValue], at location: MyronLocation?) throws -> MyronValue {
         return try body(arguments, location)
-    }
-    
-    private static func representation(from name: String) -> String {
-        guard let last = name.split(separator: ".").last else {
-            return name
-        }
-        
-        return String(last)
     }
     
 }
@@ -38,7 +32,7 @@ public struct MyronXPrimitive: Sendable {
 extension MyronXPrimitive: Equatable, Hashable {
     
     public static func ==(lhs: MyronXPrimitive, rhs: MyronXPrimitive) -> Bool {
-        return lhs.name == rhs.name
+        return lhs.primitiveName == rhs.primitiveName
     }
     
     public func hash(into hasher: inout Hasher) {
@@ -51,6 +45,6 @@ extension MyronXPrimitive: Equatable, Hashable {
 
 extension MyronXPrimitive: CustomStringConvertible {
     
-    public var description: String { "<primitive: \(name)>" }
+    public var description: String { "<primitive: \(primitiveName)>" }
     
 }

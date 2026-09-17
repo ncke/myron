@@ -43,17 +43,14 @@ extension MyronValue {
     }
 
     var isEquatable: Bool {
-        let unequatable = self.flat.first { element in
-            switch element {
-            case .boolean, .double, .hashmap, .integer, .list, .nothing, .string, .symbol:
-                return false
-            default:
-                return true
-            }
-        }
-        
-        return unequatable == nil
+        return self.flat.first { element in
+            !Self.equatableKinds.contains(element.kind)
+        } == nil
     }
+    
+    static let equatableKinds: [MyronValue.Kind] = [
+        .boolean, .double, .hashmap, .integer, .list, .nothing, .string, .symbol
+    ]
 
 }
 

@@ -98,82 +98,112 @@ struct StandardStrings {
 
 }
 
-// MARK: - String Native
+// MARK: - StandardStrings
 
-extension StandardStrings {
+extension StandardStrings: StandardModule {
+    
+    // MARK: String Native
+    
+    static let primitiveDefinitions = [
+        
+        MyronXPrimitive(
+            primitiveName: "string.explode",
+            representations: ["explode"],
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                let pieces = str.map { ch in MyronValue.string(String(ch)) }
+                return .list(pieces)
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "string.implode",
+            representations: ["implode"],
+            body: { args, location in
+                try args.mustHaveAtLeast(1, location)
+                let sep: String
+                let elements: [MyronValue]
 
-    static let explode = MyronXPrimitive(name: "string.explode") { args, location in
-        let str = try args.unwrap1(location).unwrapString(location)
-        let pieces = str.map { ch in MyronValue.string(String(ch)) }
-        return .list(pieces)
-    }
+                if args[0].kind == .string {
+                    guard args.count == 2 else {
+                        throw MyronError(.unexpectedArity(args.count, .exactly(2)), at: location)
+                    }
+                    sep = try args[0].unwrapString(location)
+                    elements = try args[1].unwrapList(location)
+                } else {
+                    guard args.count == 1 else {
+                        throw MyronError(.unexpectedArity(args.count, .exactly(1)), at: location)
+                    }
+                    sep = ""
+                    elements = try args[0].self.unwrapList(location)
+                }
 
-    static let implode = MyronXPrimitive(name: "string.implode") { args, location in
-        try args.mustHaveAtLeast(1, location)
-        let sep: String
-        let elements: [MyronValue]
+                let descriptions = elements.map { element in
+                    switch element {
+                    case .string(let str): return str
+                    default: return element.description
+                    }
+                }
 
-        if args[0].kind == .string {
-            guard args.count == 2 else {
-                throw MyronError(.unexpectedArity(args.count, .exactly(2)), at: location)
-            }
-            sep = try args[0].unwrapString(location)
-            elements = try args[1].unwrapList(location)
-        } else {
-            guard args.count == 1 else {
-                throw MyronError(.unexpectedArity(args.count, .exactly(1)), at: location)
-            }
-            sep = ""
-            elements = try args[0].self.unwrapList(location)
-        }
+                return .string(descriptions.joined(separator: sep))
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "string.string",
+            representations: ["string"],
+            body: { args, location in
+                let src = try args.unwrap1(location)
+                if src.kind == .string { return src }
+                return .string(src.description)
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "string.lowercase",
+            representations: ["lowercase"],
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                return .string(str.lowercased())
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "string.uppercase",
+            representations: ["uppercase"],
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                return .string(str.uppercased())
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "string.trim",
+            representations: ["trim"],
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                return .string(str.trimmingCharacters(in: .whitespacesAndNewlines))
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "string.lines",
+            representations: ["lines"],
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                let lines = str
+                    .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
+                    .map { lineStr in MyronValue.string(String(lineStr)) }
 
-        let descriptions = elements.map { element in
-            switch element {
-            case .string(let str): return str
-            default: return element.description
-            }
-        }
+                return .list(lines)
+            }),
+        
+        MyronXPrimitive(
+            primitiveName: "string.words",
+            representations: ["words"],
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                let words = str
+                    .split(omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+                    .map { wordStr in MyronValue.string(String(wordStr)) }
 
-        return .string(descriptions.joined(separator: sep))
-    }
-
-    static let string = MyronXPrimitive(name: "string.string") { args, location in
-        let src = try args.unwrap1(location)
-        if src.kind == .string { return src }
-        return .string(src.description)
-    }
-
-    static let lowercase = MyronXPrimitive(name: "string.lowercase") { args, location in
-        let str = try args.unwrap1(location).unwrapString(location)
-        return .string(str.lowercased())
-    }
-
-    static let uppercase = MyronXPrimitive(name: "string.uppercase") { args, location in
-        let str = try args.unwrap1(location).unwrapString(location)
-        return .string(str.uppercased())
-    }
-
-    static let trim = MyronXPrimitive(name: "string.trim") { args, location in
-        let str = try args.unwrap1(location).unwrapString(location)
-        return .string(str.trimmingCharacters(in: .whitespacesAndNewlines))
-    }
-
-    static let lines = MyronXPrimitive(name: "string.lines") { args, location in
-        let str = try args.unwrap1(location).unwrapString(location)
-        let lines = str
-            .split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
-            .map { lineStr in MyronValue.string(String(lineStr)) }
-
-        return .list(lines)
-    }
-
-    static let words = MyronXPrimitive(name: "string.words") { args, location in
-        let str = try args.unwrap1(location).unwrapString(location)
-        let words = str
-            .split(omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
-            .map { wordStr in MyronValue.string(String(wordStr)) }
-
-        return .list(words)
-    }
+                return .list(words)
+            })
+        
+    ]
 
 }
