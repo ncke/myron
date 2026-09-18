@@ -61,14 +61,16 @@ looking things up later.
   sequences, lists, association lists, hashmaps, strings, and the higher-order
   staples (`map`, `filter`, `reduce`, `all`, `any`).
 - Two associative types behind one set of names: `get`, `put` and friends
-  dispatch over alists and hashmaps alike.
+  resolve over alists and hashmaps alike.
 - Swift interoperability in both directions. Swift values convert to
   `MyronValue`, which reads back through typed accessors, and both are
   expressible as Swift literals.
+- `MyronValue` is `Hashable`, so Myron values can be held in Swift's own sets
+  and dictionaries, and compared without going back through the interpreter.
 - A session's environment is open to its host: names can be read, written and
   listed from Swift without going through source text.
-- Sequence primitives that work on both lists and strings, dispatched on the
-  argument's type: `(length '(1 2 3))` and `(length "abc")` are both `3`.
+- Sequence primitives that work on both lists and strings, resolved on the
+  types of the arguments: `(length '(1 2 3))` and `(length "abc")` are both `3`.
 - Strict, coercion-free numerics: integers and doubles never mix silently.
 - Errors are values, not traps. Overflow, division by zero, runaway recursion
   and type mismatches all come back as a `MyronError` rather than crashing the
@@ -325,8 +327,9 @@ no accessor — match on them if you need them.
 
 `MyronValue` conforms to `CustomStringConvertible`, and its `description`
 renders a value the way Myron prints it: lists in brackets, strings in quotes,
-callables as `<procedure>` or `<primitive>`, and the absence of a value as
-`<nothing>`.
+and the absence of a value as `<nothing>`. A procedure renders as
+`<procedure>`, and a primitive names itself — `<primitive: mathematics.add>`,
+or `<primitive: head>` for a name the standard environment resolves.
 
 Every value also reports a `MyronValue.Kind` — a plain, `Equatable` enum with no
 associated values — which is what error messages talk about and what you want
@@ -336,8 +339,30 @@ when you only care about the type:
 guard value.kind == .list else { return nil }        // not a list
 ```
 
-Note that `MyronValue` is not `Equatable`: comparing two values means comparing
-them in Myron with `eq`, or matching on the cases yourself.
+`MyronValue` is `Equatable` and `Hashable`, so values can be compared directly
+and held in Swift's own `Set` and `Dictionary`:
+
+```swift
+let seen: Set<MyronValue> = [.integer(1), .string("a")]
+seen.contains(.integer(1))                // true
+```
+
+Equality is structural and does not coerce, matching Myron's own `eq`: lists
+compare element by element, hashmaps by their contents regardless of the order
+they were built in, and an integer never equals a double.
+
+Every case answers, including the callable ones. A `.primitive` compares by the
+name it registered under, so `+` equals `+`. A `.procedure` compares by
+identity, so a procedure equals itself but not a separately written twin:
+
+```swift
+session.eval("(define (f x) x)")
+session.eval("(eq f f)")                  // true
+session.eval("(eq (lambda (x) x) (lambda (x) x))")   // false
+```
+
+The one value that does not equal itself is `nan`, which follows the IEEE rule
+Swift already applies — `(eq (sqrt -1.0) (sqrt -1.0))` is `false`.
 
 ### `MyronError`
 
@@ -365,8 +390,10 @@ also has a `description`, which is the first line of the rendered message.
 
 | Reason | Raised when |
 |---|---|
+| `ambiguousResolution(String, String, [String])` | Two standard primitives matched a call equally well; carries the name, the argument kinds, and the primitives that tied. |
 | `cannotBeNegative` | A count that must be non-negative was not — `(take -1 xs)`. |
 | `containingEnvironmentNoLongerExists` | A procedure was called after the session that defined it was deallocated. |
+| `couldNotResolve(String, String, [String])` | No standard primitive of that name accepts that shape of call; carries the name, the argument kinds, and the forms that would have worked. |
 | `divisionByZero` | `/`, `mod`, or `rem` was given a zero divisor. |
 | `dictionaryValueCannotBeNothing` | A Swift dictionary of Myron types held `.nothing` as a value. |
 | `duplicateKeys([Int])` | A key was found more than once in an alist; carries the indices. |
@@ -377,7 +404,7 @@ also has a `description`, which is the first line of the rendered message.
 | `expectedQuote` | A string literal was never closed. |
 | `expectedRightBracket` | A list was never closed. |
 | `incomparableTypes` | `gt`/`lt` and friends were given types with no ordering. |
-| `inequatableTypes` | `eq` was given types with no equality — procedures. |
+| `inequatableTypes` | Reserved for `eq` on a type with no equality. Every kind is equatable, so nothing raises it today. |
 | `internalError(String)` | An invariant inside the interpreter broke. Please report these. |
 | `invalidKey(MyronValue.Kind)` | A key was not an atomic, finite value. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
@@ -792,7 +819,7 @@ free:
 
 Many of the sequence primitives work on strings too, using exactly the same
 names — `head`, `tail`, `take`, `length`, `reverse`, `contains` and friends
-dispatch on the type of the sequence you hand them:
+resolve on the type of the sequence you hand them:
 
 ```lisp
 (length "hello")                          ; 5
@@ -1111,7 +1138,7 @@ found by symbol lookup when no user binding shadows them. Unlike special forms,
 these are ordinary values — they can be passed to `map`, bound to a new name,
 or shadowed.
 
-Two rules run through everything below.
+Three rules run through everything below.
 
 **Integers and doubles never mix.** A primitive that takes "a number" wants all
 of its numeric arguments in the same domain. `(+ 1 2.5)` is a type error, not
@@ -1119,6 +1146,14 @@ of its numeric arguments in the same domain. `(+ 1 2.5)` is a type error, not
 
 **Errors are values.** Every failure listed here comes back to the host as a
 `MyronError`, including overflow and division by zero.
+
+**One name can cover several types.** `head` works on a list and on a string,
+`get` on an alist and on a hashmap, and neither is a special case written into
+the language. Each is an ordinary primitive that declares the argument types it
+accepts, and the standard environment picks the one that fits the call,
+preferring the most specific fit where more than one would do. A call that
+matches nothing raises `unexpectedType` or `unexpectedArity` as any primitive
+would; the rarer `couldNotResolve` names the shapes that would have worked.
 
 ### Comparison
 
@@ -1145,10 +1180,18 @@ function under two names.
 Equality across types is `false` rather than an error, so `(== 1 1.0)` is
 `false` — an integer is never a double. Ordering is stricter and still raises
 `unexpectedType`, since there is no sensible answer to give. Equality is defined
-for integers, doubles, booleans, strings, symbols, lists, hashmaps, and
-`nothing`; ordering for integers, doubles, and strings. Hashmaps compare by
-content, so insertion order does not matter. Procedures have no equality at all
-and raise `inequatableTypes`.
+for every type; ordering only for integers, doubles, and strings. Hashmaps
+compare by content, so insertion order does not matter. A primitive equals
+itself under any of its names, and a procedure equals itself but not a
+separately written twin:
+
+```lisp
+(eq map map)                              ; true
+(eq + +)                                  ; true
+(define (f x) x)
+(eq f f)                                  ; true
+(eq (lambda (x) x) (lambda (x) x))        ; false — two procedures
+```
 
 ### Predicates
 
@@ -1170,6 +1213,8 @@ them.
 | `zero?` | a number equal to zero |
 | `finite?` | a number that is neither infinite nor `nan` |
 | `infinite?` | a double that is positive or negative infinity |
+| `callable?` | a procedure or a primitive — anything that can head an application |
+| `equatable?` | a value `eq` can compare. Every value is, so this is always `true` |
 
 ```lisp
 (nothing? (head '()))                     ; true
@@ -1300,11 +1345,12 @@ type raises `typeCastFailed`.
 
 ### Sequences
 
-Lists and strings are both sequences, and these primitives work on either. They
-dispatch on the type of the sequence argument, so the same name does the
-obvious thing in both cases. A string behaves as a sequence of one-character
-strings — Myron has no character type. `length` and `empty?` also accept a
-[hashmap](#hashmaps); the rest do not, since a hashmap has no order.
+Lists and strings are both sequences, and these primitives work on either. One
+name covers both: the standard environment resolves the call against the types
+of the arguments, so the same name does the obvious thing in either case. A
+string behaves as a sequence of one-character strings — Myron has no character
+type. `length` and `empty?` also accept a [hashmap](#hashmaps); the rest do
+not, since a hashmap has no order.
 
 | Primitive | Arguments | Result |
 |---|---|---|
@@ -1392,8 +1438,8 @@ value. Nothing declares one — any list of that shape will do — so these
 primitives are a convention over lists rather than a separate type.
 
 Every primitive here, except `key-index`, also works on a
-[hashmap](#hashmaps) — they dispatch on the type of the collection, the way the
-sequence primitives do.
+[hashmap](#hashmaps) — resolved on the type of the collection, the way the
+sequence primitives are.
 
 | Primitive | Arguments | Result |
 |---|---|---|
@@ -1603,8 +1649,11 @@ Notable gaps:
 - No dotted pairs, no `nil`-terminated cons cells; a list is a list.
 - No modules, no way to load Myron source from Myron.
 - No I/O of any kind. Everything comes in and goes out through the host.
-- The parser is recursive over the host stack, so source nested thousands of
-  brackets deep can overflow it before evaluation begins.
+- Several operations over a value recurse on the host stack, so a deeply nested
+  list can overflow it: rendering one with `description` is the shallowest
+  limit, then hashing it, while `eq` walks iteratively and goes much deeper.
+  The parser is recursive too, so source nested thousands of brackets deep can
+  overflow before evaluation begins.
 - `sourceHandle` is carried through tokenisation but not yet surfaced on
   errors.
 

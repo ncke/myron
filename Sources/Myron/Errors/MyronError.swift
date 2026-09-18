@@ -5,8 +5,10 @@ import Foundation
 public struct MyronError: Error, Sendable {
 
     public enum Reason: Sendable, Equatable {
+        case ambiguousResolution(String, String, [String])
         case cannotBeNegative
         case containingEnvironmentNoLongerExists
+        case couldNotResolve(String, String, [String])
         case dictionaryValueCannotBeNothing
         case divisionByZero
         case duplicateKeys([Int])
@@ -93,8 +95,20 @@ extension MyronError.Reason: CustomStringConvertible {
 
     public var description: String {
         switch self {
+        case .ambiguousResolution(let representation, let gotSignature, let candidates):
+            let msg = "Ambiguous resolution for \(representation), got: \(gotSignature)"
+            if candidates.isEmpty { return "\(msg)" }
+            let listed = candidates.joined(separator: "\n")
+            return "\(msg)\nCandidates:\n\(listed)"
+            
         case .cannotBeNegative: return "Cannot be negative"
         case .containingEnvironmentNoLongerExists: return "Containing environment no longer exists"
+        case .couldNotResolve(let representation, let gotSignature, let expectedSignatures):
+            let msg = "Could not resolve signature for \(representation), got: \(gotSignature)"
+            if expectedSignatures.isEmpty { return "\(msg)"}
+            let dym = expectedSignatures.joined(separator: "\n")
+            return "\(msg)\nDid you mean:\n\(dym)"
+            
         case .dictionaryValueCannotBeNothing: return "Dictionary value cannot be nothing"
         case .divisionByZero: return "Division by zero"
         case .duplicateKeys(let idxs): return "Duplicate keys at indices: \(idxs)"

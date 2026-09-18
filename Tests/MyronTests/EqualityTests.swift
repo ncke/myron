@@ -7,8 +7,12 @@ import Testing
 
 struct EqualityTests {
 
-    private static func proc() -> MyronValue {
-        return .primitive { _, _ in .nothing }
+    private static func proc(named name: String = "prim") -> MyronValue {
+        let primitive = MyronPrimitive(primitiveName: name, representations: []) { _, _ in
+            return .nothing
+        }
+        
+        return .primitive(primitive)
     }
 
     private static func nest(_ depth: Int, around leaf: MyronValue) -> MyronValue {
@@ -196,13 +200,41 @@ struct EqualityTests {
         #expect(!f.isEqual(t))
     }
 
-    // MARK: isEqual, Inequatable Values
+    // MARK: isEqual, Callables
 
-    @Test("inequatable values are reported unequal rather than trapping")
-    func inequatableValuesAreUnequal() {
-        #expect(!Self.proc().isEqual(Self.proc()))
-        #expect(!MyronValue.list([Self.proc()]).isEqual(.list([Self.proc()])))
-        #expect(!MyronValue.define("a").isEqual(.define("a")))
+    @Test("a primitive compares by the name it registered under")
+    func primitivesCompareByName() {
+        #expect(Self.proc().isEqual(Self.proc()))
+        #expect(MyronValue.list([Self.proc()]).isEqual(.list([Self.proc()])))
+        #expect(!Self.proc().isEqual(Self.proc(named: "other")))
+    }
+
+    @Test("a procedure compares by identity")
+    func proceduresCompareByIdentity() {
+        let session = MyronSession()
+        _ = session.eval("(define (f x) x)")
+        _ = session.eval("(define (g x) x)")
+
+        guard
+            case .success(let f) = session.eval("f"),
+            case .success(let g) = session.eval("g")
+        else {
+            Issue.record("could not read the procedures back")
+            return
+        }
+
+        #expect(f.isEqual(f))
+        #expect(!f.isEqual(g))
+    }
+
+    @Test("the remaining cases compare by payload")
+    func remainingCasesCompare() {
+        #expect(MyronValue.define("a").isEqual(.define("a")))
+        #expect(!MyronValue.define("a").isEqual(.define("b")))
+        #expect(MyronValue.higherOrder(.map).isEqual(.higherOrder(.map)))
+        #expect(!MyronValue.higherOrder(.map).isEqual(.higherOrder(.filter)))
+        #expect(MyronValue.higherProbe(.all).isEqual(.higherProbe(.all)))
+        #expect(!MyronValue.higherProbe(.all).isEqual(.higherProbe(.any)))
     }
 
     // MARK: isEquatable
@@ -237,24 +269,26 @@ struct EqualityTests {
         #expect(Self.hashmap([("k", .list([.integer(1)]))]).isEquatable)
     }
 
-    @Test("a procedure is not equatable")
-    func inequatableProcedure() {
-        #expect(!Self.proc().isEquatable)
-        #expect(!MyronValue.define("a").isEquatable)
+    @Test("a callable is equatable")
+    func equatableCallable() {
+        #expect(Self.proc().isEquatable)
+        #expect(MyronValue.define("a").isEquatable)
+        #expect(MyronValue.higherOrder(.map).isEquatable)
+        #expect(MyronValue.higherProbe(.all).isEquatable)
     }
 
-    @Test("a procedure anywhere inside makes the whole value inequatable")
-    func inequatableNested() {
-        #expect(!MyronValue.list([.integer(1), Self.proc()]).isEquatable)
-        #expect(!MyronValue.list([.list([Self.proc()])]).isEquatable)
-        #expect(!Self.hashmap([("k", Self.proc())]).isEquatable)
-        #expect(!Self.hashmap([("k", .list([Self.proc()]))]).isEquatable)
-        #expect(!MyronValue.list([Self.hashmap([("k", Self.proc())])]).isEquatable)
+    @Test("a callable anywhere inside leaves the whole value equatable")
+    func equatableNested() {
+        #expect(MyronValue.list([.integer(1), Self.proc()]).isEquatable)
+        #expect(MyronValue.list([.list([Self.proc()])]).isEquatable)
+        #expect(Self.hashmap([("k", Self.proc())]).isEquatable)
+        #expect(Self.hashmap([("k", .list([Self.proc()]))]).isEquatable)
+        #expect(MyronValue.list([Self.hashmap([("k", Self.proc())])]).isEquatable)
     }
 
-    @Test("a deeply buried procedure is still found")
-    func inequatableDeep() {
-        #expect(!Self.nest(750, around: Self.proc()).isEquatable)
+    @Test("a deeply nested value is equatable without recursing the host stack")
+    func equatableDeep() {
+        #expect(Self.nest(750, around: Self.proc()).isEquatable)
     }
 
     // MARK: equatable?
@@ -272,12 +306,12 @@ struct EqualityTests {
         ("(equatable? '(1 (2 (3))))", "true"),
         ("(equatable? (make-hashmap))", "true"),
         ("(equatable? (make-hashmap '((\"a\" 1))))", "true"),
-        ("(equatable? (lambda (x) x))", "false"),
-        ("(equatable? eq)", "false"),
-        ("(equatable? map)", "false"),
-        ("(equatable? (list 1 (lambda (x) x)))", "false"),
-        ("(equatable? (list (list (lambda (x) x))))", "false"),
-        ("(equatable? (put \"a\" (lambda (x) x) (make-hashmap)))", "false")
+        ("(equatable? (lambda (x) x))", "true"),
+        ("(equatable? eq)", "true"),
+        ("(equatable? map)", "true"),
+        ("(equatable? (list 1 (lambda (x) x)))", "true"),
+        ("(equatable? (list (list (lambda (x) x))))", "true"),
+        ("(equatable? (put \"a\" (lambda (x) x) (make-hashmap)))", "true")
     ] as [ValueCase])
     func isEquatablePredicate(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -313,26 +347,40 @@ struct EqualityTests {
         expectValue(c.source, c.expected)
     }
 
-    // `eq` screens both arguments before comparing, so an inequatable value is
-    // an error even where a kind mismatch would otherwise have settled it.
-    @Test("eq rejects an inequatable argument", arguments: [
-        ("(eq (lambda (x) x) (lambda (x) x))", .inequatableTypes),
-        ("(eq 1 (lambda (x) x))", .inequatableTypes),
-        ("(eq (lambda (x) x) 1)", .inequatableTypes),
-        ("(eq '(1) (list 1 (lambda (x) x)))", .inequatableTypes),
-        ("(eq 1 (list (lambda (x) x)))", .inequatableTypes),
-        ("(eq (make-hashmap) (put \"a\" (lambda (x) x) (make-hashmap)))", .inequatableTypes),
-        ("(neq 1 (lambda (x) x))", .inequatableTypes)
-    ] as [FailureCase])
-    func eqRejectsInequatable(_ c: FailureCase) {
-        expectFailure(c.source, reason: c.reason)
+    // Every kind answers `eq` now, so a callable argument is compared rather
+    // than refused. Two distinct lambdas are two distinct procedures.
+    @Test("eq compares a callable argument", arguments: [
+        ("(eq (lambda (x) x) (lambda (x) x))", "false"),
+        ("(eq 1 (lambda (x) x))", "false"),
+        ("(eq (lambda (x) x) 1)", "false"),
+        ("(eq '(1) (list 1 (lambda (x) x)))", "false"),
+        ("(eq 1 (list (lambda (x) x)))", "false"),
+        ("(eq (make-hashmap) (put \"a\" (lambda (x) x) (make-hashmap)))", "false"),
+        ("(neq 1 (lambda (x) x))", "true"),
+        ("(eq map map)", "true"),
+        ("(eq eq eq)", "true"),
+        ("(eq + +)", "true"),
+        ("(eq + -)", "false"),
+        ("(eq head head)", "true"),
+        ("(eq (list map) (list map))", "true"),
+        ("(eq (put \"a\" map (make-hashmap)) (put \"a\" map (make-hashmap)))", "true")
+    ] as [ValueCase])
+    func eqComparesCallables(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
     }
 
-    @Test("contains propagates the inequatable error", arguments: [
-        ("(contains 5 (list 1 (lambda (x) x)))", .inequatableTypes)
-    ] as [FailureCase])
-    func containsPropagates(_ c: FailureCase) {
-        expectFailure(c.source, reason: c.reason)
+    @Test("a defined procedure equals itself but not its twin")
+    func eqProcedureIdentity() {
+        expectValue("(begin (define (f x) x) (eq f f))", "true")
+        expectValue("(begin (define (f x) x) (define (g x) x) (eq f g))", "false")
+    }
+
+    @Test("contains compares a callable element", arguments: [
+        ("(contains 5 (list 1 (lambda (x) x)))", "false"),
+        ("(contains map (list 1 map))", "true")
+    ] as [ValueCase])
+    func containsCallable(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
     }
 
 }

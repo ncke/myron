@@ -8,7 +8,7 @@ struct StandardMathematics: StandardModule {
     
     static let primitiveDefinitions = [
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.add",
             representations: ["add", "+"],
             body: { args, location in
@@ -33,7 +33,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.sub",
             representations: ["sub", "-"],
             body: { args, location in
@@ -52,7 +52,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.mul",
             representations: ["mul", "*"],
             body: { args, location in
@@ -77,7 +77,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.div",
             representations: ["div", "/"],
             body: { args, location in
@@ -98,7 +98,7 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Modulo & Remainder
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.mod",
             representations: ["mod", "%"],
             body: { args, location in
@@ -121,7 +121,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(got, [.integer]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.rem",
             representations: ["rem"],
             body: { args, location in
@@ -142,7 +142,7 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Numeric Type Conversion
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.integer",
             representations: ["integer"],
             body: { args, location in
@@ -174,7 +174,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.typeCastFailed(arg.kind, .integer), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.double",
             representations: ["double"],
             body: { args, location in
@@ -197,7 +197,7 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Minimum & Maximum
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.min",
             representations: ["min"],
             body: { args, location in
@@ -219,7 +219,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.max",
             representations: ["max"],
             body: { args, location in
@@ -243,14 +243,14 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Signs
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.neg",
             representations: ["neg"],
             body: { args, location in
                 return try Self.negation(args: args, location: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.abs",
             representations: ["abs"],
             body: { args, location in
@@ -264,7 +264,7 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Rounding
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.floor",
             representations: ["floor"],
             body: { args, location in
@@ -273,7 +273,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.ceil",
             representations: ["ceil"],
             body: { args, location in
@@ -282,7 +282,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.round",
             representations: ["round"],
             body: { args, location in
@@ -293,7 +293,7 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Power & Root
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.pow",
             representations: ["pow"],
             body: { args, location in
@@ -310,7 +310,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.sqrt",
             representations: ["sqrt"],
             body: { args, location in
@@ -323,7 +323,7 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Logarithms
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.log",
             representations: ["log"],
             body: { args, location in
@@ -332,7 +332,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.ln",
             representations: ["ln"],
             body: { args, location in
@@ -343,7 +343,7 @@ struct StandardMathematics: StandardModule {
         
         // MARK: Trigonometry
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.sin",
             representations: ["sin"],
             body: { args, location in
@@ -352,7 +352,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.cos",
             representations: ["cos"],
             body: { args, location in
@@ -361,7 +361,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.tan",
             representations: ["tan"],
             body: { args, location in
@@ -370,7 +370,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.asin",
             representations: ["asin"],
             body: { args, location in
@@ -379,7 +379,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.acos",
             representations: ["acos"],
             body: { args, location in
@@ -388,7 +388,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.atan",
             representations: ["atan"],
             body: { args, location in
@@ -397,7 +397,7 @@ struct StandardMathematics: StandardModule {
                 throw MyronError(.unexpectedType(number.kind, [.double]), at: location)
         }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "mathematics.atan2",
             representations: ["atan2"],
             body: { args, location in

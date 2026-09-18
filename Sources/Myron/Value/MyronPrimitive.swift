@@ -2,17 +2,17 @@ import Foundation
 
 // MARK: - MyronPrimitive
 
-public struct MyronXPrimitive: Sendable {
+public struct MyronPrimitive: Sendable {
     typealias Body = @Sendable ([MyronValue], MyronLocation?) throws -> MyronValue
     let primitiveName: String
     let representations: [String]
-    let signature: [[MyronValue.Kind]]?
+    let signature: StandardSignature?
     let body: Body
     
     init(
         primitiveName: String,
         representations: [String],
-        signature: [[MyronValue.Kind]]? = nil,
+        signature: StandardSignature? = nil,
         body: @escaping Body
     ) {
         self.primitiveName = primitiveName
@@ -29,9 +29,9 @@ public struct MyronXPrimitive: Sendable {
 
 // MARK: - Equatable & Hashable
 
-extension MyronXPrimitive: Equatable, Hashable {
+extension MyronPrimitive: Equatable, Hashable {
     
-    public static func ==(lhs: MyronXPrimitive, rhs: MyronXPrimitive) -> Bool {
+    public static func ==(lhs: MyronPrimitive, rhs: MyronPrimitive) -> Bool {
         return lhs.primitiveName == rhs.primitiveName
     }
     
@@ -43,7 +43,7 @@ extension MyronXPrimitive: Equatable, Hashable {
 
 // MARK: - Description
 
-extension MyronXPrimitive: CustomStringConvertible {
+extension MyronPrimitive: CustomStringConvertible {
     
     public var description: String { "<primitive: \(primitiveName)>" }
     

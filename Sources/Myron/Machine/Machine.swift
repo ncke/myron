@@ -464,12 +464,8 @@ extension Machine {
                 case .any: control = .value(.boolean(false))
                 }
             }
-
-        case .primitive(let function):
-            let result = try function(Array(arguments), location)
-            control = .value(result)
             
-        case .xprimitive(let primitive):
+        case .primitive(let primitive):
             let result = try primitive.call(Array(arguments), at: location)
             control = .value(result)
 

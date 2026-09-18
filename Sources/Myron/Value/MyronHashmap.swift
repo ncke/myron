@@ -111,10 +111,17 @@ extension MyronHashmap: Equatable, Hashable {
     }
     
     public func hash(into hasher: inout Hasher) {
-        keysValues().forEach { (k, v) in
-            hasher.combine(k)
-            v.flat.forEach { element in hasher.combine(element) }
+        var accumulated = 0
+
+        for (key, value) in keysValues() {
+            var entryHasher = Hasher()
+            entryHasher.combine(key)
+            entryHasher.combine(value)
+            accumulated ^= entryHasher.finalize()
         }
+
+        hasher.combine(length())
+        hasher.combine(accumulated)
     }
     
 }

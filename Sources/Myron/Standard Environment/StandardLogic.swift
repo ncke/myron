@@ -6,7 +6,7 @@ struct StandardLogic: StandardModule {
     
     static let primitiveDefinitions = [
 
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "logic.not",
             representations: ["not"],
             body: { args, location in

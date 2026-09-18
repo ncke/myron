@@ -1,112 +1,154 @@
 import Foundation
 
-// MARK: - Strings
-
-// MARK: - Sequence
-
-struct StandardStrings {
-
-    static func head(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let str = try args.unwrap1(location).unwrapString(location)
-        guard let head = str.first else { return .nothing }
-        return .string(String(head))
-    }
-
-    static func tail(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let str = try args.unwrap1(location).unwrapString(location)
-        let tail = String(str.dropFirst())
-        return .string(tail)
-    }
-
-    static func initial(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let str = try args.unwrap1(location).unwrapString(location)
-        let result = String(str.dropLast())
-        return .string(result)
-    }
-
-    static func last(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let str = try args.unwrap1(location).unwrapString(location)
-        guard let last = str.last else { return .nothing }
-        return .string(String(last))
-    }
-
-    static func take(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let (fst, snd) = try args.unwrap2(location)
-        let count = try fst.unwrapInteger(location)
-        guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
-
-        let str = try snd.unwrapString(location)
-        let take = String(str.prefix(count))
-        return .string(take)
-    }
-
-    static func drop(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let (fst, snd) = try args.unwrap2(location)
-        let count = try fst.unwrapInteger(location)
-        guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
-
-        let str = try snd.unwrapString(location)
-        let drop = String(str.dropFirst(count))
-        return .string(drop)
-    }
-
-    static func length(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let str = try args.unwrap1(location).unwrapString(location)
-        return .integer(str.count)
-    }
-
-    static func empty(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let n = try length(args: args, location: location).unwrapInteger(location)
-        return .boolean(n == 0)
-    }
-
-    static func append(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        try args.mustHaveAtLeast(1, location)
-        var result = ""
-        for arg in args {
-            let str = try arg.unwrapString(location)
-            result += str
-        }
-        return .string(result)
-    }
-
-    static func reverse(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let str = try args.unwrap1(location).unwrapString(location)
-        return .string(String(str.reversed()))
-    }
-
-    static func nth(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let (fst, snd) = try args.unwrap2(location)
-        let index = try fst.unwrapInteger(location)
-        let str = try snd.unwrapString(location)
-
-        guard index >= 0, index < str.count else {
-            throw MyronError(.subscriptOutOfBounds(index, str.count), at: location)
-        }
-
-        let char = str[str.index(str.startIndex, offsetBy: index)]
-        return .string(String(char))
-    }
-
-    static func contains(args: [MyronValue], location: MyronLocation?) throws -> MyronValue {
-        let (fst, snd) = try args.unwrap2(location)
-        let target = try fst.unwrapString(location)
-        let str = try snd.unwrapString(location)
-        if target.isEmpty { return .boolean(true) }
-        return .boolean(str.contains(target))
-    }
-
-}
-
 // MARK: - StandardStrings
 
-extension StandardStrings: StandardModule {
-    
-    // MARK: String Native
+struct StandardStrings: StandardModule {
     
     static let primitiveDefinitions = [
         
-        MyronXPrimitive(
+        // MARK: String Sequence
+        
+        MyronPrimitive(
+            primitiveName: "string.head",
+            representations: ["head"],
+            signature: StandardSignature([StandardSignature.oneString]),
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                guard let head = str.first else { return .nothing }
+                return .string(String(head))
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.tail",
+            representations: ["tail"],
+            signature: StandardSignature([StandardSignature.oneString]),
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                let tail = String(str.dropFirst())
+                return .string(tail)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.initial",
+            representations: ["init"],
+            signature: StandardSignature([StandardSignature.oneString]),
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                let result = String(str.dropLast())
+                return .string(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.last",
+            representations: ["last"],
+            signature: StandardSignature([StandardSignature.oneString]),
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                guard let last = str.last else { return .nothing }
+                return .string(String(last))
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.take",
+            representations: ["take"],
+            signature: StandardSignature([StandardSignature.oneInteger, StandardSignature.oneString]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let count = try fst.unwrapInteger(location)
+                guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
+
+                let str = try snd.unwrapString(location)
+                let take = String(str.prefix(count))
+                return .string(take)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.drop",
+            representations: ["drop"],
+            signature: StandardSignature([StandardSignature.oneInteger, StandardSignature.oneString]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let count = try fst.unwrapInteger(location)
+                guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
+
+                let str = try snd.unwrapString(location)
+                let drop = String(str.dropFirst(count))
+                return .string(drop)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.length",
+            representations: ["length"],
+            signature: StandardSignature([StandardSignature.oneString]),
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                return .integer(str.count)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.empty?",
+            representations: ["empty?"],
+            signature: StandardSignature([StandardSignature.oneString]),
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                return .boolean(str.count == 0)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.append",
+            representations: ["append"],
+            signature: StandardSignature([StandardSignature.oneString], allowsVariadic: true),
+            body: { args, location in
+                try args.mustHaveAtLeast(1, location)
+                var result = ""
+                for arg in args {
+                    let str = try arg.unwrapString(location)
+                    result += str
+                }
+                return .string(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.reverse",
+            representations: ["reverse"],
+            signature: StandardSignature([StandardSignature.oneString]),
+            body: { args, location in
+                let str = try args.unwrap1(location).unwrapString(location)
+                return .string(String(str.reversed()))
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.nth",
+            representations: ["nth"],
+            signature: StandardSignature([StandardSignature.oneInteger, StandardSignature.oneString]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let index = try fst.unwrapInteger(location)
+                let str = try snd.unwrapString(location)
+
+                guard index >= 0, index < str.count else {
+                    throw MyronError(.subscriptOutOfBounds(index, str.count), at: location)
+                }
+
+                let char = str[str.index(str.startIndex, offsetBy: index)]
+                return .string(String(char))
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.contains",
+            representations: ["contains"],
+            signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneString]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let target = try fst.unwrapString(location)
+                let str = try snd.unwrapString(location)
+                if target.isEmpty { return .boolean(true) }
+                return .boolean(str.contains(target))
+            }),
+        
+        // MARK: String Native
+        
+        MyronPrimitive(
             primitiveName: "string.explode",
             representations: ["explode"],
             body: { args, location in
@@ -115,7 +157,7 @@ extension StandardStrings: StandardModule {
                 return .list(pieces)
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "string.implode",
             representations: ["implode"],
             body: { args, location in
@@ -147,7 +189,7 @@ extension StandardStrings: StandardModule {
                 return .string(descriptions.joined(separator: sep))
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "string.string",
             representations: ["string"],
             body: { args, location in
@@ -156,7 +198,7 @@ extension StandardStrings: StandardModule {
                 return .string(src.description)
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "string.lowercase",
             representations: ["lowercase"],
             body: { args, location in
@@ -164,7 +206,7 @@ extension StandardStrings: StandardModule {
                 return .string(str.lowercased())
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "string.uppercase",
             representations: ["uppercase"],
             body: { args, location in
@@ -172,7 +214,7 @@ extension StandardStrings: StandardModule {
                 return .string(str.uppercased())
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "string.trim",
             representations: ["trim"],
             body: { args, location in
@@ -180,7 +222,7 @@ extension StandardStrings: StandardModule {
                 return .string(str.trimmingCharacters(in: .whitespacesAndNewlines))
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "string.lines",
             representations: ["lines"],
             body: { args, location in
@@ -192,7 +234,7 @@ extension StandardStrings: StandardModule {
                 return .list(lines)
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "string.words",
             representations: ["words"],
             body: { args, location in

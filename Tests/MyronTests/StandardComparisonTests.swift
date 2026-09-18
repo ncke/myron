@@ -106,12 +106,14 @@ struct StandardComparisonTests {
         expectValue(c.source, c.expected)
     }
 
-    @Test("procedures have no equality", arguments: [
-        ("(eq eq eq)", .inequatableTypes),
-        ("(eq map map)", .inequatableTypes)
-    ] as [FailureCase])
-    func comparingProcedures(_ c: FailureCase) {
-        expectFailure(c.source, reason: c.reason)
+    @Test("a callable compares equal to itself", arguments: [
+        ("(eq eq eq)", "true"),
+        ("(eq map map)", "true"),
+        ("(eq map filter)", "false"),
+        ("(eq all any)", "false")
+    ] as [ValueCase])
+    func comparingProcedures(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
     }
 
 }

@@ -4,36 +4,32 @@ import Foundation
 
 struct StandardComparison: StandardModule {
     
-    static let primitiveDefinitions: [MyronXPrimitive] = [
+    static let primitiveDefinitions: [MyronPrimitive] = [
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "comparison.eq",
             representations: ["eq", "=="],
-            signature: [MyronValue.equatableKinds, MyronValue.equatableKinds],
             body: { args, location in
                 return try .boolean(compareEq(args, at: location))
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "comparison.neq",
             representations: ["neq", "!="],
-            signature: [MyronValue.equatableKinds, MyronValue.equatableKinds],
             body: { args, location in
                 return try .boolean(!compareEq(args, at: location))
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "comparison.gt",
             representations: ["gt", ">"],
-            signature: [MyronValue.equatableKinds, MyronValue.equatableKinds],
             body: { args, location in
                 return try .boolean(compareGt(args, at: location))
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "comparison.gte",
             representations: ["gte", ">="],
-            signature: [MyronValue.equatableKinds, MyronValue.equatableKinds],
             body: { args, location in
                 let greater = try compareGt(args, at: location)
                 if greater { return .boolean(true) }
@@ -41,10 +37,9 @@ struct StandardComparison: StandardModule {
                 return equal ? .boolean(true) : .boolean(false)
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "comparison.lt",
             representations: ["lt", "<"],
-            signature: [MyronValue.equatableKinds, MyronValue.equatableKinds],
             body: { args, location in
                 let greater = try compareGt(args, at: location)
                 if greater { return .boolean(false) }
@@ -52,10 +47,9 @@ struct StandardComparison: StandardModule {
                 return equal ? .boolean(false) : .boolean(true)
             }),
         
-        MyronXPrimitive(
+        MyronPrimitive(
             primitiveName: "comparison.lte",
             representations: ["lte", "<="],
-            signature: [MyronValue.equatableKinds, MyronValue.equatableKinds],
             body: { args, location in
                 let greater = try compareGt(args, at: location)
                 if greater { return .boolean(false) }

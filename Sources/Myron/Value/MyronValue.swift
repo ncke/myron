@@ -2,8 +2,6 @@ import Foundation
 
 // MARK: - MyronValue
 
-public typealias MyronPrimitive = ([MyronValue], MyronLocation?) throws -> MyronValue
-
 public enum MyronValue {
     case boolean(Bool)
     case double(Double)
@@ -16,7 +14,6 @@ public enum MyronValue {
     case string(String)
     case symbol(String)
     case primitive(MyronPrimitive)
-    case xprimitive(MyronXPrimitive)
     case procedure(MyronProcedure)
     case define(String)
 }
@@ -105,11 +102,14 @@ extension MyronValue: CustomStringConvertible {
         case .nothing: "<nothing>"
         case .string(let string): "\"\(string)\""
         case .symbol(let symbol): "\(symbol)"
-        case .primitive: "<primitive>"
-        case .xprimitive(let primitive): "\(primitive.description)"
+        case .primitive(let primitive): "\(primitive.description)"
         case .procedure: "<procedure>"
         case .define(let name): "<define: \(name)>"
         }
     }
 
 }
+
+// MARK: - Hashable
+
+extension MyronValue: Hashable {}

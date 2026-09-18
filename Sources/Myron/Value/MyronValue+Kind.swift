@@ -17,7 +17,6 @@ extension MyronValue {
         case .string: return .string
         case .symbol: return .symbol
         case .primitive: return .primitive
-        case .xprimitive: return .primitive
         case .procedure: return .procedure
         case .define: return .define
         }

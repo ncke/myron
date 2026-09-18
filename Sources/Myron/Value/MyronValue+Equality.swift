@@ -4,23 +4,13 @@ import Foundation
 
 extension MyronValue {
 
+    /// Structural equality, iteratively so that deep values cannot overflow
+    /// the host stack. Every case answers for itself; a pair of different
+    /// cases is never equal, and never coerces.
     func isEqual(_ other: MyronValue) -> Bool {
-
-        func isTriviallyEqual(_ fst: MyronValue, _ snd: MyronValue) -> Bool {
-            if let f = fst.asInteger, let s = snd.asInteger { return f == s }
-            if let f = fst.asDouble, let s = snd.asDouble { return f == s }
-            if let f = fst.asBoolean, let s = snd.asBoolean { return f == s }
-            if let f = fst.asString, let s = snd.asString { return f == s }
-            if let f = fst.asSymbol, let s = snd.asSymbol { return f == s }
-            if case .nothing = fst { return true }
-            return false
-        }
-
         var work = [(self, other)]
 
         while let (fst, snd) = work.popLast() {
-            guard fst.kind == snd.kind else { return false }
-
             switch (fst, snd) {
 
             case (.list(let f), .list(let s)):
@@ -34,14 +24,30 @@ extension MyronValue {
                     work.append((fv, sv))
                 }
 
-            default:
-                guard isTriviallyEqual(fst, snd) else { return false }
+            case (.boolean(let f), .boolean(let s)): guard f == s else { return false }
+            case (.double(let f), .double(let s)): guard f == s else { return false }
+            case (.integer(let f), .integer(let s)): guard f == s else { return false }
+            case (.string(let f), .string(let s)): guard f == s else { return false }
+            case (.symbol(let f), .symbol(let s)): guard f == s else { return false }
+            case (.define(let f), .define(let s)): guard f == s else { return false }
+
+            // A callable answers for itself: a primitive by the name it
+            // registered under, a procedure by its identity.
+            case (.primitive(let f), .primitive(let s)): guard f == s else { return false }
+            case (.procedure(let f), .procedure(let s)): guard f == s else { return false }
+            case (.higherOrder(let f), .higherOrder(let s)): guard f == s else { return false }
+            case (.higherProbe(let f), .higherProbe(let s)): guard f == s else { return false }
+
+            case (.nothing, .nothing): break
+
+            default: return false
             }
         }
 
         return true
     }
 
+    // All kinds are equatable now. Keeping for now.
     var isEquatable: Bool {
         return self.flat.first { element in
             !Self.equatableKinds.contains(element.kind)
@@ -49,21 +55,18 @@ extension MyronValue {
     }
     
     static let equatableKinds: [MyronValue.Kind] = [
-        .boolean, .double, .hashmap, .integer, .list, .nothing, .string, .symbol
+        .boolean, .define, .double, .hashmap, .higherOrder, .higherProbe,
+        .integer, .list, .nothing, .primitive, .procedure, .string, .symbol
     ]
 
 }
 
 // MARK: - Equatable & Hashable
 
-extension MyronValue: Equatable, Hashable {
+extension MyronValue: Equatable {
     
     public static func == (lhs: MyronValue, rhs: MyronValue) -> Bool {
         lhs.isEqual(rhs)
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(1234)
     }
     
 }

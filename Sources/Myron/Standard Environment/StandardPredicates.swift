@@ -6,15 +6,15 @@ struct StandardPredicates: StandardModule {
     
     static let primitiveDefinitions = [
         
-        MyronXPrimitive(
-            primitiveName: "comparison.nothing?",
+        MyronPrimitive(
+            primitiveName: "predicate.nothing?",
             representations: ["nothing?"],
             body: { args, location in
                 return .boolean(try args.unwrap1(location).isNothing)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.number?",
+        MyronPrimitive(
+            primitiveName: "predicate.number?",
             representations: ["number?"],
             body: { args, location in
                 let value = try args.unwrap1(location)
@@ -23,43 +23,43 @@ struct StandardPredicates: StandardModule {
                 return .boolean(false)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.integer?",
+        MyronPrimitive(
+            primitiveName: "predicate.integer?",
             representations: ["integer?"],
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asInteger != nil)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.double?",
+        MyronPrimitive(
+            primitiveName: "predicate.double?",
             representations: ["double?"],
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asDouble != nil)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.string?",
+        MyronPrimitive(
+            primitiveName: "predicate.string?",
             representations: ["string?"],
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asString != nil)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.boolean?",
+        MyronPrimitive(
+            primitiveName: "predicate.boolean?",
             representations: ["boolean?"],
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asBoolean != nil)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.list?",
+        MyronPrimitive(
+            primitiveName: "predicate.list?",
             representations: ["list?"],
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asList != nil)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.positive?",
+        MyronPrimitive(
+            primitiveName: "predicate.positive?",
             representations: ["positive?"],
             body: { args, location in
                 let number = try args.unwrap1(location)
@@ -68,8 +68,8 @@ struct StandardPredicates: StandardModule {
                 return .boolean(false)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.negative?",
+        MyronPrimitive(
+            primitiveName: "predicate.negative?",
             representations: ["negative?"],
             body: { args, location in
                 let number = try args.unwrap1(location)
@@ -78,8 +78,8 @@ struct StandardPredicates: StandardModule {
                 return .boolean(false)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.zero?",
+        MyronPrimitive(
+            primitiveName: "predicate.zero?",
             representations: ["zero?"],
             body: { args, location in
                 let number = try args.unwrap1(location)
@@ -88,8 +88,8 @@ struct StandardPredicates: StandardModule {
                 return .boolean(false)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.finite?",
+        MyronPrimitive(
+            primitiveName: "predicate.finite?",
             representations: ["finite?"],
             body: { args, location in
                 let number = try args.unwrap1(location)
@@ -98,8 +98,8 @@ struct StandardPredicates: StandardModule {
                 return .boolean(false)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.infinite?",
+        MyronPrimitive(
+            primitiveName: "predicate.infinite?",
             representations: ["infinite?"],
             body: { args, location in
                 let number = try args.unwrap1(location)
@@ -107,16 +107,16 @@ struct StandardPredicates: StandardModule {
                 return .boolean(false)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.equatable?",
+        MyronPrimitive(
+            primitiveName: "predicate.equatable?",
             representations: ["equatable?"],
             body: { args, location in
                 let value = try args.unwrap1(location)
                 return .boolean(value.isEquatable)
         }),
         
-        MyronXPrimitive(
-            primitiveName: "comparison.callable?",
+        MyronPrimitive(
+            primitiveName: "predicate.callable?",
             representations: ["callable?"],
             body: { args, location in
                 let value = try args.unwrap1(location)
