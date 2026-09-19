@@ -16,18 +16,21 @@ struct StandardRegistryTests {
         "!=", "%", "*", "+", "-", "/",
         "<", "<=", "==", ">", ">=", "abs",
         "acos", "add", "append", "asin", "atan", "atan2",
-        "boolean?", "callable?", "ceil", "cons", "contains", "cos",
-        "div", "double", "double?", "drop", "empty?", "eq",
-        "explode", "finite?", "floor", "get", "get-or",
+        "boolean?", "callable?", "ceil", "cons", "contains?", "cos",
+        "difference", "div", "double", "double?", "drop", "empty?",
+        "eq", "explode", "finite?", "floor", "get", "get-or",
         "gt", "gte", "has-key?", "head", "implode", "infinite?",
-        "init", "integer", "integer?", "key-index", "keys", "keys-values",
-        "last", "length", "lines", "list", "list?", "ln",
-        "log", "lowercase", "lt", "lte", "make-hashmap", "max",
-        "min", "mod", "mul", "neg", "negative?", "neq",
-        "not", "nothing?", "nth", "number?", "positive?", "pow",
-        "put", "rem", "remove", "reverse", "round", "sin",
-        "sqrt", "string", "string?", "sub", "tail", "take",
-        "tan", "trim", "uppercase", "values", "words", "zero?"
+        "init", "insert", "integer", "integer?", "intersection", "is-disjoint?",
+        "is-strict-subset?", "is-strict-superset?", "is-subset?", "is-superset?",
+        "key-index", "keys", "keys-values", "last", "length", "lines",
+        "list", "list?", "ln", "log", "lowercase", "lt",
+        "lte", "make-hashmap", "make-set", "max", "min", "mod",
+        "mul", "neg", "negative?", "neq", "not", "nothing?",
+        "nth", "number?", "positive?", "pow", "put", "rem",
+        "remove", "reverse", "round", "set", "set?", "sin",
+        "sqrt", "string", "string?", "sub", "symmetric-difference", "tail",
+        "take", "tan", "trim", "union", "uppercase", "values",
+        "words", "zero?"
     ]
 
     @Test("the registered names are exactly the promised roster")

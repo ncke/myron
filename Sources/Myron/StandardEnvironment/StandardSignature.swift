@@ -4,11 +4,13 @@ import Foundation
 
 struct StandardSignature {
     
-    static let oneAny: Term = (.exactly(1), .any)
-    static let oneHashmap: Term = (.exactly(1), .subset(Set([ .hashmap ])))
-    static let oneInteger: Term = (.exactly(1), .subset(Set([ .integer ])))
-    static let oneList: Term = (.exactly(1), .subset(Set([ .list ])))
-    static let oneString: Term = (.exactly(1), .subset(Set([ .string ])))
+    static let any1: Term = (.exactly(1), .any)
+    static let map1: Term = (.exactly(1), .subset(Set([ .hashmap ])))
+    static let int1: Term = (.exactly(1), .subset(Set([ .integer ])))
+    static let list1: Term = (.exactly(1), .subset(Set([ .list ])))
+    static let listOrMap1: Term = (.exactly(1), .subset(Set([ .list, .hashmap ])))
+    static let set1: Term = (.exactly(1), .subset(Set([ .set ])))
+    static let str1: Term = (.exactly(1), .subset(Set([ .string ])))
     
     typealias Term = (Multiple, Constraint)
     

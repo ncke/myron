@@ -11,7 +11,7 @@ struct StandardAlist: StandardModule {
         MyronPrimitive(
             primitiveName: "alist.get",
             representations: ["get"],
-            signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneList]),
+            signature: StandardSignature([StandardSignature.any1, StandardSignature.list1]),
             body: { args, location in
                 let (key, snd) = try args.unwrap2(location)
                 let list = try snd.unwrapList(location)
@@ -25,9 +25,9 @@ struct StandardAlist: StandardModule {
             primitiveName: "alist.get-or",
             representations: ["get-or"],
             signature: StandardSignature([
-                StandardSignature.oneAny,
-                StandardSignature.oneAny,
-                StandardSignature.oneList]),
+                StandardSignature.any1,
+                StandardSignature.any1,
+                StandardSignature.list1]),
             body: { args, location in
                 let (def, key, snd) = try args.unwrap3(location)
                 let list = try snd.unwrapList(location)
@@ -41,9 +41,9 @@ struct StandardAlist: StandardModule {
             primitiveName: "alist.put",
             representations: ["put"],
             signature: StandardSignature([
-                StandardSignature.oneAny,
-                StandardSignature.oneAny,
-                StandardSignature.oneList]),
+                StandardSignature.any1,
+                StandardSignature.any1,
+                StandardSignature.list1]),
             body: { args, location in
                 let (key, value, thd) = try args.unwrap3(location)
                 if case .nothing = value {
@@ -63,7 +63,7 @@ struct StandardAlist: StandardModule {
         MyronPrimitive(
             primitiveName: "alist.remove",
             representations: ["remove"],
-            signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneList]),
+            signature: StandardSignature([StandardSignature.any1, StandardSignature.list1]),
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 return try removingKey(fst, from: snd, at: location)
@@ -72,7 +72,7 @@ struct StandardAlist: StandardModule {
         MyronPrimitive(
             primitiveName: "alist.has-key?",
             representations: ["has-key?"],
-            signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneList]),
+            signature: StandardSignature([StandardSignature.any1, StandardSignature.list1]),
             body: { args, location in
                 let (key, snd) = try args.unwrap2(location)
                 let list = try snd.unwrapList(location)
@@ -84,7 +84,7 @@ struct StandardAlist: StandardModule {
         MyronPrimitive(
             primitiveName: "alist.keys",
             representations: ["keys"],
-            signature: StandardSignature([StandardSignature.oneList]),
+            signature: StandardSignature([StandardSignature.list1]),
             body: { args, location in
                 let pairs = try unwrapPairs(args, at: location)
                 return .list(pairs.map { (key, _) in key })
@@ -93,7 +93,7 @@ struct StandardAlist: StandardModule {
         MyronPrimitive(
             primitiveName: "alist.values",
             representations: ["values"],
-            signature: StandardSignature([StandardSignature.oneList]),
+            signature: StandardSignature([StandardSignature.list1]),
             body: { args, location in
                 let pairs = try unwrapPairs(args, at: location)
                 return .list(pairs.map { (_, value) in value })

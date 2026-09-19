@@ -14,6 +14,7 @@ extension MyronValue {
         case .integer: return .integer
         case .list: return .list
         case .nothing: return .nothing
+        case .set: return .set
         case .string: return .string
         case .symbol: return .symbol
         case .primitive: return .primitive
@@ -37,6 +38,7 @@ extension MyronValue {
         case integer
         case list
         case nothing
+        case set
         case string
         case symbol
         case primitive
@@ -60,6 +62,7 @@ extension MyronValue.Kind: CustomStringConvertible {
         case .integer: return "integer"
         case .list: return "list"
         case .nothing: return "nothing"
+        case .set: return "set"
         case .string: return "string"
         case .symbol: return "symbol"
         case .primitive: return "primitive"

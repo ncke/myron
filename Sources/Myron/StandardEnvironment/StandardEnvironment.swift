@@ -51,6 +51,7 @@ extension StandardEnvironment {
         StandardLogic.self,
         StandardMathematics.self,
         StandardPredicates.self,
+        StandardSet.self,
         StandardStrings.self
     ]
     

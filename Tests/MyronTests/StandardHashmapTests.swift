@@ -136,12 +136,12 @@ struct StandardHashmapTests {
         ("(length (keys \(ab)))", "2"),
         ("(length (values \(ab)))", "2"),
         ("(length (keys-values \(ab)))", "2"),
-        ("(contains \"a\" (keys \(ab)))", "true"),
-        ("(contains \"b\" (keys \(ab)))", "true"),
-        ("(contains \"z\" (keys \(ab)))", "false"),
-        ("(contains 1 (values \(ab)))", "true"),
-        ("(contains 2 (values \(ab)))", "true"),
-        ("(contains 3 (values \(ab)))", "false")
+        ("(contains? \"a\" (keys \(ab)))", "true"),
+        ("(contains? \"b\" (keys \(ab)))", "true"),
+        ("(contains? \"z\" (keys \(ab)))", "false"),
+        ("(contains? 1 (values \(ab)))", "true"),
+        ("(contains? 2 (values \(ab)))", "true"),
+        ("(contains? 3 (values \(ab)))", "false")
     ] as [ValueCase])
     func enumeration(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -305,8 +305,8 @@ struct StandardHashmapTests {
         ("(last (make-hashmap))", .unexpectedType(.hashmap, [.list, .string])),
         ("(nth 0 (make-hashmap))", .unexpectedType(.hashmap, [.list, .string])),
         ("(reverse (make-hashmap))", .unexpectedType(.hashmap, [.list, .string])),
-        ("(contains 1 (make-hashmap))", .unexpectedType(.hashmap, [.list, .string])),
-        ("(map (lambda (x) x) (make-hashmap))", .unexpectedType(.hashmap, [.list]))
+        ("(contains? 1 (make-hashmap))", .unexpectedType(.hashmap, [.list, .string, .set])),
+        ("(map (lambda (x) x) (make-hashmap))", .unexpectedType(.hashmap, [.list, .set]))
     ] as [FailureCase])
     func notASequence(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

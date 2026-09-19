@@ -288,8 +288,8 @@ struct EqualityTests {
     }
 
     @Test("contains compares a callable element", arguments: [
-        ("(contains 5 (list 1 (lambda (x) x)))", "false"),
-        ("(contains map (list 1 map))", "true")
+        ("(contains? 5 (list 1 (lambda (x) x)))", "false"),
+        ("(contains? map (list 1 map))", "true")
     ] as [ValueCase])
     func containsCallable(_ c: ValueCase) {
         expectValue(c.source, c.expected)

@@ -29,8 +29,8 @@ extension Machine {
         case conjunction(ArraySlice<Expression>, Environment, MyronLocation?)
         case define(String, Environment)
         case disjunction(ArraySlice<Expression>, Environment, MyronLocation?)
-        case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], MyronLocation?)
-        case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], MyronLocation?)
+        case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
+        case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
         case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case sequence(ArraySlice<Expression>, Environment, MyronLocation?)
@@ -39,6 +39,27 @@ extension Machine {
     enum Control {
         case eval(Expression, Environment)
         case value(MyronValue)
+    }
+    
+    enum Shape {
+        case list, set
+
+        init(_ value: MyronValue) throws {
+            switch value.kind {
+            case .list: self = .list
+            case .set: self = .set
+            default:
+                let explain = "unexpected kind for shape initialiser, got: \(value.kind)"
+                throw MyronError(.internalError(explain))
+            }
+        }
+
+        func rebuild(_ elements: [MyronValue]) -> MyronValue {
+            switch self {
+            case .list: return .list(elements)
+            case .set: return .set(MyronSet(array: elements))
+            }
+        }
     }
 
 }
@@ -319,30 +340,30 @@ extension Machine {
                 control = .value(.boolean(false))
             }
 
-        case .filtering(let function, let element, let remaining, var done, let location):
+        case .filtering(let function, let element, let remaining, var done, let shape, let location):
             let include = try value.unwrapBoolean(location)
             if include {
                 done.append(element)
             }
 
             if let next = remaining.first {
-                stack.append(.filtering(function, next, remaining.dropFirst(), done, location))
+                stack.append(.filtering(function, next, remaining.dropFirst(), done, shape, location))
                 try apply(function, to: [next], at: location)
                 return
             }
 
-            control = .value(.list(done))
+            control = .value(shape.rebuild(done))
 
-        case .mapping(let function, let remaining, var done, let location):
+        case .mapping(let function, let remaining, var done, let shape, let location):
             done.append(value)
 
             if let next = remaining.first {
-                stack.append(.mapping(function, remaining.dropFirst(), done, location))
+                stack.append(.mapping(function, remaining.dropFirst(), done, shape, location))
                 try apply(function, to: [next], at: location)
                 return
             }
 
-            control = .value(.list(done))
+            control = .value(shape.rebuild(done))
 
         case .probing(let higher, let function, let remaining, let location):
             let result = try value.unwrapBoolean(location)
@@ -410,13 +431,14 @@ extension Machine {
                 guard function.isCallable else {
                     throw MyronError(.expectedFunction(function.kind), at: location)
                 }
-                let values = try valueList.unwrapList(location)
+                let values = try valueList.unwrapElements(location)
+                let shape = try Shape(valueList)
 
                 if let headValue = values.first {
-                    stack.append(.mapping(function, values.dropFirst(), [], location))
+                    stack.append(.mapping(function, values.dropFirst(), [], shape, location))
                     try apply(function, to: [headValue], at: location)
                 } else {
-                    control = .value(.list([]))
+                    control = .value(shape.rebuild([]))
                 }
 
             case .reduce:
@@ -424,7 +446,7 @@ extension Machine {
                 guard function.isCallable else {
                     throw MyronError(.expectedFunction(function.kind), at: location)
                 }
-                let values = try valueList.unwrapList(location)
+                let values = try valueList.unwrapElements(location)
 
                 if let headValue = values.first {
                     stack.append(.reducing(function, values.dropFirst(), location))
@@ -438,13 +460,14 @@ extension Machine {
                 guard function.isCallable else {
                     throw MyronError(.expectedFunction(function.kind), at: location)
                 }
-                let values = try valueList.unwrapList(location)
+                let values = try valueList.unwrapElements(location)
+                let shape = try Shape(valueList)
 
                 if let headValue = values.first {
-                    stack.append(.filtering(function, headValue, values.dropFirst(), [], location))
+                    stack.append(.filtering(function, headValue, values.dropFirst(), [], shape, location))
                     try apply(function, to: [headValue], at: location)
                 } else {
-                    control = .value(.list([]))
+                    control = .value(shape.rebuild([]))
                 }
             }
 
@@ -453,7 +476,7 @@ extension Machine {
             guard function.isCallable else {
                 throw MyronError(.expectedFunction(function.kind), at: location)
             }
-            let values = try valueList.unwrapList(location)
+            let values = try valueList.unwrapElements(location)
 
             if let headValue = values.first {
                 stack.append(.probing(higher, function, values.dropFirst(), location))

@@ -116,14 +116,14 @@ struct StandardStringsTests {
     }
 
     @Test("contains is a substring search", arguments: [
-        ("(contains \"ll\" \"hello\")", "true"),
-        ("(contains \"hello\" \"hello\")", "true"),
-        ("(contains \"x\" \"hello\")", "false"),
-        ("(contains \"lo\" \"hel\")", "false"),
-        ("(contains \"\" \"hello\")", "true"),
-        ("(contains \"\" \"\")", "true"),
-        ("(contains \"a\" \"\")", "false"),
-        ("(contains \"LL\" \"hello\")", "false")
+        ("(contains? \"ll\" \"hello\")", "true"),
+        ("(contains? \"hello\" \"hello\")", "true"),
+        ("(contains? \"x\" \"hello\")", "false"),
+        ("(contains? \"lo\" \"hel\")", "false"),
+        ("(contains? \"\" \"hello\")", "true"),
+        ("(contains? \"\" \"\")", "true"),
+        ("(contains? \"a\" \"\")", "false"),
+        ("(contains? \"LL\" \"hello\")", "false")
     ] as [ValueCase])
     func contains(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -131,8 +131,8 @@ struct StandardStringsTests {
 
     @Test("contains on a string differs from contains on its characters")
     func containsSubstringVersusElement() {
-        expectValue("(contains \"ab\" \"abc\")", "true")
-        expectValue("(contains \"ab\" (explode \"abc\"))", "false")
+        expectValue("(contains? \"ab\" \"abc\")", "true")
+        expectValue("(contains? \"ab\" (explode \"abc\"))", "false")
     }
 
     @Test("sequence errors over strings", arguments: [
@@ -144,7 +144,7 @@ struct StandardStringsTests {
         ("(nth 3 \"abc\")", .subscriptOutOfBounds(3, 3)),
         ("(nth -1 \"abc\")", .subscriptOutOfBounds(-1, 3)),
         ("(nth 0 \"\")", .subscriptOutOfBounds(0, 0)),
-        ("(contains 1 \"abc\")", .unexpectedType(.integer, [.string])),
+        ("(contains? 1 \"abc\")", .unexpectedType(.integer, [.string])),
         ("(append \"a\" 1)", .unexpectedType(.integer, [.string]))
     ] as [FailureCase])
     func sequenceErrors(_ c: FailureCase) {

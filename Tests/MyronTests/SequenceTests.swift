@@ -8,7 +8,8 @@ import Testing
 struct StandardSequenceTests {
 
     private static let sequenceKinds: Set<MyronValue.Kind> = [.list, .string]
-    private static let extendedSequenceKinds: Set<MyronValue.Kind> = [.hashmap, .list, .string]
+    private static let extendedSequenceKinds: Set<MyronValue.Kind> = [.hashmap, .list, .set, .string]
+    private static let containsKinds: Set<MyronValue.Kind> = [.list, .set, .string]
 
     @Test("a shared name works over either sequence type", arguments: [
         ("(head '(1 2 3))", "1"),
@@ -33,8 +34,8 @@ struct StandardSequenceTests {
         ("(reverse \"abc\")", "\"cba\""),
         ("(nth 1 '(1 2 3))", "2"),
         ("(nth 1 \"abc\")", "\"b\""),
-        ("(contains 2 '(1 2 3))", "true"),
-        ("(contains \"b\" \"abc\")", "true")
+        ("(contains? 2 '(1 2 3))", "true"),
+        ("(contains? \"b\" \"abc\")", "true")
     ] as [ValueCase])
     func sharedNames(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -45,8 +46,8 @@ struct StandardSequenceTests {
         expectValue("(take 1 \"abc\")", "\"a\"")
         expectValue("(drop 1 \"abc\")", "\"bc\"")
         expectValue("(nth 0 \"abc\")", "\"a\"")
-        expectValue("(contains \"a\" \"abc\")", "true")
-        expectValue("(contains \"a\" '(\"a\"))", "true")
+        expectValue("(contains? \"a\" \"abc\")", "true")
+        expectValue("(contains? \"a\" '(\"a\"))", "true")
     }
 
     @Test("a non-sequence reports the kind found and the kinds expected", arguments: [
@@ -61,7 +62,7 @@ struct StandardSequenceTests {
         ("(append 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(reverse 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(nth 0 5)", .unexpectedType(.integer, sequenceKinds)),
-        ("(contains 1 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(contains? 1 5)", .unexpectedType(.integer, containsKinds)),
         ("(length 1.5)", .unexpectedType(.double, extendedSequenceKinds)),
         ("(length true)", .unexpectedType(.boolean, extendedSequenceKinds)),
         ("(length 'sym)", .unexpectedType(.symbol, extendedSequenceKinds)),
@@ -77,7 +78,7 @@ struct StandardSequenceTests {
     @Test("a missing sequence argument is an arity error", arguments: [
         "(head)", "(tail)", "(init)", "(last)", "(length)", "(empty?)",
         "(append)", "(reverse)", "(take)", "(take 1)", "(drop)", "(drop 1)",
-        "(nth)", "(nth 0)", "(contains)", "(contains 1)"
+        "(nth)", "(nth 0)", "(contains?)", "(contains? 1)"
     ])
     func missingSequence(_ source: String) {
         expectArityFailure(source)
@@ -107,7 +108,7 @@ struct StandardSequenceTests {
                 return
             }
             #expect(errors.first?.message?.hasPrefix(
-                "ERROR: Unexpected type, got integer, expected hashmap, list, string") == true)
+                "ERROR: Unexpected type, got integer, expected hashmap, list, set, string") == true)
         }
     }
 

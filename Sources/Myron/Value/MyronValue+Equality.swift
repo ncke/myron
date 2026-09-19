@@ -24,6 +24,7 @@ extension MyronValue {
             case (.boolean(let f), .boolean(let s)): guard f == s else { return false }
             case (.double(let f), .double(let s)): guard f == s else { return false }
             case (.integer(let f), .integer(let s)): guard f == s else { return false }
+            case (.set(let f), .set(let s)): guard f == s else { return false }
             case (.string(let f), .string(let s)): guard f == s else { return false }
             case (.symbol(let f), .symbol(let s)): guard f == s else { return false }
             case (.define(let f), .define(let s)): guard f == s else { return false }

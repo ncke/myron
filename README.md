@@ -43,7 +43,7 @@ looking things up later.
   — [Comparison](#comparison) · [Predicates](#predicates) ·
   [Logic](#logic) · [Mathematics](#mathematics) · [Sequences](#sequences) ·
   [Lists](#lists) · [Association lists](#association-lists) ·
-  [Hashmaps](#hashmaps) ·
+  [Hashmaps](#hashmaps) · [Sets](#sets) ·
   [Strings](#strings) · [Higher-order functions](#higher-order-functions)
 - [Status](#status)
 - [Licence](#licence)
@@ -58,8 +58,8 @@ looking things up later.
   interpreter's continuation stack lives on the heap, so recursion depth is
   bounded by a configurable limit rather than by the host's thread stack.
 - A standard environment covering comparison, predicates, logic, mathematics,
-  sequences, lists, association lists, hashmaps, strings, and the higher-order
-  staples (`map`, `filter`, `reduce`, `all`, `any`).
+  sequences, lists, association lists, hashmaps, sets, strings, and the
+  higher-order staples (`map`, `filter`, `reduce`, `all`, `any`).
 - Two associative types behind one set of names: `get`, `put` and friends
   resolve over alists and hashmaps alike.
 - Swift interoperability in both directions. Swift values convert to
@@ -67,8 +67,14 @@ looking things up later.
   a Swift literal.
 - `MyronValue` is `Hashable`, so Myron values can be held in Swift's own sets
   and dictionaries, and compared without going back through the interpreter.
-- Any value can be a hashmap or alist key — a list, a nested hashmap, even a
-  procedure — with no separate key type to convert through.
+- Any value can be a hashmap or alist key, or a member of a set — a list, a
+  nested hashmap, even a procedure — with no separate key type to convert
+  through.
+- A set type with the usual algebra: `union`, `intersection`, `difference`,
+  `symmetric-difference`, the subset and superset relations, and `is-disjoint?`.
+  Sets compare by membership, so `(eq (set 1 2) (set 2 1))` is `true`.
+- `map` and `filter` give back the kind they were given, so a set maps to a set
+  and a list to a list.
 - A session's environment is open to its host: names can be read, written and
   listed from Swift without going through source text.
 - Sequence primitives that work on both lists and strings, resolved on the
@@ -132,8 +138,8 @@ targets: [
 ## The Swift interface
 
 Myron is a library first. The public surface is deliberately small: a session,
-its configuration, a result, the `MyronValue` enum and its `Key`,
-`MyronHashmap`, `MyronError`, and the language version. The `myron-repl`
+its configuration, a result, the `MyronValue` enum, `MyronHashmap`,
+`MyronSet`, `MyronError`, and the language version. The `myron-repl`
 executable is itself just another host of the library, in a few dozen lines of
 Swift.
 
@@ -290,6 +296,7 @@ public enum MyronValue {
     case symbol(String)
     case list([MyronValue])
     case hashmap(MyronHashmap)
+    case set(MyronSet)
     case nothing
     case procedure(MyronProcedure)        // a lambda or a defined procedure
     case primitive(MyronPrimitive)        // a built-in function
@@ -321,6 +328,7 @@ value.asString                            // String?
 value.asSymbol                            // String?
 value.asList                              // [MyronValue]?
 value.asHashmap                           // MyronHashmap?
+value.asSet                               // MyronSet?
 ```
 
 These do not coerce: `MyronValue.integer(1).asDouble` is `nil`, exactly as
@@ -356,8 +364,9 @@ seen.contains(.integer(1))                // true
 ```
 
 Equality is structural and does not coerce, matching Myron's own `eq`: lists
-compare element by element, hashmaps by their contents regardless of the order
-they were built in, and an integer never equals a double.
+compare element by element, hashmaps by their contents and sets by their
+membership, both regardless of the order they were built in, and an integer
+never equals a double.
 
 Every case answers, including the callable ones. A `.primitive` compares by the
 name it registered under, so `+` equals `+`. A `.procedure` compares by
@@ -541,6 +550,68 @@ everything here applies to it too.
 Note that iteration order is unspecified, so `keys`, `values`, `pairs` and
 `description` may come back in a different order on each run.
 
+#### `MyronSet`
+
+The payload of `MyronValue.set`. Like `MyronHashmap` it is an immutable value
+type, and every operation returns a new set rather than modifying the receiver:
+
+```swift
+set.count                                 // Int
+set.isEmpty                               // Bool
+set.contains(.integer(1))                 // Bool
+set.insert(.integer(4))                   // MyronSet
+set.remove(.integer(1))                   // MyronSet
+```
+
+The algebra and the relations are there under their Swift names:
+
+```swift
+a.union(b)                                // MyronSet
+a.intersection(b)                         // MyronSet
+a.difference(b)                           // MyronSet — a without b's members
+a.symmetricDifference(b)                  // MyronSet
+
+a.isSubset(of: b)                         // Bool
+a.isStrictSubset(of: b)                   // Bool
+a.isSuperset(of: b)                       // Bool
+a.isStrictSuperset(of: b)                 // Bool
+a.isDisjoint(with: b)                     // Bool
+```
+
+It conforms to `Sequence`, so it iterates and composes like any other
+collection, and an array literal is the shortest way to build one:
+
+```swift
+let a: MyronSet = [1, "two", true]        // mixed types, as in Myron
+let b = MyronSet(Set([1, 2, 3]))          // from a Swift Set
+let c = MyronSet([MyronValue.string("a")])
+
+for member in a { print(member) }
+let rendered = a.map(\.description)
+```
+
+The array literal takes anything representable, so variables and nested
+collections sit alongside literals. Note that it builds a *set*, not a list —
+a `MyronValue` array literal still builds a list, so reach for `.set(…)` when
+you want a set value:
+
+```swift
+let asList: MyronValue = [1, 2, 2]        // .list — three elements
+let asSet = MyronValue.set([1, 2, 2])     // .set — two members
+```
+
+Like a hashmap key, a member holding a `nan` is dropped rather than stored; see
+[keys](#keys) below. Iteration order is unspecified, so `description` and any
+traversal may come back in a different order on each run.
+
+`MyronSet` is `Equatable` and `Hashable`, comparing by membership, which means
+a set can itself be a member of a set, a hashmap key, or an element of Swift's
+own `Set`:
+
+```swift
+MyronSet([1, 2]) == MyronSet([2, 1])      // true
+```
+
 #### Keys
 
 A hashmap is keyed by `MyronValue`, so any value is a key — a string, a list, a
@@ -557,9 +628,18 @@ let hashmap: MyronHashmap = [Double.nan: 1, [1, Double.nan]: 2, "a": 3]
 hashmap.count                             // 1 — only "a" survives
 ```
 
-This applies to keys only. A `nan` is a perfectly good *value*, and a list is
-free to hold one. Infinities are unaffected in either position: an infinity
-equals itself, so it keys and finds like anything else.
+The same rule applies to set members, for the same reason — a member that is
+not equal to itself could never be found — so a `nan` is dropped on every path
+that builds a set too:
+
+```swift
+let set: MyronSet = [Double.nan, 1]
+set.count                                 // 1 — only 1 survives
+```
+
+This applies to keys and members only. A `nan` is a perfectly good *value*, and
+a list is free to hold one. Infinities are unaffected in every position: an
+infinity equals itself, so it keys, stores and finds like anything else.
 
 ### Configuration
 
@@ -636,7 +716,8 @@ Comments run from a `;` to the end of the line.
 
 ### Values and types
 
-Myron has integers, doubles, booleans, strings, symbols, lists, and `nothing`.
+Myron has integers, doubles, booleans, strings, symbols, lists, hashmaps, sets,
+and `nothing`.
 
 ```lisp
 42                                        ; integer
@@ -645,7 +726,11 @@ true                                      ; boolean
 "hello"                                   ; string
 'x                                        ; symbol
 '(1 2 3)                                  ; list
+(set 1 2 3)                               ; set
 ```
+
+Only the first six can be written as literals. A hashmap is built with
+`make-hashmap` and a set with `set` or `make-set`.
 
 Numbers are strict about their types. An integer is an `Int` and a double is a
 `Double`, and Myron will never quietly promote one to the other:
@@ -833,7 +918,7 @@ free:
 ```
 
 Many of the sequence primitives work on strings too, using exactly the same
-names — `head`, `tail`, `take`, `length`, `reverse`, `contains` and friends
+names — `head`, `tail`, `take`, `length`, `reverse`, `contains?` and friends
 resolve on the type of the sequence you hand them:
 
 ```lisp
@@ -841,6 +926,52 @@ resolve on the type of the sequence you hand them:
 (take 2 "hello")                          ; "he"
 (reverse "abc")                           ; "cba"
 ```
+
+### Sets
+
+A set holds each member once and answers membership questions quickly. Build
+one with `set`, which takes its members directly, or with `make-set`, which
+takes a list:
+
+```lisp
+(set 1 2 3)                               ; #{1 2 3}
+(set 1 1 2)                               ; #{1 2} — duplicates collapse
+(set)                                     ; #{} — the empty set
+(make-set '(1 2 2 3))                     ; #{1 2 3}
+(values (set 1 2 3))                      ; back to a list of three
+```
+
+Sets print with a leading `#`, as hashmaps do. A set has no order, so the
+members above are shown in a readable one — the order you actually get is
+unspecified and may differ on each run. Members can be of any type, and
+are compared exactly as `eq` compares them, so `1` and `1.0` are two members
+rather than one:
+
+```lisp
+(length (set 1 1.0))                      ; 2
+(contains? 2 (set 1 2))                   ; true
+(insert 4 (set 1 2))                      ; a new set of three
+(remove 1 (set 1 2))                      ; a new set of one
+```
+
+Then there is the algebra, which is the reason to reach for a set in the first
+place:
+
+```lisp
+(union (set 1 2) (set 2 3))               ; #{1 2 3}
+(intersection (set 1 2) (set 2 3))        ; #{2}
+(difference (set 1 2 3) (set 2))          ; #{1 3}
+(is-subset? (set 1) (set 1 2))            ; true
+(is-disjoint? (set 1) (set 2))            ; true
+```
+
+Two sets are equal when they have the same members, however they were built:
+
+```lisp
+(eq (set 1 2) (set 2 1))                  ; true
+```
+
+Where order matters, use a list.
 
 ### Mapping, filtering, and reducing
 
@@ -859,6 +990,15 @@ procedure, or a primitive:
 `reduce` takes the function, a starting value, and the list, and calls the
 function with the accumulator first and the element second. Passing a primitive
 directly, as in `(reduce + 0 …)`, is idiomatic.
+
+All five take a [set](#sets) as readily as a list, and `map` and `filter` give
+back the kind they were given:
+
+```lisp
+(map (lambda (x) (* x x)) (set 1 2 3))    ; #{1 4 9} — a set
+(filter (lambda (x) (> x 1)) (set 1 2 3)) ; #{2 3}
+(reduce + 0 (set 1 2 3))                  ; 6
+```
 
 They compose, which is where the style earns its keep:
 
@@ -1223,6 +1363,7 @@ them.
 | `string?` | a string |
 | `boolean?` | a boolean |
 | `list?` | a list |
+| `set?` | a set |
 | `positive?` | a number greater than zero |
 | `negative?` | a number less than zero |
 | `zero?` | a number equal to zero |
@@ -1363,8 +1504,11 @@ Lists and strings are both sequences, and these primitives work on either. One
 name covers both: the standard environment resolves the call against the types
 of the arguments, so the same name does the obvious thing in either case. A
 string behaves as a sequence of one-character strings — Myron has no character
-type. `length` and `empty?` also accept a [hashmap](#hashmaps); the rest do
-not, since a hashmap has no order.
+type.
+
+Three of these reach past sequences. `length` and `empty?` also accept a
+[hashmap](#hashmaps) or a [set](#sets), and `contains?` also accepts a set. The
+rest do not, since neither a hashmap nor a set has an order.
 
 | Primitive | Arguments | Result |
 |---|---|---|
@@ -1379,7 +1523,7 @@ not, since a hashmap has no order.
 | `empty?` | 1 sequence | boolean |
 | `reverse` | 1 sequence | the sequence, reversed |
 | `append` | 1 or more sequences | the sequences concatenated |
-| `contains` | value, sequence | boolean |
+| `contains?` | value, sequence or set | boolean |
 
 ```lisp
 (head '(1 2 3))                           ; 1
@@ -1394,8 +1538,9 @@ not, since a hashmap has no order.
 (reverse "abc")                           ; "cba"
 (append '(1) '(2 3))                      ; (1 2 3)
 (append "foo" "bar")                      ; "foobar"
-(contains 2 '(1 2 3))                     ; true
-(contains "ell" "hello")                  ; true — substring, not character
+(contains? 2 '(1 2 3))                    ; true
+(contains? "ell" "hello")                 ; true — substring, not character
+(contains? 2 (set 1 2))                   ; true
 ```
 
 `head` and `last` return `nothing` for an empty sequence, but `nth` raises
@@ -1406,9 +1551,9 @@ not, since a hashmap has no order.
 and every remaining argument must match, so lists and strings cannot be mixed.
 At least one argument is required.
 
-`contains` compares with the same rules as `eq`, recursively, except that a
-type mismatch counts as "not found" rather than failing: `(contains "a" '(1 2))`
-and `(contains 1 '(1.0))` are both `false`. Over a string it tests for a
+`contains?` compares with the same rules as `eq`, recursively, except that a
+type mismatch counts as "not found" rather than failing: `(contains? "a" '(1 2))`
+and `(contains? 1 '(1.0))` are both `false`. Over a string it tests for a
 substring, and the empty string is contained in everything.
 
 ### Lists
@@ -1580,6 +1725,114 @@ The order in which `keys`, `values`, `keys-values` and printing enumerate a
 hashmap is unspecified, and may differ between runs. Use an alist where order
 matters.
 
+### Sets
+
+A set is an unordered collection that holds each member once. Membership is
+decided exactly as `eq` decides equality, so `1` and `1.0` are two members.
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `set` | 0 or more values | a set of those values |
+| `make-set` | nothing, 1 list, or 1 hashmap | a new set |
+| `values` | 1 set | a list of its members |
+| `insert` | value, set | the set with the value added |
+| `remove` | value, set | the set without the value |
+| `contains?` | value, set | boolean |
+| `length` | 1 set | integer |
+| `empty?` | 1 set | boolean |
+| `union` | 1 or more sets | every member of any of them |
+| `intersection` | 1 or more sets | the members common to all of them |
+| `difference` | 2 or more sets | the first without the members of the rest |
+| `symmetric-difference` | 2 sets | the members of exactly one of them |
+| `is-subset?` | 2 sets | `true` if every member of the first is in the second |
+| `is-strict-subset?` | 2 sets | as `is-subset?`, but not when they are equal |
+| `is-superset?` | 2 sets | `true` if the first holds every member of the second |
+| `is-strict-superset?` | 2 sets | as `is-superset?`, but not when they are equal |
+| `is-disjoint?` | 2 sets | `true` if they share no member |
+
+```lisp
+(set 1 2 3)                               ; #{1 2 3}
+(set 1 1 2)                               ; #{1 2} — duplicates collapse
+(set)                                     ; #{} — the empty set
+(make-set '(1 2 2 3))                     ; #{1 2 3}
+(values (set 1 2 3))                      ; a list of the three members
+
+(insert 4 (set 1 2))                      ; #{1 2 4}
+(remove 1 (set 1 2))                      ; #{2}
+(contains? 2 (set 1 2))                   ; true
+(length (set 1 2 3))                      ; 3
+(empty? (set))                            ; true
+```
+
+A set has no order, so every printed set on this page is shown with its members
+in a readable order. The order you actually get is unspecified; see the note at
+the end of this section.
+
+`set` evaluates its arguments and takes each as a member, exactly as `list`
+does. `make-set` takes a collection instead: given a list it takes the elements,
+and given a hashmap it takes each entry as a two-element list, which is the same
+shape `keys-values` produces. With no argument it gives an empty set.
+
+```lisp
+(make-set (make-hashmap '(("a" 1))))      ; #{("a" 1)}
+(eq (make-set (values (set 1 2 3))) (set 1 2 3))
+                                          ; true — round trips through a list
+```
+
+The algebra follows. `union` and `intersection` take one or more sets and
+`difference` takes two or more, folding left to right; `symmetric-difference`
+takes exactly two:
+
+```lisp
+(union (set 1 2) (set 2 3))               ; #{1 2 3}
+(union (set 1) (set 2) (set 3))           ; #{1 2 3}
+(intersection (set 1 2) (set 2 3))        ; #{2}
+(difference (set 1 2 3) (set 2))          ; #{1 3}
+(difference (set 1 2 3) (set 2) (set 3))  ; #{1}
+(symmetric-difference (set 1 2) (set 2 3)); #{1 3}
+```
+
+Note that `difference` is the relative complement — the first set without the
+members of the rest — and not the symmetric difference, which is the separate
+primitive above.
+
+The relations all take two sets and answer a boolean. The strict forms differ
+from the plain ones only when the two sets are equal:
+
+```lisp
+(is-subset? (set 1) (set 1 2))            ; true
+(is-subset? (set 1 2) (set 1 2))          ; true
+(is-strict-subset? (set 1 2) (set 1 2))   ; false — equal is not strict
+(is-superset? (set 1 2) (set 1))          ; true
+(is-disjoint? (set 1) (set 2))            ; true
+```
+
+Sets print with a leading `#`, and compare by membership rather than by the
+order they were built in:
+
+```lisp
+(set 1 2 3)                               ; #{1 2 3}
+(eq (set 1 2) (set 2 1))                  ; true
+```
+
+Members follow the same rule as hashmap keys: a member holding a `nan` anywhere
+inside it is dropped rather than stored, because a member that is not equal to
+itself could never be found again. This applies on every path that builds a set,
+including `map`:
+
+```lisp
+(length (set (sqrt -1.0) 1))              ; 1 — only 1 is stored
+(values (map (lambda (x) (sqrt x)) (set -1.0 4.0)))
+                                          ; (2.0)
+```
+
+The order in which `values` and printing enumerate a set is unspecified, and may
+differ between runs. Use a list where order matters — and see the note on
+`reduce` under [higher-order functions](#higher-order-functions).
+
+The ordered sequence primitives do not accept a set, since a set has no
+positions; only `length`, `empty?` and `contains?` do.
+
 ### Strings
 
 These are string-specific; the sequence primitives above also work on strings.
@@ -1621,11 +1874,11 @@ literal written on one line, and the line-based REPL cannot enter one.
 
 | Primitive | Arguments | Result |
 |---|---|---|
-| `map` | function, list | a list of the results |
-| `filter` | predicate, list | the elements the predicate accepted |
-| `reduce` | function, initial value, list | the accumulated value |
-| `all` | predicate, list | `true` if every element satisfies it |
-| `any` | predicate, list | `true` if some element satisfies it |
+| `map` | function, list or set | the results, in the kind given |
+| `filter` | predicate, list or set | the elements the predicate accepted |
+| `reduce` | function, initial value, list or set | the accumulated value |
+| `all` | predicate, list or set | `true` if every element satisfies it |
+| `any` | predicate, list or set | `true` if some element satisfies it |
 
 ```lisp
 (map (lambda (x) (* x x)) '(1 2 3))       ; (1 4 9)
@@ -1642,8 +1895,33 @@ with one argument; `reduce` calls it with two, the accumulator first; `all` and
 `any` call it with one and require a boolean back. A `filter`, `all` or `any`
 predicate that returns a non-boolean is a type error.
 
-Unlike the sequence primitives, these take lists only. Use `explode` to reach a
-string's characters:
+All five also accept a [set](#sets), and `map` and `filter` give back the kind
+they were given — a list maps to a list, a set to a set, including when it is
+empty:
+
+```lisp
+(map (lambda (x) (* x x)) (set 1 2 3))    ; #{1 4 9}
+(filter (lambda (x) (> x 1)) (set 1 2 3)) ; #{2 3}
+(reduce + 0 (set 1 2 3))                  ; 6
+```
+
+Two things follow from a set holding each member once. A `map` over a set gives
+back the image of the function, so one that sends two members to the same result
+gives back fewer members than it was given; and a result that cannot be stored —
+a `nan` — is dropped, as it would be anywhere else:
+
+```lisp
+(length (map (lambda (x) 0) (set 1 2 3))) ; 1 — every member maps to 0
+(length (map (lambda (x) 0) '(1 2 3)))    ; 3 — a list keeps all three
+```
+
+A set has no order, so the order in which `reduce` folds it is unspecified. Fold
+a set only with a function where that does not matter — `(reduce + 0 …)` is
+fine, `(reduce - 0 …)` is not — and use a list when the order is part of the
+answer.
+
+They take nothing else. Use `explode` to reach a string's characters, and
+`keys`, `values` or `keys-values` to reach a hashmap's:
 
 ```lisp
 (implode (filter (lambda (c) (!= c " ")) (explode "a b c")))
@@ -1666,9 +1944,10 @@ Notable gaps:
 - No escape sequences in string literals, so a string cannot contain a `"`, and
   a newline can only be got in by letting the literal span source lines.
 - No `sort`, `range`, `zip`, `flatten`, `take-while`, `drop-while` or `foldr`.
-- No set type yet, and hashmap enumeration order is unspecified as a result —
-  there is no ordering primitive to impose one. `MyronValue` is now `Hashable`,
-  which is the groundwork a set needs.
+- Hashmap and set enumeration order is unspecified, and there is no ordering
+  primitive to impose one.
+- Sets cannot be written as literals in Myron source; build them with `set` or
+  `make-set`. There is no `powerset` or Cartesian product.
 - Hashmaps cannot be written as literals in Myron source; build them with
   `make-hashmap` from an alist.
 - No mutation: there is no `set!`, and no way to rebind a name in an enclosing

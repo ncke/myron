@@ -11,6 +11,7 @@ public enum MyronValue {
     case integer(Int)
     case list([MyronValue])
     case nothing
+    case set(MyronSet)
     case string(String)
     case symbol(String)
     case primitive(MyronPrimitive)
@@ -100,6 +101,7 @@ extension MyronValue: CustomStringConvertible {
         case .list(let list):
             "(" + list.map(\.description).joined(separator: " ") + ")"
         case .nothing: "<nothing>"
+        case .set(let set): "\(set)"
         case .string(let string): "\"\(string)\""
         case .symbol(let symbol): "\(symbol)"
         case .primitive(let primitive): "\(primitive.description)"

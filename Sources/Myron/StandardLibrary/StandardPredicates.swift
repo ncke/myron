@@ -38,6 +38,13 @@ struct StandardPredicates: StandardModule {
         }),
         
         MyronPrimitive(
+            primitiveName: "predicate.set?",
+            representations: ["set?"],
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).asSet != nil)
+        }),
+        
+        MyronPrimitive(
             primitiveName: "predicate.string?",
             representations: ["string?"],
             body: { args, location in

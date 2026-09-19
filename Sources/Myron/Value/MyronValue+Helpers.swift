@@ -10,6 +10,14 @@ extension MyronValue {
         }
         return b
     }
+    
+    func unwrapElements(_ location: MyronLocation?) throws -> [MyronValue] {
+        switch self {
+        case .list(let elements): return elements
+        case .set(let set): return Array(set.contents)
+        default: throw MyronError(.unexpectedType(self.kind, [.list, .set]), at: location)
+        }
+    }
 
     func unwrapInteger(_ location: MyronLocation?) throws -> Int {
         guard let n = asInteger else {
@@ -37,6 +45,13 @@ extension MyronValue {
             throw MyronError(.unexpectedType(self.kind, [.hashmap]), at: location)
         }
         return h
+    }
+    
+    func unwrapSet(_ location: MyronLocation?) throws -> MyronSet {
+        guard let s = asSet else {
+            throw MyronError(.unexpectedType(self.kind, [.set]), at: location)
+        }
+        return s
     }
 
     func unwrapString(_ location: MyronLocation?) throws -> String {
@@ -81,6 +96,11 @@ extension MyronValue {
 
     public var asHashmap: MyronHashmap? {
         if case .hashmap(let h) = self { return h }
+        return nil
+    }
+    
+    public var asSet: MyronSet? {
+        if case .set(let s) = self { return s}
         return nil
     }
 
@@ -165,6 +185,8 @@ extension MyronValue {
             case .hashmap(let hm):
                 let elements = hm.keysValues().flatMap { (k, v) in [k, v] }
                 work.append(contentsOf: elements)
+            case .set(let s):
+                work.append(contentsOf: s.contents)
             default:
                 break
             }

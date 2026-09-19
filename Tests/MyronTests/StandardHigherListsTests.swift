@@ -96,13 +96,13 @@ struct StandardHigherListsTests {
 
     @Test("higher-order errors", arguments: [
         ("(map 5 '(1 2))", .expectedFunction(.integer)),
-        ("(map sqrt 5)", .unexpectedType(.integer, [.list])),
+        ("(map sqrt 5)", .unexpectedType(.integer, [.list, .set])),
         ("(filter sqrt '(1.0))", .unexpectedType(.double, [.boolean])),
-        ("(reduce + 0 5)", .unexpectedType(.integer, [.list])),
+        ("(reduce + 0 5)", .unexpectedType(.integer, [.list, .set])),
         ("(all 5 '(1 2))", .expectedFunction(.integer)),
         ("(any 5 '(1 2))", .expectedFunction(.integer)),
-        ("(all sqrt 5)", .unexpectedType(.integer, [.list])),
-        ("(any sqrt 5)", .unexpectedType(.integer, [.list])),
+        ("(all sqrt 5)", .unexpectedType(.integer, [.list, .set])),
+        ("(any sqrt 5)", .unexpectedType(.integer, [.list, .set])),
         ("(all (lambda (x) x) '(1))", .unexpectedType(.integer, [.boolean])),
         ("(any (lambda (x) x) '(1))", .unexpectedType(.integer, [.boolean])),
         ("(all (lambda (x) x))", .unexpectedArity(1, .exactly(2)))

@@ -126,10 +126,10 @@ struct StandardListsTests {
     }
 
     @Test("contains", arguments: [
-        ("(contains 2 '(1 2 3))", "true"),
-        ("(contains 9 '(1 2 3))", "false"),
-        ("(contains 2 '())", "false"),
-        ("(contains '(1) '((1) (2)))", "true")
+        ("(contains? 2 '(1 2 3))", "true"),
+        ("(contains? 9 '(1 2 3))", "false"),
+        ("(contains? 2 '())", "false"),
+        ("(contains? '(1) '((1) (2)))", "true")
     ] as [ValueCase])
     func contains(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -137,8 +137,8 @@ struct StandardListsTests {
 
     @Test("contains does not equate across types")
     func containsAcrossTypes() {
-        expectValue("(contains \"a\" '(1 2))", "false")
-        expectValue("(contains 1 '(1.0 2.0))", "false")
+        expectValue("(contains? \"a\" '(1 2))", "false")
+        expectValue("(contains? 1 '(1.0 2.0))", "false")
     }
 
     @Test("lists can be built by recursion")
@@ -155,7 +155,7 @@ struct StandardListsTests {
         ("(head 5)", .unexpectedType(.integer, [.string, .list])),
         ("(tail 5)", .unexpectedType(.integer, [.string, .list])),
         ("(last 5)", .unexpectedType(.integer, [.string, .list])),
-        ("(empty? 5)", .unexpectedType(.integer, [.hashmap, .string, .list])),
+        ("(empty? 5)", .unexpectedType(.integer, [.hashmap, .string, .list, .set])),
         ("(head '(1) '(2))", .unexpectedArity(2, .exactly(1))),
         ("(take -1 '(1 2))", .cannotBeNegative),
         ("(drop -1 '(1 2))", .cannotBeNegative),
@@ -172,8 +172,8 @@ struct StandardListsTests {
         ("(nth 5 '(1 2))", .subscriptOutOfBounds(5, 2)),
         ("(nth -1 '(1 2))", .subscriptOutOfBounds(-1, 2)),
         ("(nth 0 '())", .subscriptOutOfBounds(0, 0)),
-        ("(contains 1 5)", .unexpectedType(.integer, [.string, .list])),
-        ("(contains 1)", .unexpectedArity(1, .exactly(2)))
+        ("(contains? 1 5)", .unexpectedType(.integer, [.string, .list, .set])),
+        ("(contains? 1)", .unexpectedArity(1, .exactly(2)))
     ] as [FailureCase])
     func listErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
