@@ -11,8 +11,18 @@ final class StandardEnvironment {
     
     func lookup(_ representation: String) -> MyronValue? {
         switch representation {
+            
+        // Constants.
         case "nothing": return .nothing
         case "pi": return .double(Double.pi)
+            
+        // Higher-order lists.
+        case "map": return .higherOrder(.map)
+        case "filter": return .higherOrder(.filter)
+        case "reduce": return .higherOrder(.reduce)
+        case "all": return .higherProbe(.all)
+        case "any": return .higherProbe(.any)
+            
         default :break
         }
         
@@ -72,25 +82,4 @@ extension StandardEnvironment {
         }
     }
     
-}
-
-// MARK: - Legacy Standard Environment
-
-extension Environment {
-
-    func standardLookup(_ name: String) -> MyronValue? {
-        switch name {
-
-        // Higher-order lists.
-        case "map": return .higherOrder(.map)
-        case "filter": return .higherOrder(.filter)
-        case "reduce": return .higherOrder(.reduce)
-        case "all": return .higherProbe(.all)
-        case "any": return .higherProbe(.any)
-
-        default:
-            return nil
-        }
-    }
-
 }

@@ -3,13 +3,13 @@ import Foundation
 // MARK: - MyronHashmap
 
 public struct MyronHashmap {
-    private var contents: [MyronKey: MyronValue]
+    private var contents: [MyronValue: MyronValue]
 
     init() {
         contents = [:]
     }
 
-    init(contents: [MyronKey: MyronValue]) {
+    init(contents: [MyronValue: MyronValue]) {
         self.contents = contents
     }
 
@@ -19,28 +19,29 @@ public struct MyronHashmap {
 
 extension MyronHashmap {
 
-    func get(key: MyronKey) -> MyronValue? {
+    func get(key: MyronValue) -> MyronValue? {
         contents[key]
     }
     
-    func put(key: MyronKey, value: MyronValue) -> MyronHashmap {
+    func put(key: MyronValue, value: MyronValue) -> MyronHashmap {
+        guard key.isStorableKey else { return self }
         var result = MyronHashmap(contents: contents)
         result.contents[key] = value
         return result
     }
 
-    func remove(key: MyronKey) -> MyronHashmap {
+    func remove(key: MyronValue) -> MyronHashmap {
         if contents[key] == nil { return self }
         var result = MyronHashmap(contents: contents)
         result.contents.removeValue(forKey: key)
         return result
     }
 
-    func hasKey(_ key: MyronKey) -> Bool {
+    func hasKey(_ key: MyronValue) -> Bool {
         return contents[key] != nil
     }
 
-    func keysValues() -> [(MyronKey, MyronValue)] {
+    func keysValues() -> [(MyronValue, MyronValue)] {
         return contents.map { element in (element.key, element.value) }
     }
 
@@ -72,11 +73,11 @@ extension MyronHashmap: CustomStringConvertible {
 
 extension MyronHashmap {
 
-    public var pairs: [(key: MyronKey, value: MyronValue)] {
+    public var pairs: [(key: MyronValue, value: MyronValue)] {
         return keysValues()
     }
 
-    public var keys: [MyronKey] {
+    public var keys: [MyronValue] {
         return Array(contents.keys)
     }
 
@@ -92,11 +93,11 @@ extension MyronHashmap {
         return empty()
     }
 
-    public subscript(key: MyronKey) -> MyronValue? {
+    public subscript(key: MyronValue) -> MyronValue? {
         return contents[key]
     }
 
-    public var dictionary: [MyronKey: MyronValue] {
+    public var dictionary: [MyronValue: MyronValue] {
         return contents
     }
 

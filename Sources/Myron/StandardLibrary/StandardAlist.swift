@@ -13,8 +13,7 @@ struct StandardAlist: StandardModule {
             representations: ["get"],
             signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneList]),
             body: { args, location in
-                let (fst, snd) = try args.unwrap2(location)
-                let key = try MyronKey(fst, at: location)
+                let (key, snd) = try args.unwrap2(location)
                 let list = try snd.unwrapList(location)
                 let result = try findKey(key, in: list, validating: false, at: location)
                 
@@ -30,8 +29,7 @@ struct StandardAlist: StandardModule {
                 StandardSignature.oneAny,
                 StandardSignature.oneList]),
             body: { args, location in
-                let (def, fst, snd) = try args.unwrap3(location)
-                let key = try MyronKey(fst, at: location)
+                let (def, key, snd) = try args.unwrap3(location)
                 let list = try snd.unwrapList(location)
                 let result = try findKey(key, in: list, validating: false, at: location)
                 
@@ -47,14 +45,15 @@ struct StandardAlist: StandardModule {
                 StandardSignature.oneAny,
                 StandardSignature.oneList]),
             body: { args, location in
-                let (fst, value, thd) = try args.unwrap3(location)
+                let (key, value, thd) = try args.unwrap3(location)
                 if case .nothing = value {
-                    return try removingKey(fst, from: thd, at: location)
+                    return try removingKey(key, from: thd, at: location)
                 }
                 
-                let key = try MyronKey(fst, at: location)
-                let pair = MyronValue.list([fst, value])
                 var list = try thd.unwrapList(location)
+                guard key.isStorableKey else { return .list(list) }
+                
+                let pair = MyronValue.list([key, value])
                 let found = try findKey(key, in: list, validating: true, at: location)
                 
                 if let (idx, _) = found { list[idx] = pair } else { list.append(pair) }
@@ -75,8 +74,7 @@ struct StandardAlist: StandardModule {
             representations: ["has-key?"],
             signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneList]),
             body: { args, location in
-                let (fst, snd) = try args.unwrap2(location)
-                let key = try MyronKey(fst, at: location)
+                let (key, snd) = try args.unwrap2(location)
                 let list = try snd.unwrapList(location)
                 let result = try findKey(key, in: list, validating: false, at: location)
                 
@@ -107,8 +105,7 @@ struct StandardAlist: StandardModule {
             primitiveName: "alist.key-index",
             representations: ["key-index"],
             body: { args, location in
-                let (fst, snd) = try args.unwrap2(location)
-                let key = try MyronKey(fst, at: location)
+                let (key, snd) = try args.unwrap2(location)
                 let list = try snd.unwrapList(location)
                 let result = try findKey(key, in: list, validating: false, at: location)
                 
@@ -125,11 +122,10 @@ struct StandardAlist: StandardModule {
 extension StandardAlist {
     
     private static func removingKey(
-        _ keyValue: MyronValue,
+        _ key: MyronValue,
         from listValue: MyronValue,
         at location: MyronLocation?
     ) throws -> MyronValue {
-        let key = try MyronKey(keyValue, at: location)
         var list = try listValue.unwrapList(location)
         let found = try findKey(key, in: list, validating: false, at: location)
         
@@ -155,7 +151,6 @@ extension StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
             
-            _ = try MyronKey(pair[0], at: location)
             pairs.append((pair[0], pair[1]))
         }
         
@@ -163,7 +158,7 @@ extension StandardAlist {
     }
 
     private static func findKey(
-        _ key: MyronKey,
+        _ key: MyronValue,
         in list: [MyronValue],
         validating: Bool,
         at location: MyronLocation?
@@ -179,8 +174,7 @@ extension StandardAlist {
                 throw MyronError(.malformedAlist(idx), at: location)
             }
 
-            let pairKey = try MyronKey(pair[0], at: location)
-            if pairKey == key {
+            if pair[0] == key {
                 let result = (idx, pair[1])
                 if !validating { return result }
                 matches.append(result)

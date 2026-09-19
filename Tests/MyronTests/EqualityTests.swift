@@ -21,7 +21,7 @@ struct EqualityTests {
         return value
     }
 
-    private static func hashmap(_ pairs: [(MyronKey, MyronValue)]) -> MyronValue {
+    private static func hashmap(_ pairs: [(MyronValue, MyronValue)]) -> MyronValue {
         var map = MyronHashmap()
         for (key, value) in pairs { map = map.put(key: key, value: value) }
         return .hashmap(map)
@@ -235,94 +235,6 @@ struct EqualityTests {
         #expect(!MyronValue.higherOrder(.map).isEqual(.higherOrder(.filter)))
         #expect(MyronValue.higherProbe(.all).isEqual(.higherProbe(.all)))
         #expect(!MyronValue.higherProbe(.all).isEqual(.higherProbe(.any)))
-    }
-
-    // MARK: isEquatable
-
-    @Test("atoms are equatable")
-    func equatableAtoms() {
-        let atoms: [MyronValue] = [
-            .boolean(true), .integer(1), .double(1.5), .string("a"),
-            .symbol("a"), .nothing
-        ]
-
-        for atom in atoms {
-            #expect(atom.isEquatable, "\(atom) should be equatable")
-        }
-    }
-
-    @Test("a nan is structurally equatable even though it equals nothing")
-    func equatableNan() {
-        // `isEquatable` asks whether `isEqual` can answer, not what it answers.
-        #expect(MyronValue.double(.nan).isEquatable)
-    }
-
-    @Test("empty containers are equatable")
-    func equatableEmptyContainers() {
-        #expect(MyronValue.list([]).isEquatable)
-        #expect(Self.hashmap([]).isEquatable)
-    }
-
-    @Test("containers of equatable values are equatable")
-    func equatableContainers() {
-        #expect(MyronValue.list([.integer(1), .string("a")]).isEquatable)
-        #expect(Self.hashmap([("k", .list([.integer(1)]))]).isEquatable)
-    }
-
-    @Test("a callable is equatable")
-    func equatableCallable() {
-        #expect(Self.proc().isEquatable)
-        #expect(MyronValue.define("a").isEquatable)
-        #expect(MyronValue.higherOrder(.map).isEquatable)
-        #expect(MyronValue.higherProbe(.all).isEquatable)
-    }
-
-    @Test("a callable anywhere inside leaves the whole value equatable")
-    func equatableNested() {
-        #expect(MyronValue.list([.integer(1), Self.proc()]).isEquatable)
-        #expect(MyronValue.list([.list([Self.proc()])]).isEquatable)
-        #expect(Self.hashmap([("k", Self.proc())]).isEquatable)
-        #expect(Self.hashmap([("k", .list([Self.proc()]))]).isEquatable)
-        #expect(MyronValue.list([Self.hashmap([("k", Self.proc())])]).isEquatable)
-    }
-
-    @Test("a deeply nested value is equatable without recursing the host stack")
-    func equatableDeep() {
-        #expect(Self.nest(750, around: Self.proc()).isEquatable)
-    }
-
-    // MARK: equatable?
-
-    @Test("equatable?", arguments: [
-        ("(equatable? 1)", "true"),
-        ("(equatable? 1.0)", "true"),
-        ("(equatable? (sqrt -1.0))", "true"),
-        ("(equatable? \"a\")", "true"),
-        ("(equatable? 'a)", "true"),
-        ("(equatable? true)", "true"),
-        ("(equatable? nothing)", "true"),
-        ("(equatable? '())", "true"),
-        ("(equatable? '(1 2))", "true"),
-        ("(equatable? '(1 (2 (3))))", "true"),
-        ("(equatable? (make-hashmap))", "true"),
-        ("(equatable? (make-hashmap '((\"a\" 1))))", "true"),
-        ("(equatable? (lambda (x) x))", "true"),
-        ("(equatable? eq)", "true"),
-        ("(equatable? map)", "true"),
-        ("(equatable? (list 1 (lambda (x) x)))", "true"),
-        ("(equatable? (list (list (lambda (x) x))))", "true"),
-        ("(equatable? (put \"a\" (lambda (x) x) (make-hashmap)))", "true")
-    ] as [ValueCase])
-    func isEquatablePredicate(_ c: ValueCase) {
-        expectValue(c.source, c.expected)
-    }
-
-    @Test("equatable? wants exactly one argument", arguments: [
-        "(equatable?)",
-        "(equatable? 1 2)"
-    ])
-    func isEquatableArity(_ source: String) {
-        expectArityFailure(source)
     }
 
     // MARK: eq

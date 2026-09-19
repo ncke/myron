@@ -48,6 +48,9 @@ struct StandardHashmapTests {
         ("(get 1.0 (make-hashmap '((1.0 \"double\") (1 \"integer\"))))", "\"double\""),
         ("(get 1 (make-hashmap '((true \"boolean\"))))", "<nothing>"),
         ("(get \"1\" (make-hashmap '((1 \"integer\"))))", "<nothing>"),
+        ("(get 'a (make-hashmap '((\"a\" \"string\"))))", "<nothing>"),
+        ("(get \"a\" (make-hashmap '((a \"symbol\"))))", "<nothing>"),
+        ("(get '(1) (make-hashmap '((1 \"integer\"))))", "<nothing>"),
         ("(length (make-hashmap '((1 \"integer\") (1.0 \"double\"))))", "2")
     ] as [ValueCase])
     func keyTypes(_ c: ValueCase) {
@@ -173,22 +176,84 @@ struct StandardHashmapTests {
         expectValue("(eq \(Self.ab) (keys-values \(Self.ab)))", "false")
     }
 
-    // MARK: Errors
+    // MARK: Keys
 
-    @Test("keys must be atomic and finite", arguments: [
-        ("(get 'a (make-hashmap))", .invalidKey(.symbol)),
-        ("(get '(1) (make-hashmap))", .invalidKey(.list)),
-        ("(get (sqrt -1.0) (make-hashmap))", .invalidKey(.double)),
-        ("(put (sqrt -1.0) 1 (make-hashmap))", .invalidKey(.double)),
-        ("(put (pow 10.0 400.0) 1 (make-hashmap))", .invalidKey(.double)),
-        ("(has-key? 'a (make-hashmap))", .invalidKey(.symbol)),
-        ("(remove 'a (make-hashmap))", .invalidKey(.symbol)),
-        ("(make-hashmap '((a 1)))", .invalidKey(.symbol)),
-        ("(make-hashmap '(((1) 1)))", .invalidKey(.list))
-    ] as [FailureCase])
-    func invalidKeys(_ c: FailureCase) {
-        expectFailure(c.source, reason: c.reason)
+    // Any value is a key now that `MyronKey` has gone, so the kinds that were
+    // once rejected have to round trip like any other.
+    @Test("a key may be of any kind", arguments: [
+        ("(get 'a (make-hashmap '((a 1))))", "1"),
+        ("(get '(1 2) (make-hashmap '(((1 2) \"x\"))))", "\"x\""),
+        ("(get true (make-hashmap '((true 1))))", "1"),
+        ("(get nothing (put nothing 1 (make-hashmap)))", "1"),
+        ("(get (make-hashmap '((\"a\" 1))) (put (make-hashmap '((\"a\" 1))) 2 (make-hashmap)))", "2"),
+        ("(get + (put + 1 (make-hashmap)))", "1"),
+        ("(get map (put map 1 (make-hashmap)))", "1")
+    ] as [ValueCase])
+    func keysOfAnyKind(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
     }
+
+    @Test("a structural key answers the rest of the operations", arguments: [
+        ("(has-key? '(1 2) (make-hashmap '(((1 2) \"x\"))))", "true"),
+        ("(has-key? '(1 3) (make-hashmap '(((1 2) \"x\"))))", "false"),
+        ("(remove '(1 2) (make-hashmap '(((1 2) \"x\"))))", "#()"),
+        ("(keys (make-hashmap '(((1 2) \"x\"))))", "((1 2))"),
+        ("(length (put '(1 2) \"y\" (make-hashmap '(((1 2) \"x\")))))", "1"),
+        ("(get-or 0 '(9) (make-hashmap '(((1 2) \"x\"))))", "0")
+    ] as [ValueCase])
+    func structuralKeyOperations(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    // A `nan` is not equal to itself, and neither is anything holding one, so
+    // an entry under such a key could never be found again. It is dropped.
+    @Test("a key holding a nan is dropped", arguments: [
+        ("(put (sqrt -1.0) 1 (make-hashmap))", "#()"),
+        ("(put (list 1 (sqrt -1.0)) 1 (make-hashmap))", "#()"),
+        ("(put (list (list (list (sqrt -1.0)))) 1 (make-hashmap))", "#()"),
+        ("(put (make-hashmap (list (list \"k\" (sqrt -1.0)))) 1 (make-hashmap))", "#()"),
+        ("(length (put (sqrt -1.0) 2 (put (sqrt -1.0) 1 (make-hashmap))))", "0"),
+        ("(length (put (list 1 (sqrt -1.0)) 2 (put (list 1 (sqrt -1.0)) 1 (make-hashmap))))", "0"),
+        ("(make-hashmap (list (list (sqrt -1.0) 1)))", "#()"),
+        ("(length (make-hashmap (list (list (sqrt -1.0) 1) (list \"a\" 2))))", "1"),
+        ("(has-key? (sqrt -1.0) (put (sqrt -1.0) 1 (make-hashmap)))", "false"),
+        ("(get (sqrt -1.0) (put (sqrt -1.0) 1 (make-hashmap)))", "<nothing>")
+    ] as [ValueCase])
+    func nanKeyDropped(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    // An infinity equals itself, so it is a perfectly good key.
+    @Test("a key holding an infinity is kept", arguments: [
+        ("(get (pow 10.0 400.0) (put (pow 10.0 400.0) 1 (make-hashmap)))", "1"),
+        ("(get (list 1 (pow 10.0 400.0)) (put (list 1 (pow 10.0 400.0)) 1 (make-hashmap)))", "1"),
+        ("(length (put (pow 10.0 400.0) 2 (put (pow 10.0 400.0) 1 (make-hashmap))))", "1"),
+        ("(has-key? (pow 10.0 400.0) (put (pow 10.0 400.0) 1 (make-hashmap)))", "true")
+    ] as [ValueCase])
+    func infiniteKeyKept(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    // Only keys are restricted: a list holds whatever the user puts in it, and
+    // a nan is fine as a value.
+    @Test("a nan is fine everywhere but a key", arguments: [
+        ("(get \"a\" (put \"a\" (sqrt -1.0) (make-hashmap)))", "nan"),
+        ("(head (list (sqrt -1.0) 1))", "nan"),
+        ("(length (list (sqrt -1.0) (pow 10.0 400.0)))", "2"),
+        ("(get \"a\" (put \"a\" (list 1 (sqrt -1.0)) (make-hashmap)))", "(1 nan)")
+    ] as [ValueCase])
+    func nanOutsideAKey(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("dropping a key leaves the rest of the hashmap alone")
+    func droppedKeyLeavesTheRest() {
+        expectValue(
+            "(get \"a\" (put (sqrt -1.0) 1 (make-hashmap '((\"a\" 2)))))",
+            "2")
+    }
+
+    // MARK: Errors
 
     @Test("make-hashmap rejects a malformed alist", arguments: [
         ("(make-hashmap '(7))", .malformedAlist(0)),

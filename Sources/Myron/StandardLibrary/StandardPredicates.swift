@@ -108,14 +108,6 @@ struct StandardPredicates: StandardModule {
         }),
         
         MyronPrimitive(
-            primitiveName: "predicate.equatable?",
-            representations: ["equatable?"],
-            body: { args, location in
-                let value = try args.unwrap1(location)
-                return .boolean(value.isEquatable)
-        }),
-        
-        MyronPrimitive(
             primitiveName: "predicate.callable?",
             representations: ["callable?"],
             body: { args, location in

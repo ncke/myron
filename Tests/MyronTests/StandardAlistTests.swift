@@ -24,7 +24,10 @@ struct StandardAlistTests {
         ("(get 1 '((1.0 \"double\") (1 \"integer\")))", "\"integer\""),
         ("(get 1.0 '((1.0 \"double\") (1 \"integer\")))", "\"double\""),
         ("(get 1 '((true \"boolean\")))", "<nothing>"),
-        ("(get \"1\" '((1 \"integer\")))", "<nothing>")
+        ("(get \"1\" '((1 \"integer\")))", "<nothing>"),
+        ("(get 'a '((\"a\" \"string\")))", "<nothing>"),
+        ("(get \"a\" '((a \"symbol\")))", "<nothing>"),
+        ("(get '(1) '((1 \"integer\")))", "<nothing>")
     ] as [ValueCase])
     func keyTypes(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -110,17 +113,54 @@ struct StandardAlistTests {
         expectValue(c.source, c.expected)
     }
 
-    @Test("keys must be atomic and finite", arguments: [
-        ("(get '(1) '((1 \"one\")))", .invalidKey(.list)),
-        ("(get 'a '((1 \"one\")))", .invalidKey(.symbol)),
-        ("(get (sqrt -1.0) '())", .invalidKey(.double)),
-        ("(get (pow 10.0 400.0) '())", .invalidKey(.double)),
-        ("(put (sqrt -1.0) 1 '())", .invalidKey(.double)),
-        ("(keys '(((1) \"one\")))", .invalidKey(.list)),
-        ("(values '(((1) \"one\")))", .invalidKey(.list))
-    ] as [FailureCase])
-    func invalidKeys(_ c: FailureCase) {
-        expectFailure(c.source, reason: c.reason)
+    // MARK: Keys
+
+    // Any value is a key now that `MyronKey` has gone, so the kinds that were
+    // once rejected have to round trip like any other.
+    @Test("a key may be of any kind", arguments: [
+        ("(get 'a '((a 1)))", "1"),
+        ("(get '(1) '(((1) 2)))", "2"),
+        ("(get true '((true 1)))", "1"),
+        ("(get nothing (put nothing 1 '()))", "1"),
+        ("(get 'nothing '((nothing 1)))", "1"),
+        ("(has-key? '(1) '(((1) 2)))", "true"),
+        ("(key-index 'a '((a 1)))", "0"),
+        ("(keys '((a 1) ((2) 3)))", "(a (2))"),
+        ("(remove '(1) '(((1) 2)))", "()"),
+        ("(put '(1) 9 '(((1) 2)))", "(((1) 9))")
+    ] as [ValueCase])
+    func keysOfAnyKind(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a duplicated structural key is still caught")
+    func duplicateStructuralKey() {
+        expectFailure("(put '(1) 9 '(((1) 2) ((1) 3)))", reason: .duplicateKeys([0, 1]))
+    }
+
+    // A `nan` is not equal to itself, and neither is anything holding one, so
+    // an entry under such a key could never be found again. It is dropped.
+    @Test("a key holding a nan is dropped", arguments: [
+        ("(put (sqrt -1.0) 1 '())", "()"),
+        ("(put (list 1 (sqrt -1.0)) 1 '())", "()"),
+        ("(length (put (sqrt -1.0) 2 (put (sqrt -1.0) 1 '())))", "0"),
+        ("(put (sqrt -1.0) 1 '((\"a\" 2)))", "((\"a\" 2))"),
+        ("(has-key? (sqrt -1.0) (put (sqrt -1.0) 1 '()))", "false")
+    ] as [ValueCase])
+    func nanKeyDropped(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    // An infinity equals itself, so it is a perfectly good key. A list holds
+    // whatever the user puts in it, including a nan, so long as it is a value.
+    @Test("an infinity keys, and a nan values", arguments: [
+        ("(get (pow 10.0 400.0) (put (pow 10.0 400.0) 1 '()))", "1"),
+        ("(get (list 1 (pow 10.0 400.0)) (put (list 1 (pow 10.0 400.0)) 1 '()))", "1"),
+        ("(get \"a\" (put \"a\" (sqrt -1.0) '()))", "nan"),
+        ("(get \"a\" (put \"a\" (list 1 (sqrt -1.0)) '()))", "(1 nan)")
+    ] as [ValueCase])
+    func infinityKeysAndNanValues(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
     }
 
     @Test("entries must be pairs", arguments: [

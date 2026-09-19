@@ -3,14 +3,11 @@ import Foundation
 // MARK: - MyronSet
 
 public struct MyronSet {
-    private var atoms: Set<MyronKey>
-    private var structures: [MyronValue]
+    private var contents: Set<MyronValue>
 
     public init() {
-        self.atoms = []
-        self.structures = []
+        self.contents = []
     }
-
 
 }
 
@@ -30,9 +27,7 @@ extension MyronSet {
 extension MyronSet {
 
     private func checkValidty(of value: MyronValue, location: MyronLocation?) throws {
-        guard value.isEquatable else {
-            throw MyronError(.invalidSetMember(value.kind), at: location)
-        }
+
     }
 
 }

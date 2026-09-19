@@ -4,9 +4,6 @@ import Foundation
 
 extension MyronValue {
 
-    /// Structural equality, iteratively so that deep values cannot overflow
-    /// the host stack. Every case answers for itself; a pair of different
-    /// cases is never equal, and never coerces.
     func isEqual(_ other: MyronValue) -> Bool {
         var work = [(self, other)]
 
@@ -30,14 +27,10 @@ extension MyronValue {
             case (.string(let f), .string(let s)): guard f == s else { return false }
             case (.symbol(let f), .symbol(let s)): guard f == s else { return false }
             case (.define(let f), .define(let s)): guard f == s else { return false }
-
-            // A callable answers for itself: a primitive by the name it
-            // registered under, a procedure by its identity.
             case (.primitive(let f), .primitive(let s)): guard f == s else { return false }
             case (.procedure(let f), .procedure(let s)): guard f == s else { return false }
             case (.higherOrder(let f), .higherOrder(let s)): guard f == s else { return false }
             case (.higherProbe(let f), .higherProbe(let s)): guard f == s else { return false }
-
             case (.nothing, .nothing): break
 
             default: return false
@@ -46,18 +39,6 @@ extension MyronValue {
 
         return true
     }
-
-    // All kinds are equatable now. Keeping for now.
-    var isEquatable: Bool {
-        return self.flat.first { element in
-            !Self.equatableKinds.contains(element.kind)
-        } == nil
-    }
-    
-    static let equatableKinds: [MyronValue.Kind] = [
-        .boolean, .define, .double, .hashmap, .higherOrder, .higherProbe,
-        .integer, .list, .nothing, .primitive, .procedure, .string, .symbol
-    ]
 
 }
 

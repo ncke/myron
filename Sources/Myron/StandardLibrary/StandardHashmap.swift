@@ -13,8 +13,7 @@ struct StandardHashmap: StandardModule {
             representations: ["get"],
             signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneHashmap]),
             body: { args, location in
-                let (fst, snd) = try args.unwrap2(location)
-                let key = try MyronKey(fst, at: location)
+                let (key, snd) = try args.unwrap2(location)
                 let hashmap = try snd.unwrapHashmap(location)
                 
                 guard let result = hashmap.get(key: key) else { return .nothing }
@@ -29,8 +28,7 @@ struct StandardHashmap: StandardModule {
                 StandardSignature.oneAny,
                 StandardSignature.oneHashmap]),
             body: { args, location in
-                let (def, fst, snd) = try args.unwrap3(location)
-                let key = try MyronKey(fst, at: location)
+                let (def, key, snd) = try args.unwrap3(location)
                 let hashmap = try snd.unwrapHashmap(location)
                 
                 guard let result = hashmap.get(key: key) else { return def }
@@ -45,14 +43,12 @@ struct StandardHashmap: StandardModule {
                 StandardSignature.oneAny,
                 StandardSignature.oneHashmap]),
             body: { args, location in
-                let (fst, value, thd) = try args.unwrap3(location)
+                let (key, value, thd) = try args.unwrap3(location)
                 if case .nothing = value {
-                    return try removingKey(fst, from: thd, at: location)
+                    return try removingKey(key, from: thd, at: location)
                 }
                 
-                let key = try MyronKey(fst, at: location)
                 let hashmap = try thd.unwrapHashmap(location)
-                
                 return .hashmap(hashmap.put(key: key, value: value))
             }),
         
@@ -70,8 +66,7 @@ struct StandardHashmap: StandardModule {
             representations: ["has-key?"],
             signature: StandardSignature([StandardSignature.oneAny, StandardSignature.oneHashmap]),
             body: { args, location in
-                let (fst, snd) = try args.unwrap2(location)
-                let key = try MyronKey(fst, at: location)
+                let (key, snd) = try args.unwrap2(location)
                 let hashmap = try snd.unwrapHashmap(location)
                 
                 return .boolean(hashmap.hasKey(key))
@@ -83,7 +78,7 @@ struct StandardHashmap: StandardModule {
             signature: StandardSignature([StandardSignature.oneHashmap]),
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
-                return .list(hashmap.keys.map { key in key.value })
+                return .list(hashmap.keys)
             }),
         
         MyronPrimitive(
@@ -126,8 +121,8 @@ struct StandardHashmap: StandardModule {
                     return .hashmap(MyronHashmap())
                 }
                 
-                var contents = [MyronKey: MyronValue]()
-                var seen = [MyronKey: Int]()
+                var contents = [MyronValue: MyronValue]()
+                var seen = [MyronValue: Int]()
                 
                 for (idx, element) in alist.enumerated() {
                     guard case .list(let pair) = element, pair.count == 2 else {
@@ -138,8 +133,9 @@ struct StandardHashmap: StandardModule {
                         throw MyronError(.malformedAlist(idx), at: location)
                     }
                     
-                    let key = try MyronKey(pair[0], at: location)
-                    
+                    let key = pair[0]
+                    guard key.isStorableKey else { continue }
+
                     if let dupIdx = seen[key] {
                         throw MyronError(.duplicateKeys([dupIdx, idx]), at: location)
                     }
@@ -157,7 +153,7 @@ struct StandardHashmap: StandardModule {
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
                 let kvs = hashmap.keysValues()
-                let pairs = kvs.map { (k, v) in MyronValue.list([k.value, v])  }
+                let pairs = kvs.map { (k, v) in MyronValue.list([k, v])  }
                 
                 return .list(pairs)
             })
@@ -170,13 +166,11 @@ struct StandardHashmap: StandardModule {
 extension StandardHashmap {
     
     private static func removingKey(
-        _ keyValue: MyronValue,
+        _ key: MyronValue,
         from hashmapValue: MyronValue,
         at location: MyronLocation?
     ) throws -> MyronValue {
-        let key = try MyronKey(keyValue, at: location)
         let hashmap = try hashmapValue.unwrapHashmap(location)
-        
         return .hashmap(hashmap.remove(key: key))
     }
     

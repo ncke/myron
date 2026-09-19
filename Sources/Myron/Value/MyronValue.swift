@@ -94,8 +94,8 @@ extension MyronValue: CustomStringConvertible {
         case .boolean(let boolean): "\(boolean)"
         case .double(let double): "\(double)"
         case .hashmap(let hashmap): "\(hashmap)"
-        case .higherOrder: "<procedure>"
-        case .higherProbe: "<procedure>"
+        case .higherOrder(let higher): "\(higher)"
+        case .higherProbe(let higher): "\(higher)"
         case .integer(let integer): "\(integer)"
         case .list(let list):
             "(" + list.map(\.description).joined(separator: " ") + ")"

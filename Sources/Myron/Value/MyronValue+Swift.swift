@@ -33,20 +33,22 @@ extension Array: MyronValueRepresentable where Element: MyronValueRepresentable 
 }
 
 extension Dictionary: MyronValueRepresentable where
-    Dictionary.Key: MyronKeyRepresentable,
+    Dictionary.Key: MyronValueRepresentable,
     Dictionary.Value: MyronValueRepresentable
 {
 
     public var myronValue: MyronValue {
-        let convert: (Dictionary.Key, Dictionary.Value) -> (MyronKey, MyronValue)? = {
+        let convert: (Dictionary.Key, Dictionary.Value) -> (MyronValue, MyronValue)? = {
             dk, dv in
+            let mk = dk.myronValue
             let mv = dv.myronValue
             if case .nothing = mv { return nil }
-            return (dk.myronKey, mv)
+            guard mk.isStorableKey else { return nil }
+            return (mk, mv)
         }
 
-        let pairs: [(MyronKey, MyronValue)] = self.compactMap { k, v in convert(k, v) }
-        let contents = Dictionary<MyronKey, MyronValue>(
+        let pairs: [(MyronValue, MyronValue)] = self.compactMap { k, v in convert(k, v) }
+        let contents = Dictionary<MyronValue, MyronValue>(
             pairs,
             uniquingKeysWith: { (first, _) in first })
 
@@ -90,7 +92,7 @@ extension MyronValue: ExpressibleByArrayLiteral {
 }
 
 extension MyronValue: ExpressibleByDictionaryLiteral {
-    public typealias Key = any MyronKeyRepresentable
+    public typealias Key = any MyronValueRepresentable
     public typealias Value = MyronValueRepresentable
 
     public init(dictionaryLiteral elements: (Key, any Value)...) {

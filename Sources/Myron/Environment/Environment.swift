@@ -36,10 +36,7 @@ final class Environment {
     
     func lookup(_ name: String) -> MyronValue? {
         if let match = traversingLookup(name) { return match }
-        if let match = standard.lookup(name) { return match }
-        
-        // Phase out:
-        return standardLookup(name)
+        return standard.lookup(name)
     }
 
     private func traversingLookup(_ name: String) -> MyronValue? {

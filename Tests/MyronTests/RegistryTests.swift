@@ -18,7 +18,7 @@ struct StandardRegistryTests {
         "acos", "add", "append", "asin", "atan", "atan2",
         "boolean?", "callable?", "ceil", "cons", "contains", "cos",
         "div", "double", "double?", "drop", "empty?", "eq",
-        "equatable?", "explode", "finite?", "floor", "get", "get-or",
+        "explode", "finite?", "floor", "get", "get-or",
         "gt", "gte", "has-key?", "head", "implode", "infinite?",
         "init", "integer", "integer?", "key-index", "keys", "keys-values",
         "last", "length", "lines", "list", "list?", "ln",
@@ -48,6 +48,23 @@ struct StandardRegistryTests {
             #expect(
                 environment.lookup(representation) != nil,
                 "\(representation) is registered but does not resolve")
+        }
+    }
+
+    /// Names the standard environment answers directly rather than through a
+    /// registered primitive, so the roster above cannot see them.
+    private static let intrinsics: Set<String> = [
+        "nothing", "pi", "map", "filter", "reduce", "all", "any"
+    ]
+
+    @Test("the intrinsic names resolve and are not also registered")
+    func intrinsicsResolve() {
+        let environment = StandardEnvironment()
+        let registered = Set(Self.allPrimitives.flatMap { primitive in primitive.representations })
+
+        for name in Self.intrinsics {
+            #expect(environment.lookup(name) != nil, "\(name) does not resolve")
+            #expect(!registered.contains(name), "\(name) is both intrinsic and registered")
         }
     }
 

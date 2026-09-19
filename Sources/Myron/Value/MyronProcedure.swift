@@ -17,16 +17,6 @@ public struct MyronProcedure {
     
 }
 
-// MARK: - Higher Order and Probe
-
-public enum MyronHigherOrder {
-    case map, filter, reduce
-}
-
-public enum MyronHigherProbe {
-    case all, any
-}
-
 // MARK: - Equatable & Hashable
 
 extension MyronProcedure: Equatable, Hashable {
@@ -40,32 +30,3 @@ extension MyronProcedure: Equatable, Hashable {
     }
     
 }
-
-// MARK: - Description
-
-extension MyronHigherOrder: CustomStringConvertible {
-
-    public var description: String {
-        switch self {
-        case .map: return "map"
-        case .filter: return "filter"
-        case .reduce: return "reduce"
-        }
-    }
-
-}
-
-extension MyronHigherProbe: CustomStringConvertible {
-
-    public var description: String {
-        switch self {
-        case .all: return "all"
-        case .any: return "any"
-        }
-    }
-    
-}
-
-
-
-

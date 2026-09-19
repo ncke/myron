@@ -7,13 +7,13 @@ import Testing
 
 struct HashableTests {
 
-    private func hashmap(_ pairs: [(MyronKey, MyronValue)]) -> MyronValue {
+    private func hashmap(_ pairs: [(MyronValue, MyronValue)]) -> MyronValue {
         var hashmap = MyronHashmap()
         for (key, value) in pairs { hashmap = hashmap.put(key: key, value: value) }
         return .hashmap(hashmap)
     }
 
-    private var entries: [(MyronKey, MyronValue)] { [
+    private var entries: [(MyronValue, MyronValue)] { [
         (.string("a"), .integer(1)),
         (.string("b"), .double(2.5)),
         (.string("c"), .list([.integer(1), .string("x")])),

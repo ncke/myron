@@ -9,7 +9,6 @@ public struct MyronError: Error, Sendable {
         case cannotBeNegative
         case containingEnvironmentNoLongerExists
         case couldNotResolve(String, String, [String])
-        case dictionaryValueCannotBeNothing
         case divisionByZero
         case duplicateKeys([Int])
         case emptyApplication
@@ -19,9 +18,7 @@ public struct MyronError: Error, Sendable {
         case expectedQuote
         case expectedRightBracket
         case incomparableTypes
-        case inequatableTypes
         case internalError(String)
-        case invalidKey(MyronValue.Kind)
         case invalidNumber
         case invalidSetMember(MyronValue.Kind)
         case malformedAlist(Int)
@@ -100,7 +97,6 @@ extension MyronError.Reason: CustomStringConvertible {
             if candidates.isEmpty { return "\(msg)" }
             let listed = candidates.joined(separator: "\n")
             return "\(msg)\nCandidates:\n\(listed)"
-            
         case .cannotBeNegative: return "Cannot be negative"
         case .containingEnvironmentNoLongerExists: return "Containing environment no longer exists"
         case .couldNotResolve(let representation, let gotSignature, let expectedSignatures):
@@ -108,8 +104,6 @@ extension MyronError.Reason: CustomStringConvertible {
             if expectedSignatures.isEmpty { return "\(msg)"}
             let dym = expectedSignatures.joined(separator: "\n")
             return "\(msg)\nDid you mean:\n\(dym)"
-            
-        case .dictionaryValueCannotBeNothing: return "Dictionary value cannot be nothing"
         case .divisionByZero: return "Division by zero"
         case .duplicateKeys(let idxs): return "Duplicate keys at indices: \(idxs)"
         case .emptyApplication: return "Empty application"
@@ -119,9 +113,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .expectedQuote: return "Expected quote"
         case .expectedRightBracket: return "Expected right bracket"
         case .incomparableTypes: return "Incomparable types"
-        case .inequatableTypes: return "Inequatable types"
         case .internalError(let message): return "Internal error: \(message)"
-        case .invalidKey(let kind): return "Invalid key, got: \(kind)"
         case .invalidNumber: return "Invalid number"
         case .invalidSetMember(let kind): return "Invalid set member, bad kind: \(kind)"
         case .malformedAlist(let idx): return "Malformed alist at index: \(idx)"

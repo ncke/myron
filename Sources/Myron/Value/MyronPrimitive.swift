@@ -7,7 +7,7 @@ public struct MyronPrimitive: Sendable {
     let primitiveName: String
     let representations: [String]
     let signature: StandardSignature?
-    let body: Body
+    private let body: Body
     
     init(
         primitiveName: String,

@@ -100,6 +100,13 @@ extension MyronValue {
 
 extension MyronValue {
 
+    var isStorableKey: Bool {
+        return flat.first { element in
+            guard case .double(let number) = element else { return false }
+            return number.isNaN
+        } == nil
+    }
+
     var isNothing: Bool {
         if case .nothing = self { return true }
         return false
@@ -156,7 +163,7 @@ extension MyronValue {
             case .list(let elements):
                 work.append(contentsOf: elements)
             case .hashmap(let hm):
-                let elements = hm.keysValues().flatMap { (k, v) in [k.value, v] }
+                let elements = hm.keysValues().flatMap { (k, v) in [k, v] }
                 work.append(contentsOf: elements)
             default:
                 break

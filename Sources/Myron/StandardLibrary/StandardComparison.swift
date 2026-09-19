@@ -69,10 +69,6 @@ extension StandardComparison {
         at location: MyronLocation?
     ) throws -> Bool {
         let (fst, snd) = try args.unwrap2(location)
-        guard fst.isEquatable, snd.isEquatable else {
-            throw MyronError(.inequatableTypes, at: location)
-        }
-
         return fst.isEqual(snd)
     }
     

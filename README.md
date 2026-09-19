@@ -63,10 +63,12 @@ looking things up later.
 - Two associative types behind one set of names: `get`, `put` and friends
   resolve over alists and hashmaps alike.
 - Swift interoperability in both directions. Swift values convert to
-  `MyronValue`, which reads back through typed accessors, and both are
-  expressible as Swift literals.
+  `MyronValue`, which reads back through typed accessors and is expressible as
+  a Swift literal.
 - `MyronValue` is `Hashable`, so Myron values can be held in Swift's own sets
   and dictionaries, and compared without going back through the interpreter.
+- Any value can be a hashmap or alist key — a list, a nested hashmap, even a
+  procedure — with no separate key type to convert through.
 - A session's environment is open to its host: names can be read, written and
   listed from Swift without going through source text.
 - Sequence primitives that work on both lists and strings, resolved on the
@@ -327,9 +329,15 @@ no accessor — match on them if you need them.
 
 `MyronValue` conforms to `CustomStringConvertible`, and its `description`
 renders a value the way Myron prints it: lists in brackets, strings in quotes,
-and the absence of a value as `<nothing>`. A procedure renders as
-`<procedure>`, and a primitive names itself — `<primitive: mathematics.add>`,
-or `<primitive: head>` for a name the standard environment resolves.
+and the absence of a value as `<nothing>`. A procedure renders as `<procedure>`,
+and a primitive names itself, qualified by the standard library module that
+registered it:
+
+```
++       <primitive: mathematics.add>
+map     <primitive: higher.map>
+head    <primitive: *.head>       — `*` for a name several modules answer
+```
 
 Every value also reports a `MyronValue.Kind` — a plain, `Equatable` enum with no
 associated values — which is what error messages talk about and what you want
@@ -395,7 +403,6 @@ also has a `description`, which is the first line of the rendered message.
 | `containingEnvironmentNoLongerExists` | A procedure was called after the session that defined it was deallocated. |
 | `couldNotResolve(String, String, [String])` | No standard primitive of that name accepts that shape of call; carries the name, the argument kinds, and the forms that would have worked. |
 | `divisionByZero` | `/`, `mod`, or `rem` was given a zero divisor. |
-| `dictionaryValueCannotBeNothing` | A Swift dictionary of Myron types held `.nothing` as a value. |
 | `duplicateKeys([Int])` | A key was found more than once in an alist; carries the indices. |
 | `emptyApplication` | The form `()` was evaluated. |
 | `exceededMaximumStackDepth(Int)` | Recursion passed the configured limit; carries the depth reached. |
@@ -404,10 +411,9 @@ also has a `description`, which is the first line of the rendered message.
 | `expectedQuote` | A string literal was never closed. |
 | `expectedRightBracket` | A list was never closed. |
 | `incomparableTypes` | `gt`/`lt` and friends were given types with no ordering. |
-| `inequatableTypes` | Reserved for `eq` on a type with no equality. Every kind is equatable, so nothing raises it today. |
 | `internalError(String)` | An invariant inside the interpreter broke. Please report these. |
-| `invalidKey(MyronValue.Kind)` | A key was not an atomic, finite value. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
+| `invalidSetMember(MyronValue.Kind)` | Reserved for the set type, which is not implemented. Nothing raises it today. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
@@ -421,10 +427,9 @@ also has a `description`, which is the first line of the rendered message.
 ### Swift interoperability
 
 Values cross the boundary in both directions. Reading is covered by the
-accessors [above](#myronvalue); writing is covered by two protocols.
+accessors [above](#myronvalue); writing is covered by one protocol.
 
-`MyronValueRepresentable` turns a Swift value into a `MyronValue`, and
-`MyronKeyRepresentable` turns one into a `MyronKey`:
+`MyronValueRepresentable` turns a Swift value into a `MyronValue`:
 
 ```swift
 7.myronValue                              // .integer(7)
@@ -432,20 +437,15 @@ accessors [above](#myronvalue); writing is covered by two protocols.
 [1, 2, 3].myronValue                      // .list([...])
 ["a": 1].myronValue                       // .hashmap(...)
 Optional<Int>.none.myronValue             // .nothing
-
-"a".myronKey                              // MyronKey.string("a")
 ```
 
 `Bool`, `Double`, `Int`, `String`, `Array`, `Dictionary` and `Optional` conform,
-as do `MyronValue` and `MyronKey` themselves, so a value you already hold
-can be used wherever a representable one is wanted. `Double` is deliberately
-**not** `MyronKeyRepresentable`: a key must be finite, and there is no way for a
-non-throwing conversion to say otherwise. The consequence is that a double
-cannot be written as a key in a literal — spell it `MyronKey.double(1.5)` when
-you need one.
+as does `MyronValue` itself, so a value you already hold can be used wherever a
+representable one is wanted. There is no separate key type: a hashmap is keyed
+by `MyronValue`, so anything that can be a value can be a key.
 
-Both types are expressible as Swift literals, which is usually the shortest way
-to build one:
+`MyronValue` is expressible as a Swift literal, which is usually the shortest
+way to build one:
 
 ```swift
 let a: MyronValue = 42
@@ -453,7 +453,6 @@ let b: MyronValue = "text"
 let c: MyronValue = nil                   // .nothing
 let d: MyronValue = [1, "two", true]      // a list of mixed types
 let e: MyronValue = ["a": 1, "b": true]   // a hashmap of mixed types
-let f: MyronKey = "a"
 ```
 
 An array literal becomes a list and a dictionary literal becomes a hashmap.
@@ -469,15 +468,15 @@ let config: MyronValue = [
 ]
 ```
 
-A `MyronValue` can be made into a `MyronKey`, which fails if it cannot be
-one:
+Keys are values like any other, so a key can be a list, a hashmap, or a
+`MyronValue` you already hold:
 
 ```swift
-let key = try MyronKey(.string("a"))
-key.value                                 // back to .string("a")
-
-try MyronKey(.symbol("s"))                // throws invalidKey
-try MyronKey(.double(.nan))               // throws invalidKey
+let hashmap: MyronHashmap = [
+    "a": 1,                               // a Swift literal
+    MyronValue.double(1.5): 2,            // a Myron value
+    [1, 2]: 3                             // a list as a key
+]
 ```
 
 #### `MyronHashmap`
@@ -489,10 +488,10 @@ dictionary-shaped Swift interface:
 hashmap.count                             // Int
 hashmap.isEmpty                           // Bool
 hashmap["a"]                              // MyronValue?
-hashmap.keys                              // [MyronKey]
+hashmap.keys                              // [MyronValue]
 hashmap.values                            // [MyronValue]
-hashmap.pairs                             // [(key: MyronKey, value: MyronValue)]
-hashmap.dictionary                        // [MyronKey: MyronValue]
+hashmap.pairs                             // [(key: MyronValue, value: …)]
+hashmap.dictionary                        // [MyronValue: MyronValue]
 ```
 
 It conforms to `Sequence`, so it iterates and composes like any other
@@ -509,15 +508,14 @@ let names = hashmap.keys.map(\.description)
 Build one from a Swift dictionary, or from Myron types directly:
 
 ```swift
-let a = try MyronHashmap(["a": 1, "b": 2])
-let b = try MyronHashmap([MyronKey.string("a"): MyronValue.integer(1)])
+let a = MyronHashmap(["a": 1, "b": 2])
+let b = MyronHashmap([MyronValue.string("a"): MyronValue.integer(1)])
 ```
 
-Both initialisers throw, because not every dictionary is a legal hashmap. A
-non-finite key raises `invalidKey`. A `.nothing` written explicitly as a Myron
-value raises `dictionaryValueCannotBeNothing` — but a Swift `nil` is *dropped*
-rather than rejected, since an absent optional means an absent entry, which is
-the same rule `put` follows in Myron.
+Neither initialiser throws. An entry whose value is absent — a Swift `nil`, or
+`.nothing` written explicitly — is dropped rather than stored, which is the same
+rule `put` follows in Myron. An entry whose key holds a `nan` is dropped too;
+see [keys](#keys) below.
 
 A dictionary literal is the shortest form, and takes variables as readily as
 literals:
@@ -534,17 +532,34 @@ let hashmap: MyronHashmap = [
 ]
 ```
 
-Two rules apply to literals, both of which would otherwise be silent. A
-duplicated key keeps the first entry and discards the rest. A non-finite key
-traps — it can only arise from writing `MyronKey.double(_:)` with a computed
-value, which is a mistake at the call site rather than something the data can
-do.
+One rule applies to literals that would otherwise be silent: a duplicated key
+keeps the first entry and discards the rest.
 
 A `MyronValue` dictionary literal builds a hashmap through the same code, so
 everything here applies to it too.
 
 Note that iteration order is unspecified, so `keys`, `values`, `pairs` and
 `description` may come back in a different order on each run.
+
+#### Keys
+
+A hashmap is keyed by `MyronValue`, so any value is a key — a string, a list, a
+nested hashmap, even a procedure. Keys are compared structurally and never
+coerce, so `1`, `1.0` and `"1"` are three different keys.
+
+The one exception is a `nan`, which is not equal to itself. An entry stored
+under one could never be found again, so a key holding a `nan` anywhere inside
+it is dropped rather than stored — silently, on every path that builds a
+hashmap, in Swift and in Myron alike:
+
+```swift
+let hashmap: MyronHashmap = [Double.nan: 1, [1, Double.nan]: 2, "a": 3]
+hashmap.count                             // 1 — only "a" survives
+```
+
+This applies to keys only. A `nan` is a perfectly good *value*, and a list is
+free to hold one. Infinities are unaffected in either position: an infinity
+equals itself, so it keys and finds like anything else.
 
 ### Configuration
 
@@ -1162,8 +1177,8 @@ function under two names.
 
 | Primitive | Alias | Arguments | Result |
 |---|---|---|---|
-| `eq` | `==` | 2 values of the same type | boolean |
-| `neq` | `!=` | 2 values of the same type | boolean |
+| `eq` | `==` | 2 values of any type | boolean |
+| `neq` | `!=` | 2 values of any type | boolean |
 | `gt` | `>` | 2 integers, doubles, or strings | boolean |
 | `gte` | `>=` | 2 integers, doubles, or strings | boolean |
 | `lt` | `<` | 2 integers, doubles, or strings | boolean |
@@ -1214,7 +1229,6 @@ them.
 | `finite?` | a number that is neither infinite nor `nan` |
 | `infinite?` | a double that is positive or negative infinity |
 | `callable?` | a procedure or a primitive — anything that can head an application |
-| `equatable?` | a value `eq` can compare. Every value is, so this is always `true` |
 
 ```lisp
 (nothing? (head '()))                     ; true
@@ -1468,23 +1482,36 @@ that the "or" reads next to the value it supplies. Nothing is mutated: `put`
 and `remove` return a new list, replacing a key in place and appending a new
 one at the end.
 
-Keys must be atomic — a boolean, integer, double, or string — and finite, so
-`nan` and infinity are rejected with `invalidKey`. Symbols and lists are not
-keys. Keys are typed exactly as `eq` compares them, so `1` and `1.0` are two
+Any value is a key — a symbol, a list, a nested hashmap, even a procedure.
+Keys are typed exactly as `eq` compares them, so `1` and `1.0` are two
 different keys:
 
 ```lisp
 (get 1 '((1.0 "double") (1 "integer")))   ; "integer"
+(get '(1 2) '(((1 2) "list")))            ; "list"
+(get 'a '((a "symbol")))                  ; "symbol"
+```
+
+The one value that cannot be a key is a `nan`, which is not equal to itself: an
+entry stored under one could never be found again. `put` silently drops a key
+holding a `nan` anywhere inside it, and leaves the alist otherwise untouched.
+An infinity equals itself, so it keys like anything else, and a `nan` is
+perfectly good as a *value*:
+
+```lisp
+(put (sqrt -1.0) 1 '())                   ; () — dropped
+(put (list 1 (sqrt -1.0)) 1 '())          ; () — dropped, at any depth
+(get "a" (put "a" (sqrt -1.0) '()))       ; nan — fine as a value
 ```
 
 Storing `nothing` is a way to delete: `(put k nothing al)` is `(remove k al)`.
 That is what makes `get` unambiguous — a `nothing` coming back always means the
 key is absent, never that a `nothing` was stored there.
 
-An entry that is not a two-element list raises `malformedAlist` with its index,
-and a key that is not a valid key raises `invalidKey`. Lookups stop at the
-first match, so a malformed entry *after* the key you asked for goes unnoticed;
-a successful `get` is not a promise that the whole list is well formed. `put`
+An entry that is not a two-element list raises `malformedAlist` with its index.
+Lookups stop at the first match, so a malformed entry *after* the key you asked
+for goes unnoticed; a successful `get` is not a promise that the whole list is
+well formed. `put`
 is the exception — it checks the whole list, and refuses with `duplicateKeys`
 if a key appears twice. A duplicated key can still be repaired with `remove`,
 which takes the first match. Invoking `put` to an existing key is legal and
@@ -1516,9 +1543,9 @@ hashmap-specific.
 ```
 
 `make-hashmap` with no argument gives an empty one. Given an alist it converts
-it, rejecting the same things the alist primitives reject: an entry that is not
-a two-element list raises `malformedAlist`, a key that is not atomic and finite
-raises `invalidKey`, and a repeated key raises `duplicateKeys`. Together with
+it, following the same rules as the alist primitives: an entry that is not a
+two-element list raises `malformedAlist`, a repeated key raises `duplicateKeys`,
+and an entry whose key holds a `nan` is dropped. Together with
 `keys-values`, which goes the other way, the two representations convert freely:
 
 ```lisp
@@ -1640,7 +1667,8 @@ Notable gaps:
   a newline can only be got in by letting the literal span source lines.
 - No `sort`, `range`, `zip`, `flatten`, `take-while`, `drop-while` or `foldr`.
 - No set type yet, and hashmap enumeration order is unspecified as a result —
-  there is no ordering primitive to impose one.
+  there is no ordering primitive to impose one. `MyronValue` is now `Hashable`,
+  which is the groundwork a set needs.
 - Hashmaps cannot be written as literals in Myron source; build them with
   `make-hashmap` from an alist.
 - No mutation: there is no `set!`, and no way to rebind a name in an enclosing

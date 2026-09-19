@@ -4,35 +4,31 @@ import Foundation
 
 extension MyronHashmap {
 
-    public init(_ dictionary: Dictionary<MyronKey, MyronValue>) throws {
+    public init(_ dictionary: Dictionary<MyronValue, MyronValue>) {
+        var contents = [MyronValue: MyronValue]()
         for (key, value) in dictionary {
-            if case .nothing = value { throw MyronError(.dictionaryValueCannotBeNothing) }
-            if case .double(let d) = key, !d.isFinite {
-                throw MyronError(.invalidKey(key.value.kind))
-            }
+            if case .nothing = value { continue }
+            guard key.isStorableKey else { continue }
+            contents[key] = value
         }
 
-        self.init(contents: dictionary)
+        self.init(contents: contents)
     }
 
-    public init<K, V>(_ dictionary: Dictionary<K, V>) throws
-    where K: MyronKeyRepresentable, V: MyronValueRepresentable
+    public init<K, V>(_ dictionary: Dictionary<K, V>)
+    where K: MyronValueRepresentable, V: MyronValueRepresentable
     {
-        let convert: (K, V) throws -> (MyronKey, MyronValue)? = { dkey, dvalue in
-            let mkey = dkey.myronKey
+        let convert: (K, V) -> (MyronValue, MyronValue)? = { dkey, dvalue in
+            let mkey = dkey.myronValue
             let mval = dvalue.myronValue
 
             if case .nothing = mval { return nil }
-
-            if case .double(let d) = mkey, !d.isFinite {
-                throw MyronError(.invalidKey(mkey.value.kind))
-            }
-
+            guard mkey.isStorableKey else { return nil }
             return (mkey, mval)
         }
 
-        let pairs: [(MyronKey, MyronValue)] = try dictionary.compactMap {
-            (dkey, dvalue) in try convert(dkey, dvalue)
+        let pairs: [(MyronValue, MyronValue)] = dictionary.compactMap {
+            (dkey, dvalue) in convert(dkey, dvalue)
         }
 
         let contents = Dictionary(pairs, uniquingKeysWith: { (first, _) in first })
@@ -46,24 +42,21 @@ extension MyronHashmap {
 extension MyronHashmap: ExpressibleByDictionaryLiteral {
 
     public init(
-        dictionaryLiteral elements: (any MyronKeyRepresentable, any MyronValueRepresentable)...
+        dictionaryLiteral elements: (any MyronValueRepresentable, any MyronValueRepresentable)...
     ) {
         self.init(withLiteralElements: elements)
     }
 
     init(
-        withLiteralElements elements: [(any MyronKeyRepresentable, any MyronValueRepresentable)]
+        withLiteralElements elements: [(any MyronValueRepresentable, any MyronValueRepresentable)]
     ) {
-        var pairs = [(MyronKey, MyronValue)]()
+        var pairs = [(MyronValue, MyronValue)]()
 
         for (key, value) in elements {
-            let mkey = key.myronKey
+            let mkey = key.myronValue
             let mvalue = value.myronValue
 
-            if case .double(let d) = mkey, !d.isFinite {
-                preconditionFailure("Myron hashmap literal has a non-finite key: \(mkey)")
-            }
-
+            guard mkey.isStorableKey else { continue }
             if case .nothing = mvalue { continue }
 
             pairs.append((mkey, mvalue))
@@ -84,7 +77,7 @@ extension MyronHashmap: Sequence {
     }
 
     public struct Iterator: IteratorProtocol {
-        public typealias Element = (key: MyronKey, value: MyronValue)
+        public typealias Element = (key: MyronValue, value: MyronValue)
         private let pairs: [Element]
         private var index = 0
 
@@ -92,7 +85,7 @@ extension MyronHashmap: Sequence {
             self.pairs = pairs
         }
 
-        public mutating func next() -> (key: MyronKey, value: MyronValue)? {
+        public mutating func next() -> (key: MyronValue, value: MyronValue)? {
             guard index < pairs.count else { return nil }
             let it = pairs[index]
             index += 1
