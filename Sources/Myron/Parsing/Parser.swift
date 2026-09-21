@@ -3,113 +3,113 @@ import Foundation
 // MARK: - Parser
 
 final class Parser {
-
     let tokens: [Token]
-
-    init(tokens: [Token]) {
-        self.tokens = tokens
-    }
-
+    init(tokens: [Token]) { self.tokens = tokens }
+    func parse() -> ([Expression], [MyronError]) { ParsingWorker(tokens: tokens).parse() }
 }
 
-// MARK: - Parsing
+// MARK: - Parsing Worker
 
-extension Parser {
-
+final private class ParsingWorker {
+    let tokens: [Token]
+    var forms = [Expression]()
+    var errors = [MyronError]()
+    var cursor = 0
+    
+    init(tokens: [Token]) { self.tokens = tokens }
+    
     func parse() -> ([Expression], [MyronError]) {
-        var forms = [Expression]()
-        var errors = [MyronError]()
-        var cursor = 0
-
         while cursor < tokens.count {
-            let (progress, expression) = parseExpression(
-                from: cursor,
-                errors: &errors)
-
-            if let expression { forms.append(expression) }
-            cursor = progress
+            if let expression = parseExpression() { forms.append(expression) }
         }
-
+        
         return (forms, errors)
     }
-
-    private func parseExpression(
-        from startIndex: Int,
-        errors: inout [MyronError]
-    ) -> (Int, Expression?) {
-        let token = tokens[startIndex]
-
-        func metadata() -> Expression.Metadata {
-            Expression.Metadata(location: token.location)
-        }
-
-        switch token.kind {
-        case .leftBracket:
-            let (progress, result) = parseList(
-                from: startIndex + 1,
-                openingToken: token,
-                errors: &errors)
-            return (progress, result)
-        case .rightBracket:
-            let error = MyronError(.unmatchedParenthesis, at: token.location)
-            errors.append(error)
-            return (startIndex + 1, nil)
-        case .tick:
-            let incremented = startIndex + 1
-            guard incremented < tokens.count, tokens[incremented].kind != .rightBracket else {
-                let error = MyronError(.expectedExpressionAfterTick, at: token.location)
-                errors.append(error)
-                return (incremented, nil)
-            }
-            let (nextIndex, parsed) = parseExpression(from: startIndex + 1, errors: &errors)
-            guard let parsed = parsed else { return (nextIndex, nil) }
-            let syntheticQuote = Expression.atom(.symbol("quote"), metadata())
-            let quoted = Expression.list([syntheticQuote, parsed], metadata())
-            return (nextIndex, quoted)
-        case .boolean(let value):
-            return (startIndex + 1, .atom(.boolean(value), metadata()))
-        case .double(let value):
-            return (startIndex + 1, .atom(.double(value), metadata()))
-        case .integer(let value):
-            return (startIndex + 1, .atom(.integer(value), metadata()))
-        case .string(let string):
-            return (startIndex + 1, .atom(.string(string), metadata()))
-        case .symbol(let symbol):
-            return (startIndex + 1, .atom(.symbol(symbol), metadata()))
-        }
+    
+    enum ParsingShape {
+        case expression, list, tick
+        var isExpression: Bool { if self == .expression { return true } else { return false } }
+        var isList: Bool { if self == .list { return true } else { return false } }
+        var isTick: Bool { if self == .tick { return true } else { return false } }
     }
-
-    private func parseList(
-        from startIndex: Int,
-        openingToken: Token,
-        errors: inout [MyronError]
-    ) -> (Int, Expression?) {
-        var list = [Expression]()
-        var token: Token?
-        var cursor = startIndex
-
+    
+    typealias ParsingWork = (ParsingShape, MyronLocation, [Expression])
+    
+    func parseExpression() -> Expression? {
+        var work = [ParsingWork]()
+        var build = [Expression]()
+        var shape = ParsingShape.expression
+        guard cursor < tokens.count else { return nil }
+        var start = tokens[cursor].location
+        
+        func error(_ reason: MyronError.Reason, _ location: MyronLocation? = nil) {
+            let resolved = location
+            ?? (cursor < tokens.count ? tokens[cursor].location : tokens.last?.location)
+            let error = MyronError(reason, at: resolved)
+            errors.append(error)
+        }
+        
         while cursor < tokens.count {
-            token = tokens[cursor]
-            if token?.kind == .rightBracket { break }
-
-            let (progress, expression) = parseExpression(from: cursor, errors: &errors)
-            if let expression { list.append(expression) }
-            cursor = progress
+            let token = tokens[cursor]
+            defer { cursor += 1 }
+            
+            func pushWork(nextShape: ParsingShape) {
+                work.append((shape, start, build))
+                (shape, start, build) = (nextShape, token.location, [])
+            }
+            
+            func popWork() -> Bool {
+                guard let continuation = work.popLast() else { return false }
+                (shape, start, build) = continuation
+                return true
+            }
+            
+            func atomMeta(_ location: MyronLocation? = nil) -> Expression.Metadata {
+                return Expression.Metadata(location: location ?? token.location)
+            }
+            
+            func listMeta(from start: MyronLocation) -> Expression.Metadata {
+                return Expression.Metadata(location: start.lowerBound..<token.location.upperBound)
+            }
+            
+            var production: Expression
+            
+            switch token.kind {
+            case .leftBracket: pushWork(nextShape: .list); continue
+            case .tick: pushWork(nextShape: .tick); continue
+            case .boolean(let value): production = Expression.atom(.boolean(value), atomMeta())
+            case .double(let value):  production = Expression.atom(.double(value), atomMeta())
+            case .integer(let value): production = Expression.atom(.integer(value), atomMeta())
+            case .string(let value):  production = Expression.atom(.string(value), atomMeta())
+            case .symbol(let value):  production = Expression.atom(.symbol(value), atomMeta())
+            case .rightBracket:
+                guard !shape.isTick else { error(.expectedExpressionAfterTick); return nil }
+                production = .list(build, listMeta(from: start))
+                guard popWork() else { error(.unmatchedParenthesis, start); return nil }
+            }
+            
+            switch shape {
+            case .expression: return production
+            case .list: build.append(production)
+            case .tick:
+                while shape.isTick {
+                    let quote = Expression.atom(.symbol("quote"), atomMeta(start))
+                    production = Expression.list([quote, production], listMeta(from: start))
+                    guard popWork() else { error(.internalError("empty stack after tick")); return nil }
+                }
+                
+                if shape.isExpression { return production }
+                build.append(production)
+            }
         }
-
-        let openingLocation = openingToken.location
-        let start = openingLocation.lowerBound
-        let finish = token?.location.upperBound ?? openingLocation.upperBound
-        let location = start..<finish
-
-        if token?.kind != .rightBracket {
-            let error = MyronError(.expectedRightBracket, at: location)
-            errors.append(error)
+        
+        switch shape {
+        case .expression: error(.internalError("parser did not return an expression"))
+        case .list: error(.expectedRightBracket, start)
+        case .tick: error(.expectedExpressionAfterTick)
         }
-
-        let metadata = Expression.Metadata(location: location)
-        let listExpression = Expression.list(list, metadata)
-        return (cursor + 1, listExpression)
+        
+        return nil
     }
-
+    
 }

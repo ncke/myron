@@ -1957,10 +1957,15 @@ Notable gaps:
 - No modules, no way to load Myron source from Myron.
 - No I/O of any kind. Everything comes in and goes out through the host.
 - Several operations over a value recurse on the host stack, so a deeply nested
-  list can overflow it: rendering one with `description` is the shallowest
-  limit, then hashing it, while `eq` walks iteratively and goes much deeper.
-  The parser is recursive too, so source nested thousands of brackets deep can
-  overflow before evaluation begins.
+  list or hashmap can overflow it. Rendering one with `description` is the
+  shallowest limit, then hashing it — which is what using one as a hashmap key
+  or a set member does — and then releasing it, since the runtime tears the
+  structure down recursively as well. `eq` is the exception: it walks
+  iteratively and goes far deeper than the rest. Where each limit falls depends
+  on the stack of the thread the session runs on, so a value that survives on
+  the main thread may not on a worker. Parsing is no longer among these: the
+  parser keeps its own work stack, so bracket nesting in source is bounded by
+  the heap rather than by the stack.
 - `sourceHandle` is carried through tokenisation but not yet surfaced on
   errors.
 
