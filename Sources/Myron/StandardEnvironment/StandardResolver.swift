@@ -22,7 +22,7 @@ struct StandardResolver {
             for (idx, primitive) in primitives.enumerated() {
                 guard let signature = primitive.signature else {
                     let explain = "cannot resolve against a nil signature, in: \(contenders)"
-                    throw MyronError(.internalError(explain), at: location)
+                    throw MyronError(.internal(explain), at: location)
                 }
 
                 let result = try signature.matchesKinds(argKinds)
@@ -91,7 +91,7 @@ struct StandardResolver {
             guard maximal.count == 1, let winner = maximal.first else {
                 guard !maximal.isEmpty else {
                     let explain = "no maximal candidate in: \(contenders)"
-                    throw MyronError(.internalError(explain), at: location)
+                    throw MyronError(.internal(explain), at: location)
                 }
 
                 let candidates = maximal

@@ -95,7 +95,7 @@ final private class ParsingWorker {
                 while shape.isTick {
                     let quote = Expression.atom(.symbol("quote"), atomMeta(start))
                     production = Expression.list([quote, production], listMeta(from: start))
-                    guard popWork() else { error(.internalError("empty stack after tick")); return nil }
+                    guard popWork() else { error(.internal("empty stack after tick")); return nil }
                 }
                 
                 if shape.isExpression { return production }
@@ -104,8 +104,8 @@ final private class ParsingWorker {
         }
         
         switch shape {
-        case .expression: error(.internalError("parser did not return an expression"))
-        case .list: error(.expectedRightBracket, start)
+        case .expression: error(.internal("parser did not return an expression"))
+        case .list: error(.unmatchedParenthesis, start)
         case .tick: error(.expectedExpressionAfterTick)
         }
         

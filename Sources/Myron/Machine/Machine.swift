@@ -50,7 +50,7 @@ extension Machine {
             case .set: self = .set
             default:
                 let explain = "unexpected kind for shape initialiser, got: \(value.kind)"
-                throw MyronError(.internalError(explain))
+                throw MyronError(.internal(explain))
             }
         }
 
@@ -231,7 +231,7 @@ extension Machine {
 
             guard let firstBody = bodies.first else {
                 let explain = "`let` must have at least one binding and one body"
-                throw MyronError(.internalError(explain), at: meta.location)
+                throw MyronError(.internal(explain), at: meta.location)
             }
 
             let frame = bodies.count > 1
@@ -507,7 +507,7 @@ extension Machine {
 
             let bodies = procedure.bodies
             guard bodies.count > 0 else {
-                throw MyronError(.internalError("`apply` encountered empty bodies"), at: location)
+                throw MyronError(.internal("`apply` encountered empty bodies"), at: location)
             }
 
             if bodies.count > 1 {

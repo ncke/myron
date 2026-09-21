@@ -418,11 +418,9 @@ also has a `description`, which is the first line of the rendered message.
 | `expectedExpressionAfterTick` | A `'` was not followed by an expression. |
 | `expectedFunction(MyronValue.Kind)` | The head of an application was not callable. |
 | `expectedQuote` | A string literal was never closed. |
-| `expectedRightBracket` | A list was never closed. |
 | `incomparableTypes` | `gt`/`lt` and friends were given types with no ordering. |
-| `internalError(String)` | An invariant inside the interpreter broke. Please report these. |
+| `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
-| `invalidSetMember(MyronValue.Kind)` | Reserved for the set type, which is not implemented. Nothing raises it today. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
@@ -430,7 +428,7 @@ also has a `description`, which is the first line of the rendered message.
 | `unexpectedArity(Int, IntegerExpectation)` | Wrong number of arguments; carries what was given and what was wanted. |
 | `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
 | `unimplementedFeature` | Reserved for primitives that are declared but not yet implemented. Nothing raises it today. |
-| `unmatchedParenthesis` | A `)` appeared with no opening `(`. |
+| `unmatchedParenthesis` | A bracket had no partner — a `(` that was never closed, or a `)` with nothing to close. The location points at the unmatched bracket. |
 | `unrecognisedSymbol` | A symbol had no binding. |
 
 ### Swift interoperability

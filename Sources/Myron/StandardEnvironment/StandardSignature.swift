@@ -79,7 +79,7 @@ extension StandardSignature {
         for (multiple, constraint) in terms {
             guard case .exactly(let exactNumber) = multiple, exactNumber > 0 else {
                 let explain = "unsupported multiple in `matchesKinds`, got: \(multiple)"
-                throw MyronError(.internalError(explain))
+                throw MyronError(.internal(explain))
             }
 
             for _ in 0 ..< exactNumber {
@@ -145,7 +145,7 @@ extension StandardSignature {
     ) throws -> Specificity {
         guard lhs.count == rhs.count else {
             let explain = "bad parameters in `compareSpecificity`, got \(lhs) and \(rhs)"
-            throw MyronError(.internalError(explain))
+            throw MyronError(.internal(explain))
         }
 
         var narrowsSomewhere = false
@@ -199,7 +199,7 @@ extension StandardSignature {
         for (multiple, constraint) in terms {
             guard case .exactly(let multipleNumber) = multiple, multipleNumber > 0 else {
                 let explain = "unsupported multiple in `describeForms`, got: \(multiple)"
-                throw MyronError(.internalError(explain))
+                throw MyronError(.internal(explain))
             }
 
             let kinds: [String]

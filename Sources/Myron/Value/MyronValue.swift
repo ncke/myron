@@ -67,7 +67,7 @@ extension MyronValue {
 
             guard let result = done.first else {
                 let explain = "`makeValue` completed with an empty stack"
-                throw MyronError(.internalError(explain), at: location)
+                throw MyronError(.internal(explain), at: location)
             }
 
             return result

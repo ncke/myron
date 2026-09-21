@@ -16,9 +16,8 @@ public struct MyronError: Error, Sendable {
         case expectedExpressionAfterTick
         case expectedFunction(MyronValue.Kind)
         case expectedQuote
-        case expectedRightBracket
         case incomparableTypes
-        case internalError(String)
+        case `internal`(String)
         case invalidNumber
         case malformedAlist(Int)
         case overflow
@@ -110,9 +109,8 @@ extension MyronError.Reason: CustomStringConvertible {
         case .expectedExpressionAfterTick: return "Expected expression after tick"
         case .expectedFunction(let kind): return "Expected function but got \(kind)"
         case .expectedQuote: return "Expected quote"
-        case .expectedRightBracket: return "Expected right bracket"
         case .incomparableTypes: return "Incomparable types"
-        case .internalError(let message): return "Internal error: \(message)"
+        case .internal(let message): return "Internal error: \(message)"
         case .invalidNumber: return "Invalid number"
         case .malformedAlist(let idx): return "Malformed alist at index: \(idx)"
         case .overflow: return "Overflow"

@@ -107,7 +107,7 @@ struct ParserTests {
     ])
     func unterminatedList(_ c: (source: String, location: MyronLocation)) {
         let (forms, errors) = Self.parse(c.source)
-        #expect(errors.map(\.reason) == [.expectedRightBracket])
+        #expect(errors.map(\.reason) == [.unmatchedParenthesis])
         #expect(
             errors.first?.location == c.location,
             "\(c.source) reported at \(String(describing: errors.first?.location))")
