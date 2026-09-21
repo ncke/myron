@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/banner.svg" alt="Myron" width="720">
+</p>
+
 # Myron
 
 Myron is a small Lisp implemented in Swift, designed to be embedded in a Swift
@@ -108,12 +112,15 @@ swift run myron-repl
 ```
 
 ```
-   *       .        *
-      |\/| \ / |_) / \ |\ |  .
-  .   |  |  |  | \ \_/ | \|
-        *        .       *
+.        ·        .       ·      .       ·      .      ·      .      ·       .
+    ·       *        .       ·      +       .      ·     .      ·      .
 
-      version 0.1.1
+   ████ ·████  ▀██▄ ▄██▀  █████████  █████████  ███▄   ██   *      *      *
+*  ██ ████ ██    ▀███▀    ██  ·  ██  ██     ██  ██▀█▄ ·██    **     **  .  **
+   ██  ██  ██     ██      █████████  ██  ·  ██  ██  ▀█▄██     **  .  **     **
+ · ██      ██     ██      ██ · ████  █████████  ██   ▀███    **     **     **
+.    ·     .        *      .      ·         version 0.1.1   *   .  *      *
+         ·       .       ·      .     *      .      ·          ·      .      ·
 
 Ready.
 > (+ 1 2)
@@ -121,6 +128,10 @@ Ready.
 > (map (lambda (x) (* x x)) '(1 2 3))
 (1 4 9)
 ```
+
+The banner is drawn in colour when the terminal supports it, and in plain text
+when it does not — it is dropped if `NO_COLOR` is set, if `TERM` is unset or
+`dumb`, or if output is redirected to a file or a pipe.
 
 The REPL reads one line at a time, so keep each entry on a single line.
 Definitions persist for the life of the process.

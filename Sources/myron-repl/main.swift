@@ -1,17 +1,7 @@
 import Foundation
 import Myron
 
-let signature = #"""
-   *       .        *
-      |\/| \ / |_) / \ |\ |  .
-  .   |  |  |  | \ \_/ | \|
-        *        .       *
-"""#
-
-print(signature)
-print()
-print("      version \(MyronLanguage.version)")
-print()
+print(Banner.render(version: MyronLanguage.version))
 print("Ready.")
 
 let session = MyronSession()
