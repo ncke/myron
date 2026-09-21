@@ -16,8 +16,10 @@ public struct MyronError: Error, Sendable {
         case expectedExpressionAfterTick
         case expectedFunction(MyronValue.Kind)
         case expectedQuote
+        case hostError(String)
         case incomparableTypes
         case `internal`(String)
+        case invalidName(String)
         case invalidNumber
         case malformedAlist(Int)
         case overflow
@@ -109,8 +111,10 @@ extension MyronError.Reason: CustomStringConvertible {
         case .expectedExpressionAfterTick: return "Expected expression after tick"
         case .expectedFunction(let kind): return "Expected function but got \(kind)"
         case .expectedQuote: return "Expected quote"
+        case .hostError(let description): return "Host error: \(description)"
         case .incomparableTypes: return "Incomparable types"
         case .internal(let message): return "Internal error: \(message)"
+        case .invalidName(let name): return "Invalid name: \(name)"
         case .invalidNumber: return "Invalid number"
         case .malformedAlist(let idx): return "Malformed alist at index: \(idx)"
         case .overflow: return "Overflow"
@@ -142,4 +146,11 @@ extension MyronError.Reason: CustomStringConvertible {
         }
     }
 
+}
+
+// MARK: - Host Error
+
+public struct MyronHostError: Error, CustomStringConvertible {
+    public let description: String
+    public init(_ description: String) { self.description = description }
 }

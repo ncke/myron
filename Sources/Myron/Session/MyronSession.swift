@@ -74,10 +74,179 @@ public final class MyronSession {
 
 }
 
+// MARK: - Primitive Definition
+
+extension MyronSession {
+    
+    public func define(
+        _ name: String,
+        body: @escaping @Sendable () throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body()
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: .exactly(0), wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+    
+    public func define(
+        _ name: String,
+        body: @escaping @Sendable (MyronValue) throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body(args[0])
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: .exactly(1), wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+    
+    public func define(
+        _ name: String,
+        body: @escaping @Sendable (MyronValue, MyronValue) throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body(args[0], args[1])
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: .exactly(2), wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+    
+    public func define(
+        _ name: String,
+        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body(args[0], args[1], args[2])
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: .exactly(3), wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+    
+    public func define(
+        _ name: String,
+        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body(args[0], args[1], args[2], args[3])
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: .exactly(4), wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+    
+    public func define(
+        _ name: String,
+        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body(args[0], args[1], args[2], args[3], args[4])
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: .exactly(5), wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+    
+    public func define(
+        _ name: String,
+        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body(args[0], args[1], args[2], args[3], args[4], args[5])
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: .exactly(6), wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+    
+    private func primitivise(
+        name: String,
+        arity: MyronError.IntegerExpectation,
+        wrapped: @escaping MyronPrimitive.Body
+    ) throws -> MyronPrimitive {
+        try Self.validatePrimitiveName(name)
+        
+        let checked: MyronPrimitive.Body = { args, location in
+            try Self.validatePrimitiveArity(args.count, expected: arity, at: location)
+            
+            do {
+                return try wrapped(args, location)
+                
+            } catch let error as MyronError {
+                var trampolineError = error
+                if error.location == nil {
+                    trampolineError = MyronError(
+                        reason: error.reason,
+                        location: location,
+                        message: error.message)
+                }
+                
+                throw trampolineError
+                
+            } catch let error as MyronHostError {
+                throw MyronError(.hostError(error.description), at: location)
+                
+            } catch {
+                let description = String(describing: error)
+                throw MyronError(.hostError(description), at: location)
+            }
+        }
+        
+        let primitive = MyronPrimitive(
+            id: Counter.next(),
+            primitiveName: Self.hostNamespace + name,
+            representations: [name],
+            body: checked)
+
+        return primitive
+    }
+    
+    private static let hostNamespace = "host."
+
+    private static func validatePrimitiveName(_ name: String) throws {
+        let (tokens, errors) = Lexer(input: name, sourceHandle: nil).tokenize()
+        guard
+            errors.isEmpty,
+            tokens.count == 1,
+            case .symbol(let symbol) = tokens[0].kind,
+            symbol == name,
+            !Machine.specialFormNames.contains(name)
+        else {
+            throw MyronError(.invalidName(name))
+        }
+    }
+    
+    private static func validatePrimitiveArity(
+        _ got: Int,
+        expected: MyronError.IntegerExpectation,
+        at location: MyronLocation?
+    ) throws {
+        switch expected {
+        case .exactly(let expectation): if got == expectation { return }
+        case .atLeast(let expectation): if got >= expectation { return }
+        case .atMost(let expectation): if got <= expectation { return }
+        case .unspecified: return
+        }
+        
+        throw MyronError(.unexpectedArity(got, expected), at: location)
+    }
+    
+}
+
 // MARK: - Environment Interaction
 
 extension MyronSession {
-
+    
     public func query(_ name: String) -> MyronValue? {
         return environment.lookup(name)
     }

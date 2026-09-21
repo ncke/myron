@@ -143,7 +143,22 @@ extension Machine {
 // MARK: - Special Forms
 
 extension Machine {
-
+    
+    private static let specialAnd = "and"
+    private static let specialBegin = "begin"
+    private static let specialCond = "cond"
+    private static let specialDefine = "define"
+    private static let specialIf = "if"
+    private static let specialLambda = "lambda"
+    private static let specialLet = "let"
+    private static let specialOr = "or"
+    private static let specialQuote = "quote"
+    
+    static let specialFormNames = Set([
+        specialAnd, specialBegin, specialCond, specialDefine, specialIf,
+        specialLambda, specialLet, specialOr, specialQuote
+    ])
+    
     private func interpretSpecialForm(
         head: Expression,
         tail: ArraySlice<Expression>,
@@ -154,13 +169,13 @@ extension Machine {
 
         switch formName {
 
-        case "and":
+        case Self.specialAnd:
             let (clause, remainder) = try tail.headtail(meta.location)
             let frame = Frame.conjunction(remainder, environment, meta.location)
             let control = Control.eval(clause, environment)
             return (frame, control)
 
-        case "begin":
+        case Self.specialBegin:
             if tail.count == 0 {
                 return (nil, .value(.nothing))
             } else if tail.count > 1 {
@@ -171,14 +186,14 @@ extension Machine {
                 return (nil, .eval(tail[tail.startIndex], environment))
             }
 
-        case "cond":
+        case Self.specialCond:
             let (clause, remainder) = try tail.headtail(meta.location)
             let (condition, bodies) = try clause.headtail()
             return (
                 .condition(bodies, remainder, environment, meta.location),
                 .eval(condition, environment))
 
-        case "define":
+        case Self.specialDefine:
             try tail.mustHaveAtLeast(2, meta.location)
             let sigExpression = tail[tail.startIndex]
 
@@ -201,13 +216,13 @@ extension Machine {
             let proc = MyronProcedure(parameters: params, bodies: bodies, environment: environment)
             return (.define(name, environment), .value(.procedure(proc)))
 
-        case "if":
+        case Self.specialIf:
             let (condition, thenClause, elseClause) = try tail.unwrap3(meta.location)
             return (
                 .branch(thenClause, elseClause, environment, meta.location),
                 .eval(condition, environment))
 
-        case "lambda":
+        case Self.specialLambda:
             try tail.mustHaveAtLeast(2, meta.location)
             let (head, remainder) = try tail.headtail(meta.location)
             let (paramExprs, _) = try head.unwrapList()
@@ -216,7 +231,7 @@ extension Machine {
             let proc = MyronProcedure(parameters: params, bodies: bodies, environment: environment)
             return (nil, .value(.procedure(proc)))
 
-        case "let":
+        case Self.specialLet:
             try tail.mustHaveAtLeast(2, meta.location)
             let (head, bodies) = try tail.headtail(meta.location)
             let (bindingExprs, _) = try head.unwrapList()
@@ -239,11 +254,11 @@ extension Machine {
             : nil
             return (frame, .eval(firstBody, inner))
 
-        case "or":
+        case Self.specialOr:
             let (clause, remainder) = try tail.headtail(meta.location)
             return (.disjunction(remainder, environment, meta.location), .eval(clause, environment))
 
-        case "quote":
+        case Self.specialQuote:
             let quotation = try tail.unwrap1(meta.location)
             let value = try MyronValue.makeValue(from: quotation, at: meta.location)
             return (nil, .value(value))

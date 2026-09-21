@@ -63,8 +63,9 @@ looking things up later.
 - Two associative types behind one set of names: `get`, `put` and friends
   resolve over alists and hashmaps alike.
 - Swift interoperability in both directions. Swift values convert to
-  `MyronValue`, which reads back through typed accessors and is expressible as
-  a Swift literal.
+  `MyronValue`, which reads back through typed accessors, converts into Swift
+  types on request, and is expressible as a Swift literal. A host's own types
+  join in by conforming to the same two protocols the built-in ones use.
 - `MyronValue` is `Hashable`, so Myron values can be held in Swift's own sets
   and dictionaries, and compared without going back through the interpreter.
 - Any value can be a hashmap or alist key, or a member of a set — a list, a
@@ -77,6 +78,10 @@ looking things up later.
   and a list to a list.
 - A session's environment is open to its host: names can be read, written and
   listed from Swift without going through source text.
+- Primitives can be written in Swift and called from Myron. A host supplies a
+  closure of up to six arguments and gets arity checking, namespacing and error
+  reporting for free — a failure inside the closure arrives as an ordinary
+  Myron diagnostic, complete with a source location and caret.
 - Sequence primitives that work on both lists and strings, resolved on the
   types of the arguments: `(length '(1 2 3))` and `(length "abc")` are both `3`.
 - Strict, coercion-free numerics: integers and doubles never mix silently.
@@ -233,6 +238,118 @@ to inner environments that do not outlive the call.
 Nothing stops a host from shadowing a standard name — `set("map", to: 9)` makes
 `map` an integer for that session, exactly as `(define map 9)` would. It is the
 host's session to furnish.
+
+#### Defining primitives
+
+`set` hands Myron a value. `define` hands it a function: a Swift closure that
+Myron can call like any other primitive.
+
+```swift
+let session = MyronSession()
+
+try session.define("double") { value in
+    try value.requireInteger() * 2
+}
+
+session.eval("(double 21)")               // .success(.integer(42))
+session.eval("(map double '(1 2 3))")     // .success — the list (2 4 6)
+```
+
+There is an overload for each arity from zero to six. The closure's shape
+chooses the overload, so nothing needs declaring:
+
+```swift
+try session.define("answer") { 42 }
+
+try session.define("hypotenuse") { a, b in
+    let x = try a.requireDouble()
+    let y = try b.requireDouble()
+    return (x * x + y * y).squareRoot()
+}
+
+session.eval("(hypotenuse 3.0 4.0)")      // .success(.double(5.0))
+```
+
+A body returns anything [representable](#swift-interoperability) — a Swift
+scalar, an array, a dictionary, a set, a `MyronValue`, or one of the host's own
+types — and takes its arguments as `MyronValue`, already evaluated, to read with
+the [conversions](#converting-into-swift-types) below.
+
+Arity is checked before the body runs, so a body never sees the wrong number of
+arguments:
+
+```swift
+session.eval("(double 1 2)")
+// .failure — Unexpected arity: got 2, expected 1
+```
+
+A primitive defined this way is an ordinary value in the session's environment.
+It can be shadowed by a later `define`, replaced by Myron's own `define`, passed
+to `map` and friends, stored in a list or a hashmap and called back out, and
+read through `query`. It is namespaced under `host.` so it is recognisable on
+sight:
+
+```swift
+session.eval("double")                    // <primitive: host.double>
+```
+
+**Failing from a body.** Throw `MyronHostError` and its description arrives as
+the reason, positioned at the call site:
+
+```swift
+try session.define("checked") { value in
+    let n = try value.requireInteger()
+    guard n > 0 else { throw MyronHostError("expected a positive number") }
+    return n
+}
+
+session.eval("(checked -1)")
+// .failure — Host error: expected a positive number
+```
+
+Any other Swift error works too and is described by `String(describing:)`, so an
+error that implements `CustomStringConvertible` reports its own text. A
+`MyronError` thrown from a body — which is what the conversions below throw —
+passes through unchanged except that it gains the call site if it had no
+location, so a type mismatch inside a body reads exactly like one raised by the
+standard library:
+
+```swift
+session.eval("(double \"a\")")
+// ERROR: Unexpected type, got string, expected integer
+// (double "a")
+// ^^^^^^^^^^^^
+```
+
+**Naming.** `define` throws rather than returning, because a name has to be one
+Myron source could actually write. Validation runs the lexer itself: the name
+must lex as exactly one symbol token equal to the name given. That rules out the
+empty string, anything containing whitespace, brackets, a `;`, a `'` or a `"`,
+and anything that would lex as something else — `42`, `3.5`, `true`. The nine
+[special forms](#special-forms) are rejected too, since they are intercepted
+before symbol lookup and a primitive under one of those names could never be
+called. Everything else is fair game, including non-ASCII: if `(define café 1)`
+works in source, `define("café")` works from Swift.
+
+```swift
+try session.define("if") { _ in 1 }       // throws — Invalid name: if
+try session.define("two words") { _ in 1 }// throws — Invalid name: two words
+try session.define("café") { _ in 1 }     // fine
+```
+
+**Capturing.** A body must not capture its own session. The session owns the
+environment that holds the closure, so capturing it would form a cycle the
+session could never break. The signature is `@Sendable`, which turns that
+mistake into a compile error rather than a leak:
+
+```swift
+try session.define("wrong") { _ in session.names.count }
+// error: capture of 'session' with non-Sendable type 'MyronSession'
+//        in a '@Sendable' closure
+```
+
+Read what a body needs before defining it, or hold the state in a `Sendable`
+type of your own.
 
 ### `MyronResult`
 
@@ -418,8 +535,10 @@ also has a `description`, which is the first line of the rendered message.
 | `expectedExpressionAfterTick` | A `'` was not followed by an expression. |
 | `expectedFunction(MyronValue.Kind)` | The head of an application was not callable. |
 | `expectedQuote` | A string literal was never closed. |
+| `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
+| `invalidName(String)` | `define` was given a name Myron source could not write; carries the name. Thrown by `define` itself, never by `eval`. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
@@ -433,8 +552,10 @@ also has a `description`, which is the first line of the rendered message.
 
 ### Swift interoperability
 
-Values cross the boundary in both directions. Reading is covered by the
-accessors [above](#myronvalue); writing is covered by one protocol.
+Values cross the boundary in both directions, and each direction has a protocol:
+`MyronValueRepresentable` goes out to Myron, `MyronValueConvertible` comes back
+into Swift. The built-in types conform to both, and a host's own types can join
+them.
 
 `MyronValueRepresentable` turns a Swift value into a `MyronValue`:
 
@@ -484,6 +605,110 @@ let hashmap: MyronHashmap = [
     MyronValue.double(1.5): 2,            // a Myron value
     [1, 2]: 3                             // a list as a key
 ]
+```
+
+#### Converting into Swift types
+
+The [accessors](#myronvalue) return an optional and say nothing about why they
+failed. `MyronValueConvertible` is the other way round: it throws, with the same
+diagnostics the standard library raises. There are named accessors for the
+scalars, which need no annotation:
+
+```swift
+try value.requireBoolean()                // Bool
+try value.requireInteger()                // Int
+try value.requireDouble()                 // Double
+try value.requireString()                 // String
+try value.requireSymbol()                 // String, from a symbol
+```
+
+And a generic `require()` for everything else, which takes its type from
+context:
+
+```swift
+let count: Int = try value.require()
+let names: [String] = try value.require()
+let limits: [String: Int] = try value.require()
+let nested: [String: [Int]] = try value.require()
+let unique: Set<Int> = try value.require()
+let held: MyronValue = try value.require()
+```
+
+Nesting comes free, so a structure converts in one step however deep it goes.
+`Array`, `Set`, `Dictionary` and `Optional` conform where their elements do;
+`MyronValue`, `MyronHashmap` and `MyronSet` conform as themselves. A list and a
+set each convert into either Swift collection, so the Swift type you ask for
+decides the shape — and asking for a `Set` collapses duplicates, as Swift's `Set`
+always does. `nothing` becomes `nil` for an optional and an error for anything
+else.
+
+`require()` is the one to reach for when context already fixes the type, which
+is what makes it read well in argument position:
+
+```swift
+struct Config { var retries: Int; var name: String }
+
+let config = try Config(retries: a.require(), name: b.require())
+```
+
+Where no type is fixed, use a named accessor instead — it is shorter, because it
+needs no annotation. Symbols only have the named accessor: `.string` and
+`.symbol` are two Myron kinds for one Swift type, and the generic conversion
+takes the string.
+
+A failure reports what was found and what was wanted, and names the innermost
+type rather than the outermost:
+
+```swift
+let _: Int = try MyronValue.string("a").require()
+// Unexpected type, got string, expected integer
+
+let _: [Int] = try MyronValue.list([.integer(1), .string("x")]).require()
+// Unexpected type, got string, expected integer — the element, not the list
+```
+
+Conversions throw without a location, because on their own there is no source to
+point at. Inside a [host primitive](#defining-primitives) the call site is added
+on the way out, which is what makes a conversion failure in a body read like any
+other diagnostic.
+
+**A host's own types.** Conform to both protocols and a type crosses the
+boundary like a built-in one, nesting included:
+
+```swift
+struct Version: Equatable {
+    var major: Int
+    var minor: Int
+}
+
+extension Version: MyronValueConvertible {
+    init(myronValue: MyronValue) throws {
+        let parts: [Int] = try myronValue.require()
+        guard parts.count == 2 else {
+            throw MyronHostError("a version needs two parts")
+        }
+        self.init(major: parts[0], minor: parts[1])
+    }
+}
+
+extension Version: MyronValueRepresentable {
+    var myronValue: MyronValue { [major, minor].myronValue }
+}
+```
+
+```swift
+let one: MyronValue = [1, 2]
+let many: MyronValue = [[1, 0], [2, 1]]
+
+let version: Version = try one.require()
+let versions: [Version] = try many.require()   // nests, with no extra work
+
+try session.define("bump") { value in
+    let version: Version = try value.require()
+    return Version(major: version.major, minor: version.minor + 1)
+}
+
+session.eval("(bump '(1 2))")             // .success — the list (1 3)
 ```
 
 #### `MyronHashmap`
@@ -679,6 +904,13 @@ Calling one afterwards is an error rather than a crash: the procedure has no
 environment left to run in, and evaluation fails with
 `containingEnvironmentNoLongerExists`. That applies however the procedure is
 reached, including from inside a list or hashmap it was stored in.
+
+The same reasoning applies to a [host primitive](#defining-primitives) from the
+other side. A session owns the environment that holds the closure, so a body that
+captured its session would form a cycle nothing could break, and the registry
+would never get to run. The `@Sendable` signature makes that a compile error, and
+it also means anything a body does capture has to be `Sendable` — which is worth
+knowing before you reach for a non-`Sendable` service inside one.
 
 ## A tour of Myron
 
@@ -1953,7 +2185,14 @@ Notable gaps:
 - No variadic user procedures, and no default or keyword parameters.
 - No dotted pairs, no `nil`-terminated cons cells; a list is a list.
 - No modules, no way to load Myron source from Myron.
-- No I/O of any kind. Everything comes in and goes out through the host.
+- No I/O of any kind in the language itself. Everything comes in and goes out
+  through the host, which can supply what it wants as a
+  [primitive](#defining-primitives).
+- A host primitive takes between zero and six arguments; there is no variadic
+  form yet.
+- A host primitive receives its arguments and nothing else. There is no way for
+  one to read the session's environment or evaluate source, so a primitive is a
+  function of its arguments alone.
 - Several operations over a value recurse on the host stack, so a deeply nested
   list or hashmap can overflow it. Rendering one with `description` is the
   shallowest limit, then hashing it — which is what using one as a hashmap key
