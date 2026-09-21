@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="Myron" width="720">
+  <img src="docs/banner.svg" alt="Myron — eval, apply, repeat" width="720">
 </p>
 
 # Myron
