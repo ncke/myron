@@ -97,6 +97,39 @@ extension MyronSet {
     public func isDisjoint(with other: MyronSet) -> Bool {
         return self.contents.isDisjoint(with: other)
     }
+    
+}
+
+// MARK: - Set Computations
+
+extension MyronSet {
+    
+    public func cartesianProduct(with others: [MyronSet]) -> MyronSet {
+        let spaces = others.map { space in Array(space.contents) }
+        var tuples = self.contents.map { member in [member] }
+        
+        for space in spaces {
+            var next = [[MyronValue]]()
+            for member in space {
+                for tuple in tuples { next.append(tuple + [member]) }
+            }
+            tuples = next
+        }
+        
+        return MyronSet(array: tuples.map { tuple in tuple.myronValue })
+    }
+    
+    public func powerset() -> MyronSet {
+        let empty = MyronSet()
+        var accumulator = [empty]
+        
+        for value in self.contents {
+            accumulator += accumulator.map { $0.insert(value) }
+        }
+        
+        return MyronSet(contents: Set(accumulator.map { member in member.myronValue }))
+    }
+    
 }
 
 // MARK: - Equatable and Hashable
@@ -115,7 +148,7 @@ extension MyronSet: CustomStringConvertible {
     
     public var description: String {
         let description = contents.map { element in "\(element)" }.joined(separator: " ")
-        return "#{\(description)}"
+        return "{\(description)}"
     }
     
 }

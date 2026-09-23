@@ -174,6 +174,29 @@ struct StandardPredicatesTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("nan?", arguments: [
+        ("(nan? (sqrt -1.0))", "true"),
+        ("(nan? 1.0)", "false"),
+        ("(nan? 1)", "false"),
+        ("(nan? (pow 10.0 400.0))", "false"),
+        ("(nan? \"a\")", "false"),
+        ("(nan? '(1))", "false")
+    ] as [ValueCase])
+    func isNaN(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a nan is neither finite nor infinite", arguments: [
+        ("(finite? (sqrt -1.0))", "false"),
+        ("(infinite? (sqrt -1.0))", "false"),
+        ("(nan? (sqrt -1.0))", "true"),
+        ("(nan? (/ 0.0 1.0))", "false"),
+        ("(nan? (- (pow 10.0 400.0) (pow 10.0 400.0)))", "true")
+    ] as [ValueCase])
+    func nanIsItsOwnClass(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("predicate errors", arguments: [
         ("(nothing? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(number?)", .unexpectedArity(0, .exactly(1))),
@@ -183,7 +206,9 @@ struct StandardPredicatesTests {
         ("(negative? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(zero? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(finite? 1 2)", .unexpectedArity(2, .exactly(1))),
-        ("(infinite?)", .unexpectedArity(0, .exactly(1)))
+        ("(infinite?)", .unexpectedArity(0, .exactly(1))),
+        ("(nan?)", .unexpectedArity(0, .exactly(1))),
+        ("(nan? 1 2)", .unexpectedArity(2, .exactly(1)))
     ] as [FailureCase])
     func predicateErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

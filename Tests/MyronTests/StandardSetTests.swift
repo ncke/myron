@@ -12,8 +12,8 @@ struct StandardSetTests {
     // MARK: Construction
 
     @Test("set", arguments: [
-        ("(set)", "#{}"),
-        ("(set 1)", "#{1}"),
+        ("(set)", "{}"),
+        ("(set 1)", "{1}"),
         ("(empty? (set))", "true"),
         ("(length (set))", "0"),
         ("(length (set 1 2 3))", "3"),
@@ -48,9 +48,9 @@ struct StandardSetTests {
     // MARK: make-set
 
     @Test("make-set", arguments: [
-        ("(make-set)", "#{}"),
-        ("(make-set '())", "#{}"),
-        ("(make-set '(1))", "#{1}"),
+        ("(make-set)", "{}"),
+        ("(make-set '())", "{}"),
+        ("(make-set '(1))", "{1}"),
         ("(length (make-set '(1 2 3)))", "3"),
         ("(length (make-set '(1 1 2)))", "2"),
         ("(length (make-set (make-hashmap)))", "0"),
@@ -225,6 +225,82 @@ struct StandardSetTests {
         expectValue(c.source, c.expected)
     }
 
+    // MARK: Powerset
+
+    @Test("powerset", arguments: [
+        ("(eq (powerset (set 1)) (set (set) (set 1)))", "true"),
+        ("(eq (powerset (set 1 2)) (set (set) (set 1) (set 2) (set 1 2)))", "true"),
+        ("(length (powerset (set 1 2 3)))", "8"),
+        ("(length (powerset (set 1 2 3 4 5)))", "32"),
+        ("(length (powerset (set 1 \"a\" 'b)))", "8")
+    ] as [ValueCase])
+    func powerset(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("the powerset of the empty set holds the empty set", arguments: [
+        ("(length (powerset (set)))", "1"),
+        ("(eq (powerset (set)) (set (set)))", "true"),
+        ("(contains? (set) (powerset (set)))", "true")
+    ] as [ValueCase])
+    func powersetOfEmpty(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a powerset holds every subset and nothing else", arguments: [
+        ("(all set? (powerset (set 1 2 3)))", "true"),
+        ("(all (lambda (s) (is-subset? s (set 1 2 3))) (powerset (set 1 2 3)))", "true"),
+        ("(contains? (set) (powerset (set 1 2 3)))", "true"),
+        ("(contains? (set 1 2 3) (powerset (set 1 2 3)))", "true"),
+        ("(contains? (set 1 3) (powerset (set 1 2 3)))", "true"),
+        ("(contains? (set 4) (powerset (set 1 2 3)))", "false"),
+        ("(contains? 1 (powerset (set 1 2 3)))", "false")
+    ] as [ValueCase])
+    func powersetMembers(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    // MARK: Cartesian Product
+
+    @Test("cartesian-product", arguments: [
+        ("(eq (cartesian-product (set 1 2) (set 'a 'b)) (set '(1 a) '(1 b) '(2 a) '(2 b)))", "true"),
+        ("(values (cartesian-product (set 1) (set 2)))", "((1 2))"),
+        ("(length (cartesian-product (set 1 2) (set 3 4 5)))", "6"),
+        ("(length (cartesian-product (set 1 2) (set 1 2)))", "4"),
+        ("(contains? '(1 1) (cartesian-product (set 1 2) (set 1 2)))", "true")
+    ] as [ValueCase])
+    func cartesianProduct(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a cartesian product keeps the order of its sets", arguments: [
+        ("(contains? '(1 a) (cartesian-product (set 1) (set 'a)))", "true"),
+        ("(contains? '(a 1) (cartesian-product (set 1) (set 'a)))", "false"),
+        ("(eq (cartesian-product (set 1 2) (set 3)) (cartesian-product (set 3) (set 1 2)))", "false")
+    ] as [ValueCase])
+    func cartesianProductIsOrdered(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("an empty set empties the cartesian product", arguments: [
+        ("(eq (cartesian-product (set) (set 1 2)) (set))", "true"),
+        ("(eq (cartesian-product (set 1 2) (set)) (set))", "true"),
+        ("(eq (cartesian-product (set 1) (set) (set 2)) (set))", "true")
+    ] as [ValueCase])
+    func cartesianProductOfEmpty(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("more than two sets make flat tuples, not nested pairs", arguments: [
+        ("(eq (cartesian-product (set 1) (set 2) (set 3)) (set '(1 2 3)))", "true"),
+        ("(length (cartesian-product (set 1 2) (set 3 4) (set 5 6)))", "8"),
+        ("(all (lambda (t) (eq (length t) 3)) (cartesian-product (set 1 2) (set 3 4) (set 5 6)))", "true"),
+        ("(length (cartesian-product (set 1 2) (set 3) (set 4 5) (set 6 7 8)))", "12")
+    ] as [ValueCase])
+    func cartesianProductVariadic(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     // MARK: Equality
 
     @Test("sets are compared by membership, not by order", arguments: [
@@ -307,8 +383,8 @@ struct StandardSetTests {
 
     @Test("map over a set", arguments: [
         ("(eq (map (lambda (x) (* x 2)) (set 1 2 3)) (set 2 4 6))", "true"),
-        ("(map (lambda (x) x) (set))", "#{}"),
-        ("(map (lambda (x) (* x 2)) (set 1))", "#{2}")
+        ("(map (lambda (x) x) (set))", "{}"),
+        ("(map (lambda (x) (* x 2)) (set 1))", "{2}")
     ] as [ValueCase])
     func mapOverSet(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -331,7 +407,7 @@ struct StandardSetTests {
         ("(eq (filter (lambda (x) (gt x 0)) (set -1 2 -3 4)) (set 2 4))", "true"),
         ("(eq (filter (lambda (x) false) (set 1 2)) (set))", "true"),
         ("(eq (filter (lambda (x) true) (set 1 2)) (set 1 2))", "true"),
-        ("(filter (lambda (x) true) (set))", "#{}")
+        ("(filter (lambda (x) true) (set))", "{}")
     ] as [ValueCase])
     func filterOverSet(_ c: ValueCase) {
         expectValue(c.source, c.expected)
@@ -362,7 +438,12 @@ struct StandardSetTests {
         ("(is-subset? (set 1) 5)", .unexpectedType(.integer, [.set])),
         ("(is-superset? (set 1) 5)", .unexpectedType(.integer, [.set])),
         ("(is-disjoint? (set 1) 5)", .unexpectedType(.integer, [.set])),
-        ("(insert 1 '(2))", .unexpectedType(.list, [.set]))
+        ("(insert 1 '(2))", .unexpectedType(.list, [.set])),
+        ("(powerset '(1 2))", .unexpectedType(.list, [.set])),
+        ("(powerset 5)", .unexpectedType(.integer, [.set])),
+        ("(cartesian-product (set 1) '(2))", .unexpectedType(.list, [.set])),
+        ("(cartesian-product 5 (set 1))", .unexpectedType(.integer, [.set])),
+        ("(cartesian-product (set 1) (set 2) \"a\")", .unexpectedType(.string, [.set]))
     ] as [FailureCase])
     func unexpectedType(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
@@ -374,7 +455,9 @@ struct StandardSetTests {
         "(symmetric-difference (set 1))", "(symmetric-difference)",
         "(is-subset? (set 1))", "(is-strict-subset? (set 1))",
         "(is-superset? (set 1))", "(is-strict-superset? (set 1))",
-        "(is-disjoint? (set 1))", "(make-set '(1) '(2))"
+        "(is-disjoint? (set 1))", "(make-set '(1) '(2))",
+        "(powerset)", "(powerset (set 1) (set 2))",
+        "(cartesian-product)", "(cartesian-product (set 1))"
     ])
     func arityErrors(_ source: String) {
         expectArityFailure(source)

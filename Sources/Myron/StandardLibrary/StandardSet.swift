@@ -230,6 +230,30 @@ struct StandardSet: StandardModule {
                 let rhs = try snd.unwrapSet(location)
                 let result = lhs.isDisjoint(with: rhs)
                 return .boolean(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "set.powerset",
+            representations: ["powerset"],
+            signature: StandardSignature([StandardSignature.set1]),
+            body: { args, location in
+                let set = try args.unwrap1(location).unwrapSet(location)
+                let result = set.powerset()
+                return .set(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "set.cartesian-product",
+            representations: ["cartesian-product"],
+            signature: StandardSignature(
+                [StandardSignature.set1, StandardSignature.set1],
+                allowsVariadic: true),
+            body: { args, location in
+                try args.mustHaveAtLeast(2, location)
+                let set = try args.unwrapFirst(location).unwrapSet(location)
+                let others = try args.dropFirst().map { other in try other.unwrapSet(location) }
+                let result = set.cartesianProduct(with: others)
+                return .set(result)
             })
         
     ]

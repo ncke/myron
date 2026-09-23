@@ -115,6 +115,15 @@ struct StandardPredicates: StandardModule {
         }),
         
         MyronPrimitive(
+            primitiveName: "predicate.nan?",
+            representations: ["nan?"],
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let d = number.asDouble { return .boolean(d.isNaN) }
+                return .boolean(false)
+        }),
+        
+        MyronPrimitive(
             primitiveName: "predicate.callable?",
             representations: ["callable?"],
             body: { args, location in

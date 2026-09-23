@@ -76,8 +76,9 @@ looking things up later.
   nested hashmap, even a procedure — with no separate key type to convert
   through.
 - A set type with the usual algebra: `union`, `intersection`, `difference`,
-  `symmetric-difference`, the subset and superset relations, and `is-disjoint?`.
-  Sets compare by membership, so `(eq (set 1 2) (set 2 1))` is `true`.
+  `symmetric-difference`, the subset and superset relations, `is-disjoint?`,
+  `powerset` and `cartesian-product`. Sets compare by membership, so
+  `(eq (set 1 2) (set 2 1))` is `true`.
 - `map` and `filter` give back the kind they were given, so a set maps to a set
   and a list to a list.
 - A session's environment is open to its host: names can be read, written and
@@ -649,9 +650,9 @@ Nesting comes free, so a structure converts in one step however deep it goes.
 `Array`, `Set`, `Dictionary` and `Optional` conform where their elements do;
 `MyronValue`, `MyronHashmap` and `MyronSet` conform as themselves. A list and a
 set each convert into either Swift collection, so the Swift type you ask for
-decides the shape — and asking for a `Set` collapses duplicates, as Swift's `Set`
-always does. `nothing` becomes `nil` for an optional and an error for anything
-else.
+decides the shape — and asking for a `Set` collapses duplicates, as Swift's
+`Set` always does. `nothing` becomes `nil` for an optional and an error for
+anything else.
 
 `require()` is the one to reach for when context already fixes the type, which
 is what makes it read well in argument position:
@@ -917,11 +918,11 @@ environment left to run in, and evaluation fails with
 reached, including from inside a list or hashmap it was stored in.
 
 The same reasoning applies to a [host primitive](#defining-primitives) from the
-other side. A session owns the environment that holds the closure, so a body that
-captured its session would form a cycle nothing could break, and the registry
-would never get to run. The `@Sendable` signature makes that a compile error, and
-it also means anything a body does capture has to be `Sendable` — which is worth
-knowing before you reach for a non-`Sendable` service inside one.
+other side. A session owns the environment that holds the closure, so a body
+that captured its session would form a cycle nothing could break, and the
+registry would never get to run. The `@Sendable` signature makes that a compile
+error, and it also means anything a body does capture has to be `Sendable` —
+which is worth knowing before you reach for a non-`Sendable` service inside one.
 
 ## A tour of Myron
 
@@ -1175,14 +1176,14 @@ one with `set`, which takes its members directly, or with `make-set`, which
 takes a list:
 
 ```lisp
-(set 1 2 3)                               ; #{1 2 3}
-(set 1 1 2)                               ; #{1 2} — duplicates collapse
-(set)                                     ; #{} — the empty set
-(make-set '(1 2 2 3))                     ; #{1 2 3}
+(set 1 2 3)                               ; {1 2 3}
+(set 1 1 2)                               ; {1 2} — duplicates collapse
+(set)                                     ; {} — the empty set
+(make-set '(1 2 2 3))                     ; {1 2 3}
 (values (set 1 2 3))                      ; back to a list of three
 ```
 
-Sets print with a leading `#`, as hashmaps do. A set has no order, so the
+Sets print in curly braces. A set has no order, so the
 members above are shown in a readable one — the order you actually get is
 unspecified and may differ on each run. Members can be of any type, and
 are compared exactly as `eq` compares them, so `1` and `1.0` are two members
@@ -1199,11 +1200,13 @@ Then there is the algebra, which is the reason to reach for a set in the first
 place:
 
 ```lisp
-(union (set 1 2) (set 2 3))               ; #{1 2 3}
-(intersection (set 1 2) (set 2 3))        ; #{2}
-(difference (set 1 2 3) (set 2))          ; #{1 3}
+(union (set 1 2) (set 2 3))               ; {1 2 3}
+(intersection (set 1 2) (set 2 3))        ; {2}
+(difference (set 1 2 3) (set 2))          ; {1 3}
 (is-subset? (set 1) (set 1 2))            ; true
 (is-disjoint? (set 1) (set 2))            ; true
+(powerset (set 1 2))                      ; {{} {1} {2} {1 2}}
+(cartesian-product (set 1 2) (set 'a))    ; {(1 a) (2 a)}
 ```
 
 Two sets are equal when they have the same members, however they were built:
@@ -1236,8 +1239,8 @@ All five take a [set](#sets) as readily as a list, and `map` and `filter` give
 back the kind they were given:
 
 ```lisp
-(map (lambda (x) (* x x)) (set 1 2 3))    ; #{1 4 9} — a set
-(filter (lambda (x) (> x 1)) (set 1 2 3)) ; #{2 3}
+(map (lambda (x) (* x x)) (set 1 2 3))    ; {1 4 9} — a set
+(filter (lambda (x) (> x 1)) (set 1 2 3)) ; {2 3}
 (reduce + 0 (set 1 2 3))                  ; 6
 ```
 
@@ -1610,6 +1613,7 @@ them.
 | `zero?` | a number equal to zero |
 | `finite?` | a number that is neither infinite nor `nan` |
 | `infinite?` | a double that is positive or negative infinity |
+| `nan?` | a double that is not a number |
 | `callable?` | a procedure or a primitive — anything that can head an application |
 
 ```lisp
@@ -1618,12 +1622,15 @@ them.
 (list? '())                               ; true
 (list? sqrt)                              ; false — functions match none
 (positive? "x")                           ; false — non-numbers are never
+(nan? (sqrt -1.0))                        ; true — the one that is not
 ```
 
 `integer?` and `double?` do not overlap; use `number?` when either will do. The
 numeric predicates answer `false` for non-numbers rather than failing —
 including `finite?`, for which every integer is finite and every non-number is
-not.
+not. `finite?`, `infinite?` and `nan?` partition the doubles: exactly one of
+the three holds for any double, and a `nan` is the value for which `finite?`
+and `infinite?` are both `false`.
 
 ### Logic
 
@@ -1720,6 +1727,25 @@ you want the other type back.
 `sqrt` accepts either numeric type and always returns a double. The rest accept
 doubles only.
 
+#### Angles
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `degs-to-rads` | 1 number, in degrees | double, in radians |
+| `rads-to-degs` | 1 double, in radians | double, in degrees |
+
+```lisp
+(degs-to-rads 180)                        ; 3.141592653589793
+(rads-to-degs pi)                         ; 180.0
+(sin (degs-to-rads 90))                   ; 1.0
+(rads-to-degs (atan2 1.0 1.0))            ; 45.0
+```
+
+Both return a double, but only `degs-to-rads` accepts an integer, because a
+whole number of degrees is an everyday thing to write and a whole number of
+radians almost never is — `(degs-to-rads 45)` needs no decimal point, while
+`(rads-to-degs 1)` is a type error rather than an angle you meant.
+
 #### Conversion
 
 | Primitive | Arguments | Result |
@@ -1793,9 +1819,10 @@ and every remaining argument must match, so lists and strings cannot be mixed.
 At least one argument is required.
 
 `contains?` compares with the same rules as `eq`, recursively, except that a
-type mismatch counts as "not found" rather than failing: `(contains? "a" '(1 2))`
-and `(contains? 1 '(1.0))` are both `false`. Over a string it tests for a
-substring, and the empty string is contained in everything.
+type mismatch counts as "not found" rather than failing:
+`(contains? "a" '(1 2))` and `(contains? 1 '(1.0))` are both `false`. Over a
+string it tests for a substring, and the empty string is contained in
+everything.
 
 ### Lists
 
@@ -1990,16 +2017,18 @@ decided exactly as `eq` decides equality, so `1` and `1.0` are two members.
 | `is-superset?` | 2 sets | `true` if the first holds every member of the second |
 | `is-strict-superset?` | 2 sets | as `is-superset?`, but not when they are equal |
 | `is-disjoint?` | 2 sets | `true` if they share no member |
+| `powerset` | 1 set | a set of every subset of it |
+| `cartesian-product` | 2 or more sets | a set of lists, one for each way of picking a member from each set in turn |
 
 ```lisp
-(set 1 2 3)                               ; #{1 2 3}
-(set 1 1 2)                               ; #{1 2} — duplicates collapse
-(set)                                     ; #{} — the empty set
-(make-set '(1 2 2 3))                     ; #{1 2 3}
+(set 1 2 3)                               ; {1 2 3}
+(set 1 1 2)                               ; {1 2} — duplicates collapse
+(set)                                     ; {} — the empty set
+(make-set '(1 2 2 3))                     ; {1 2 3}
 (values (set 1 2 3))                      ; a list of the three members
 
-(insert 4 (set 1 2))                      ; #{1 2 4}
-(remove 1 (set 1 2))                      ; #{2}
+(insert 4 (set 1 2))                      ; {1 2 4}
+(remove 1 (set 1 2))                      ; {2}
 (contains? 2 (set 1 2))                   ; true
 (length (set 1 2 3))                      ; 3
 (empty? (set))                            ; true
@@ -2015,7 +2044,7 @@ and given a hashmap it takes each entry as a two-element list, which is the same
 shape `keys-values` produces. With no argument it gives an empty set.
 
 ```lisp
-(make-set (make-hashmap '(("a" 1))))      ; #{("a" 1)}
+(make-set (make-hashmap '(("a" 1))))      ; {("a" 1)}
 (eq (make-set (values (set 1 2 3))) (set 1 2 3))
                                           ; true — round trips through a list
 ```
@@ -2025,12 +2054,12 @@ The algebra follows. `union` and `intersection` take one or more sets and
 takes exactly two:
 
 ```lisp
-(union (set 1 2) (set 2 3))               ; #{1 2 3}
-(union (set 1) (set 2) (set 3))           ; #{1 2 3}
-(intersection (set 1 2) (set 2 3))        ; #{2}
-(difference (set 1 2 3) (set 2))          ; #{1 3}
-(difference (set 1 2 3) (set 2) (set 3))  ; #{1}
-(symmetric-difference (set 1 2) (set 2 3)); #{1 3}
+(union (set 1 2) (set 2 3))               ; {1 2 3}
+(union (set 1) (set 2) (set 3))           ; {1 2 3}
+(intersection (set 1 2) (set 2 3))        ; {2}
+(difference (set 1 2 3) (set 2))          ; {1 3}
+(difference (set 1 2 3) (set 2) (set 3))  ; {1}
+(symmetric-difference (set 1 2) (set 2 3)); {1 3}
 ```
 
 Note that `difference` is the relative complement — the first set without the
@@ -2048,11 +2077,33 @@ from the plain ones only when the two sets are equal:
 (is-disjoint? (set 1) (set 2))            ; true
 ```
 
-Sets print with a leading `#`, and compare by membership rather than by the
+`powerset` gives back a set of sets: every subset of its argument, including
+the empty set and the set itself. A set of `n` members has `2ⁿ` subsets, so the
+result grows quickly. The empty set still has one subset, itself:
+
+```lisp
+(powerset (set 1 2))                      ; {{} {1} {2} {1 2}}
+(powerset (set))                          ; {{}}
+(length (powerset (set 1 2 3 4 5)))       ; 32
+```
+
+`cartesian-product` takes two or more sets and gives back a set of lists. Each
+list holds one member from each set, in the order the sets were given. More
+than two sets produce longer lists, not nested pairs, and an empty set anywhere
+empties the whole product:
+
+```lisp
+(cartesian-product (set 1 2) (set 'a 'b)) ; {(1 a) (1 b) (2 a) (2 b)}
+(cartesian-product (set 1) (set 2) (set 3))
+                                          ; {(1 2 3)}
+(cartesian-product (set 1 2) (set))       ; {}
+```
+
+Sets print in curly braces, and compare by membership rather than by the
 order they were built in:
 
 ```lisp
-(set 1 2 3)                               ; #{1 2 3}
+(set 1 2 3)                               ; {1 2 3}
 (eq (set 1 2) (set 2 1))                  ; true
 ```
 
@@ -2141,8 +2192,8 @@ they were given — a list maps to a list, a set to a set, including when it is
 empty:
 
 ```lisp
-(map (lambda (x) (* x x)) (set 1 2 3))    ; #{1 4 9}
-(filter (lambda (x) (> x 1)) (set 1 2 3)) ; #{2 3}
+(map (lambda (x) (* x x)) (set 1 2 3))    ; {1 4 9}
+(filter (lambda (x) (> x 1)) (set 1 2 3)) ; {2 3}
 (reduce + 0 (set 1 2 3))                  ; 6
 ```
 
@@ -2180,42 +2231,31 @@ is an error rather than `true`.
 Myron is a young language, and version `0.1.1` should be read as an invitation
 rather than a promise: the public Swift interface may still change.
 
-Notable gaps:
+Myron is purely functional. Values are immutable, and there is no `set!`: a
+procedure cannot rebind a name in an enclosing environment. Everything that
+touches the outside world, such as I/O or loading more source, belongs to the
+host, which supplies it as a [primitive](#defining-primitives) on its own terms.
+A primitive receives its arguments and nothing else, so it is a function of
+those arguments alone.
 
-- No escape sequences in string literals, so a string cannot contain a `"`, and
-  a newline can only be got in by letting the literal span source lines.
-- No `sort`, `range`, `zip`, `flatten`, `take-while`, `drop-while` or `foldr`.
-- Hashmap and set enumeration order is unspecified, and there is no ordering
-  primitive to impose one.
-- Sets cannot be written as literals in Myron source; build them with `set` or
-  `make-set`. There is no `powerset` or Cartesian product.
-- Hashmaps cannot be written as literals in Myron source; build them with
-  `make-hashmap` from an alist.
-- No mutation: there is no `set!`, and no way to rebind a name in an enclosing
-  environment.
-- No variadic user procedures, and no default or keyword parameters.
-- No dotted pairs, no `nil`-terminated cons cells; a list is a list.
-- No modules, no way to load Myron source from Myron.
-- No I/O of any kind in the language itself. Everything comes in and goes out
-  through the host, which can supply what it wants as a
-  [primitive](#defining-primitives).
-- A host primitive takes between zero and six arguments; there is no variadic
-  form yet.
-- A host primitive receives its arguments and nothing else. There is no way for
-  one to read the session's environment or evaluate source, so a primitive is a
-  function of its arguments alone.
-- Several operations over a value recurse on the host stack, so a deeply nested
-  list or hashmap can overflow it. Rendering one with `description` is the
-  shallowest limit, then hashing it — which is what using one as a hashmap key
-  or a set member does — and then releasing it, since the runtime tears the
-  structure down recursively as well. `eq` is the exception: it walks
-  iteratively and goes far deeper than the rest. Where each limit falls depends
-  on the stack of the thread the session runs on, so a value that survives on
-  the main thread may not on a worker. Parsing is no longer among these: the
-  parser keeps its own work stack, so bracket nesting in source is bounded by
-  the heap rather than by the stack.
-- `sourceHandle` is carried through tokenisation but not yet surfaced on
-  errors.
+Still to come:
+
+- `sort`, which will also put the members of a hashmap or set in order, and
+  `range`, `zip`, `flatten`, `take-while`, `drop-while` and `foldr`.
+- Literal syntax for sets and hashmaps. Until then, build them with `set`,
+  `make-set` and `make-hashmap`.
+- Escape sequences in string literals. Until then, a string cannot contain a
+  `"`, and a newline goes in by letting the literal span source lines.
+- Variadic user procedures, and default and keyword parameters.
+- A variadic form for host primitives, which take between zero and six
+  arguments today.
+- `sourceHandle` on errors. It is carried through tokenisation but not yet
+  surfaced.
+
+A few operations over a deeply nested value, such as printing and hashing, still
+run on the host thread's stack, so how deep they reach depends on that thread.
+Parsing and `eq` have already moved onto work stacks of their own, and the rest
+are following.
 
 ## Licence
 

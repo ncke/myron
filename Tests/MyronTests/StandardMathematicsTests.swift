@@ -333,6 +333,67 @@ struct StandardMathematicsTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("angle conversion", arguments: [
+        ("(degs-to-rads 0)", "0.0"),
+        ("(degs-to-rads 0.0)", "0.0"),
+        ("(degs-to-rads 180)", "3.141592653589793"),
+        ("(degs-to-rads 90.0)", "1.5707963267948966"),
+        ("(degs-to-rads 45)", "0.7853981633974483"),
+        ("(degs-to-rads -90)", "-1.5707963267948966"),
+        ("(rads-to-degs 0.0)", "0.0"),
+        ("(rads-to-degs pi)", "180.0"),
+        ("(rads-to-degs (/ pi 2.0))", "90.0"),
+        ("(rads-to-degs (- pi))", "-180.0")
+    ] as [ValueCase])
+    func angleConversion(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("angle conversion round trips and feeds trigonometry", arguments: [
+        ("(rads-to-degs (degs-to-rads 45))", "45.0"),
+        ("(degs-to-rads (rads-to-degs pi))", "3.141592653589793"),
+        ("(sin (degs-to-rads 90))", "1.0"),
+        ("(cos (degs-to-rads 0))", "1.0"),
+        ("(rads-to-degs (atan2 1.0 1.0))", "45.0"),
+        ("(round (rads-to-degs (asin 1.0)))", "90.0")
+    ] as [ValueCase])
+    func angleConversionRoundTrips(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("angle conversion errors", arguments: [
+        ("(degs-to-rads)", .unexpectedArity(0, .exactly(1))),
+        ("(degs-to-rads 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(rads-to-degs)", .unexpectedArity(0, .exactly(1))),
+        ("(rads-to-degs 1.0 2.0)", .unexpectedArity(2, .exactly(1))),
+        ("(degs-to-rads \"90\")", .unexpectedType(.string, [.double, .integer])),
+        ("(rads-to-degs \"1.0\")", .unexpectedType(.string, [.double])),
+        ("(degs-to-rads true)", .unexpectedType(.boolean, [.double, .integer]))
+    ] as [FailureCase])
+    func angleConversionErrors(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
+    /// Degrees are written whole all the time, so `degs-to-rads` takes an
+    /// integer. A whole number of radians is almost always a mistake, so
+    /// `rads-to-degs` does not.
+    @Test("only degrees may be whole", arguments: [
+        ("(rads-to-degs 0)", .unexpectedType(.integer, [.double])),
+        ("(rads-to-degs 1)", .unexpectedType(.integer, [.double])),
+        ("(rads-to-degs 3)", .unexpectedType(.integer, [.double]))
+    ] as [FailureCase])
+    func radiansAreNeverWhole(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
+    @Test("whole degrees need no decimal point", arguments: [
+        ("(degs-to-rads 90)", "1.5707963267948966"),
+        ("(degs-to-rads 90.0)", "1.5707963267948966")
+    ] as [ValueCase])
+    func wholeDegrees(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("extended arithmetic errors", arguments: [
         ("(pow 2)", .unexpectedArity(1, .exactly(2))),
         ("(pow 2 \"x\")", .unexpectedType(.integer, [.double, .integer])),

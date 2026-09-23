@@ -406,6 +406,27 @@ struct StandardMathematics: StandardModule {
 
                 let got = x.kind == .double ? y.kind : x.kind
                 throw MyronError(.unexpectedType(got, [.integer]), at: location)
+        }),
+        
+        // MARK: Angles
+        
+        MyronPrimitive(
+            primitiveName: "mathematics.degs-to-rads",
+            representations: ["degs-to-rads"],
+            body: { args, location in
+                let fst = try args.unwrap1(location)
+                if let degs = fst.asDouble { return .double((.pi * degs) / 180.0) }
+                if let degs = fst.asInteger { return .double((.pi * Double(degs)) / 180.0) }
+                throw MyronError(.unexpectedType(fst.kind, [.double, .integer]), at: location)
+        }),
+        
+        MyronPrimitive(
+            primitiveName: "mathematics.rads-to-degs",
+            representations: ["rads-to-degs"],
+            body: { args, location in
+                let fst = try args.unwrap1(location)
+                if let rads = fst.asDouble { return .double((180.0 * rads) / .pi) }
+                throw MyronError(.unexpectedType(fst.kind, [.double]), at: location)
         })
     ]
 
