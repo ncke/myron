@@ -50,6 +50,7 @@ looking things up later.
   [Hashmaps](#hashmaps) · [Sets](#sets) ·
   [Strings](#strings) · [Higher-order functions](#higher-order-functions)
 - [Status](#status)
+- [Changelog](#changelog)
 - [Licence](#licence)
 
 ## Features
@@ -120,7 +121,7 @@ swift run myron-repl
 *  ██ ████ ██    ▀███▀    ██  ·  ██  ██     ██  ██▀█▄ ·██    **     **  .  **
    ██  ██  ██     ██      █████████  ██  ·  ██  ██  ▀█▄██     **  .  **     **
  · ██      ██     ██      ██ · ████  █████████  ██   ▀███    **     **     **
-.    ·     .        *      .      ·         version 0.1.1   *   .  *      *
+.    ·     .        *      .      ·         version 0.2.0   *   .  *      *
          ·       .       ·      .     *      .      ·          ·      .      ·
 
 Ready.
@@ -142,7 +143,7 @@ depend on the `Myron` library product:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ncke/myron.git", from: "0.1.1")
+    .package(url: "https://github.com/ncke/myron.git", from: "0.2.0")
 ],
 targets: [
     .target(
@@ -166,7 +167,7 @@ import Myron
 let session = MyronSession()
 let result = session.eval("(+ 1 2)")      // .success(.integer(3))
 
-print(MyronLanguage.version)              // 0.1.1
+print(MyronLanguage.version)              // 0.2.0
 ```
 
 ### `MyronSession`
@@ -1656,27 +1657,37 @@ a `lambda` if you need them as values.
 
 #### Arithmetic
 
-| Primitive | Arguments | Result |
-|---|---|---|
-| `+` | 2 or more numbers | sum |
-| `-` | 1 number (negation) or 2 numbers (difference) | number |
-| `*` | 2 or more numbers | product |
-| `/` | 2 numbers | quotient |
-| `mod` | 2 integers | remainder with the sign of the divisor |
-| `rem` | 2 integers | remainder with the sign of the dividend |
-| `pow` | 2 numbers | power |
+The basic operations have a word form and an operator form, which are the same
+function under two names, just as the comparisons do.
+
+| Primitive | Alias | Arguments | Result |
+|---|---|---|---|
+| `add` | `+` | 2 or more numbers | sum |
+| `sub` | `-` | 1 number (negation) or 2 numbers (difference) | number |
+| `mul` | `*` | 2 or more numbers | product |
+| `div` | `/` | 2 numbers | quotient |
+| `mod` | `%` | 2 integers | remainder with the sign of the divisor |
+| `rem` | | 2 integers | remainder with the sign of the dividend |
+| `neg` | | 1 number | its negation |
+| `pow` | | 2 numbers | power |
 
 ```lisp
 (+ 1 2 3 4)                               ; 10
+(add 1 2 3 4)                             ; 10 — the same function
 (- 3)                                     ; -3
 (- 10 4)                                  ; 6
 (* 2.0 3.5)                               ; 7.0
 (/ 7 2)                                   ; 3 — integer division truncates
 (/ 7.0 2.0)                               ; 3.5
 (mod -7 3)                                ; 2
+(% -7 3)                                  ; 2
 (rem -7 3)                                ; -1
+(neg 5)                                   ; -5
 (pow 2 10)                                ; 1024
 ```
+
+`neg` is the one-argument form of `-` under a name of its own, which reads
+better when it is passed to a higher-order function: `(map neg '(1 2 3))`.
 
 Division or modulo by zero is a `divisionByZero` error. Integer arithmetic that
 exceeds `Int` is an `overflow` error — including inside `pow`, which computes
@@ -2228,7 +2239,7 @@ is an error rather than `true`.
 
 ## Status
 
-Myron is a young language, and version `0.1.1` should be read as an invitation
+Myron is a young language, and version `0.2.0` should be read as an invitation
 rather than a promise: the public Swift interface may still change.
 
 Myron is purely functional. Values are immutable, and there is no `set!`: a
@@ -2256,6 +2267,13 @@ A few operations over a deeply nested value, such as printing and hashing, still
 run on the host thread's stack, so how deep they reach depends on that thread.
 Parsing and `eq` have already moved onto work stacks of their own, and the rest
 are following.
+
+## Changelog
+
+Every release is recorded in [CHANGELOG.md](CHANGELOG.md), most recent first,
+including any breaking changes to the language or the public Swift interface.
+The latest release is `0.2.0`, which adds association lists, hashmaps, sets,
+Swift interoperability and primitives written in Swift.
 
 ## Licence
 

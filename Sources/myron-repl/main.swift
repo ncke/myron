@@ -8,7 +8,7 @@ let session = MyronSession()
 
 while true {
     print("> ", terminator: "")
-    fflush(stdout)
+    fflush(nil)
 
     guard let line = readLine() else {
         print()
