@@ -6,6 +6,26 @@ uses [semantic versioning](https://semver.org/spec/v2.0.0.html). While the
 major version is `0`, a minor release may break the public Swift interface or
 the language, and a patch release will not.
 
+## [Unreleased]
+
+### Added
+
+- The executable runs a file: `myron script.my` evaluates it and exits. An
+  error goes to standard error with the file, line and column, and the exit
+  status is non-zero. A leading `#!` line is ignored.
+- The executable binds `print`, `write`, `read-line`, `read-character` and
+  `read-all` for standard output and standard input, and `exit` to end the
+  process with a given status.
+- The executable binds `arguments` to the command-line arguments after the
+  file, and `source-file` to the file's path. In the REPL they are `()` and
+  `nothing`.
+
+### Changed
+
+- The `myron-repl` executable is now `myron`. Run it with no arguments for the
+  REPL, as before.
+- The REPL writes errors to standard error.
+
 ## [0.2.0] — 2026-09-23
 
 Three new data types, a two-way bridge to Swift, and primitives written in
@@ -104,5 +124,6 @@ The first release: a small Lisp that can be embedded in a Swift application.
   for hosting the interpreter.
 - The `myron-repl` executable.
 
+[Unreleased]: https://github.com/ncke/myron/compare/0.2.0...HEAD
 [0.2.0]: https://github.com/ncke/myron/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/ncke/myron/releases/tag/0.1.0

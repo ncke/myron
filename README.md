@@ -107,10 +107,11 @@ swift build
 swift test
 ```
 
-Take the language for a spin in the REPL:
+The `myron` executable is both a REPL and a script runner. Run it with no
+arguments to take the language for a spin in the REPL:
 
 ```bash
-swift run myron-repl
+swift run myron
 ```
 
 ```
@@ -121,7 +122,7 @@ swift run myron-repl
 *  ██ ████ ██    ▀███▀    ██  ·  ██  ██     ██  ██▀█▄ ·██    **     **  .  **
    ██  ██  ██     ██      █████████  ██  ·  ██  ██  ▀█▄██     **  .  **     **
  · ██      ██     ██      ██ · ████  █████████  ██   ▀███    **     **     **
-.    ·     .        *      .      ·         version 0.2.0   *   .  *      *
+.    ·     .        *      .      ·         version 0.2.1   *   .  *      *
          ·       .       ·      .     *      .      ·          ·      .      ·
 
 Ready.
@@ -136,7 +137,95 @@ when it does not — it is dropped if `NO_COLOR` is set, if `TERM` is unset or
 `dumb`, or if output is redirected to a file or a pipe.
 
 The REPL reads one line at a time, so keep each entry on a single line.
-Definitions persist for the life of the process.
+Definitions persist for the life of the process. Errors are written to
+standard error.
+
+Give it a file instead and it evaluates the file from top to bottom, then
+exits:
+
+```bash
+swift run myron greet.my
+```
+
+```lisp
+#!/usr/bin/env myron
+; greet.my — says hello to each line of input.
+
+(define (greet-all)
+  (let ((name (read-line)))
+    (if (nothing? name)
+        nothing
+        (begin
+          (print (implode "" (list "Hello, " name "!")))
+          (greet-all)))))
+
+(greet-all)
+```
+
+```
+$ printf 'Ada\nGrace\n' | myron greet.my
+Hello, Ada!
+Hello, Grace!
+```
+
+A script is not echoed as it runs: what it prints is what appears. A leading
+`#!` line is ignored, so with `myron` on your `PATH` a script marked executable
+can be run directly. The `myron` executable binds some primitives of its own,
+on top of the [standard library](#standard-library-reference), to connect a
+program to the terminal:
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `print` | any value | `nothing`; writes the value and a newline to standard output |
+| `write` | any value | `nothing`; writes the value to standard output, with no newline |
+| `read-line` | none | the next line of standard input, without its newline, or `nothing` at the end of input |
+| `read-character` | none | the next character of standard input as a one-character string, or `nothing` at the end of input |
+| `read-all` | none | the rest of standard input, or `""` at the end of input |
+| `exit` | integer from 0 to 255 | ends the process with that exit status |
+
+`print` and `write` render a value the way `string` does, so a string appears
+without its quotes. The three readers share one buffer, so they can be mixed
+freely. `read-character` reads a single Unicode scalar, so a character built
+from several — an accented letter written with a combining accent, or a `\r\n`
+line ending — arrives one piece at a time, and a byte that is not valid UTF-8
+arrives as U+FFFD, the replacement character. `exit` works in the REPL too,
+where it ends the session.
+
+It also binds two names describing how it was run:
+
+| Name | Value |
+|---|---|
+| `source-file` | the file's path, as given on the command line, or `nothing` in the REPL |
+| `arguments` | a list of the command-line arguments after the file, as strings — `()` if there are none, and in the REPL |
+
+```
+$ myron echo.my one "two words" 3
+```
+
+```lisp
+; echo.my
+(print source-file)                       ; echo.my
+(print arguments)                         ; ("one" "two words" "3")
+```
+
+These are all [host primitives](#defining-primitives) and ordinary bindings,
+not part of the language: a Swift application that embeds Myron does not get
+them, and supplies its own I/O on its own terms.
+
+If evaluation fails, the error goes to standard error, prefixed with the file,
+line and column, and `myron` exits with status 1:
+
+```
+$ myron broken.my
+broken.my:4:4: ERROR: Unexpected type, got string, expected integer
+   (+ x "a")
+   ^^^^^^^^^
+```
+
+Evaluation stops at the first failing form, so output from the forms before it
+will already have been written. A file that cannot be read also exits with
+status 1. A script that runs to the end exits with status 0, unless it calls
+`exit` first.
 
 To use Myron in your own project, add it to your package dependencies and
 depend on the `Myron` library product:
@@ -157,7 +246,7 @@ targets: [
 
 Myron is a library first. The public surface is deliberately small: a session,
 its configuration, a result, the `MyronValue` enum, `MyronHashmap`,
-`MyronSet`, `MyronError`, and the language version. The `myron-repl`
+`MyronSet`, `MyronError`, and the language version. The `myron`
 executable is itself just another host of the library, in a few dozen lines of
 Swift.
 
@@ -167,7 +256,7 @@ import Myron
 let session = MyronSession()
 let result = session.eval("(+ 1 2)")      // .success(.integer(3))
 
-print(MyronLanguage.version)              // 0.2.0
+print(MyronLanguage.version)              // 0.2.1
 ```
 
 ### `MyronSession`
@@ -928,7 +1017,7 @@ which is worth knowing before you reach for a non-`Sendable` service inside one.
 ## A tour of Myron
 
 This section assumes you know Swift and are new to Lisp. Everything here can be
-typed straight into `swift run myron-repl`.
+typed straight into `swift run myron`.
 
 ### Everything is an expression
 

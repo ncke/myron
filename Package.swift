@@ -12,8 +12,8 @@ let package = Package(
             targets: ["Myron"]
         ),
         .executable(
-            name: "myron-repl",
-            targets: ["myron-repl"]
+            name: "myron",
+            targets: ["MyronRunner"]
         ),
     ],
     targets: [
@@ -23,7 +23,7 @@ let package = Package(
             name: "Myron"
         ),
         .executableTarget(
-            name: "myron-repl",
+            name: "MyronRunner",
             dependencies: ["Myron"]
         ),
         .testTarget(
