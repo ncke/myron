@@ -129,8 +129,47 @@ struct StandardPredicates: StandardModule {
             body: { args, location in
                 let value = try args.unwrap1(location)
                 return .boolean(value.isCallable)
+        }),
+        
+        MyronPrimitive(
+            primitiveName: "predicate.comparable?",
+            representations: ["comparable?"],
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(isComparable(value.kind))
+        }),
+        
+        MyronPrimitive(
+            primitiveName: "predicate.sortable?",
+            representations: ["sortable?"],
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                guard let elements = try? value.unwrapElements(location) else {
+                    return .boolean(false)
+                }
+                guard let fst = elements.first else { return .boolean(true) }
+                
+                for element in elements {
+                    let kind = element.kind
+                    if kind != fst.kind || !isComparable(kind) { return .boolean(false) }
+                }
+                
+                return .boolean(true)
         })
         
     ]
+    
+}
+
+// MARK: - Helpers
+
+extension StandardPredicates {
+    
+    private static func isComparable(_ kind: MyronValue.Kind) -> Bool {
+        switch kind {
+        case .double, .integer, .string: return true
+        default: return false
+        }
+    }
     
 }

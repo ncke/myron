@@ -19,9 +19,22 @@ the language, and a patch release will not.
 - The executable binds `arguments` to the command-line arguments after the
   file, and `source-file` to the file's path. In the REPL they are `()` and
   `nothing`.
+- `sort` and `sort-descending`, which put the elements of a list or set in
+  order and give back a list.
+- `sortable?`, which says whether `sort` would succeed, and `comparable?`,
+  which says whether a value has an ordering.
+- `kind`, which names the type of any value as a string.
+- The constants `nan` and `infinity`.
 
 ### Changed
 
+- A `nan` now has a place in the ordering, after every other double, so `lt`,
+  `lte`, `gt` and `gte` always give a consistent answer and `sort` puts a `nan`
+  at the end. Before, `<` answered `true` whichever side the `nan` was on, and
+  `>` answered `false`.
+- `min` and `max` follow the same ordering: `min` passes over a `nan` and `max`
+  gives one back. Before, the answer depended on where the `nan` was in the
+  arguments.
 - The `myron-repl` executable is now `myron`. Run it with no arguments for the
   REPL, as before.
 - The REPL writes errors to standard error.

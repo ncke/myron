@@ -197,6 +197,21 @@ struct StandardPredicatesTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("comparable?", arguments: [
+        ("(comparable? 1)", "true"),
+        ("(comparable? 1.0)", "true"),
+        ("(comparable? \"a\")", "true"),
+        ("(comparable? true)", "false"),
+        ("(comparable? 'a)", "false"),
+        ("(comparable? '(1))", "false"),
+        ("(comparable? (set 1))", "false"),
+        ("(comparable? nothing)", "false"),
+        ("(comparable? +)", "false")
+    ] as [ValueCase])
+    func isComparable(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("predicate errors", arguments: [
         ("(nothing? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(number?)", .unexpectedArity(0, .exactly(1))),
@@ -208,7 +223,9 @@ struct StandardPredicatesTests {
         ("(finite? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(infinite?)", .unexpectedArity(0, .exactly(1))),
         ("(nan?)", .unexpectedArity(0, .exactly(1))),
-        ("(nan? 1 2)", .unexpectedArity(2, .exactly(1)))
+        ("(nan? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(comparable?)", .unexpectedArity(0, .exactly(1))),
+        ("(comparable? 1 2)", .unexpectedArity(2, .exactly(1)))
     ] as [FailureCase])
     func predicateErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

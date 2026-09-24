@@ -45,9 +45,10 @@ looking things up later.
   [Evaluation model](#evaluation-model) · [Special forms](#special-forms)
 - [Standard library reference](#standard-library-reference)
   — [Comparison](#comparison) · [Predicates](#predicates) ·
-  [Logic](#logic) · [Mathematics](#mathematics) · [Sequences](#sequences) ·
-  [Lists](#lists) · [Association lists](#association-lists) ·
-  [Hashmaps](#hashmaps) · [Sets](#sets) ·
+  [Kinds](#kinds) · [Logic](#logic) · [Mathematics](#mathematics) ·
+  [Sequences](#sequences) · [Lists](#lists) ·
+  [Association lists](#association-lists) · [Hashmaps](#hashmaps) ·
+  [Sets](#sets) · [Ordering](#ordering) ·
   [Strings](#strings) · [Higher-order functions](#higher-order-functions)
 - [Status](#status)
 - [Changelog](#changelog)
@@ -63,7 +64,7 @@ looking things up later.
   interpreter's continuation stack lives on the heap, so recursion depth is
   bounded by a configurable limit rather than by the host's thread stack.
 - A standard environment covering comparison, predicates, logic, mathematics,
-  sequences, lists, association lists, hashmaps, sets, strings, and the
+  sequences, lists, association lists, hashmaps, sets, sorting, strings, and the
   higher-order staples (`map`, `filter`, `reduce`, `all`, `any`).
 - Two associative types behind one set of names: `get`, `put` and friends
   resolve over alists and hashmaps alike.
@@ -598,7 +599,7 @@ session.eval("(eq (lambda (x) x) (lambda (x) x))")   // false
 ```
 
 The one value that does not equal itself is `nan`, which follows the IEEE rule
-Swift already applies — `(eq (sqrt -1.0) (sqrt -1.0))` is `false`.
+Swift already applies — `(eq nan nan)` is `false`.
 
 ### `MyronError`
 
@@ -638,7 +639,7 @@ also has a `description`, which is the first line of the rendered message.
 | `expectedFunction(MyronValue.Kind)` | The head of an application was not callable. |
 | `expectedQuote` | A string literal was never closed. |
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
-| `incomparableTypes` | `gt`/`lt` and friends were given types with no ordering. |
+| `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
 | `invalidName(String)` | `define` was given a name Myron source could not write; carries the name. Thrown by `define` itself, never by `eval`. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
@@ -1063,6 +1064,13 @@ true                                      ; boolean
 
 Only the first six can be written as literals. A hashmap is built with
 `make-hashmap` and a set with `set` or `make-set`.
+
+`kind` names the type of any value, as a string:
+
+```lisp
+(kind 42)                                 ; "integer"
+(kind (set 1 2 3))                        ; "set"
+```
 
 Numbers are strict about their types. An integer is an `Int` and a double is a
 `Double`, and Myron will never quietly promote one to the other:
@@ -1682,6 +1690,20 @@ separately written twin:
 (eq (lambda (x) x) (lambda (x) x))        ; false — two procedures
 ```
 
+A `nan` has a place in the ordering: it comes after every other double,
+infinity included, so the ordering comparisons always give an answer and a
+`nan` [sorts](#ordering) to the end. Two `nan`s are neither less nor greater
+than each other. Equality still follows the IEEE rule, so a `nan` is not `eq`
+to itself even though `<=` and `>=` hold between two of them:
+
+```lisp
+(< 1.0 nan)                               ; true
+(> nan infinity)                          ; true — after infinity too
+(< nan nan)                               ; false
+(<= nan nan)                              ; true
+(eq nan nan)                              ; false
+```
+
 ### Predicates
 
 Each predicate takes exactly one value of any type and answers `true` or
@@ -1705,6 +1727,8 @@ them.
 | `infinite?` | a double that is positive or negative infinity |
 | `nan?` | a double that is not a number |
 | `callable?` | a procedure or a primitive — anything that can head an application |
+| `comparable?` | an integer, a double, or a string — a value `lt` and friends can order |
+| `sortable?` | a list or set that [`sort`](#ordering) can order |
 
 ```lisp
 (nothing? (head '()))                     ; true
@@ -1721,6 +1745,29 @@ including `finite?`, for which every integer is finite and every non-number is
 not. `finite?`, `infinite?` and `nan?` partition the doubles: exactly one of
 the three holds for any double, and a `nan` is the value for which `finite?`
 and `infinite?` are both `false`.
+
+### Kinds
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `kind` | 1 value of any type | the name of its type, as a string |
+
+```lisp
+(kind 1)                                  ; "integer"
+(kind 1.0)                                ; "double"
+(kind '(1 2))                             ; "list"
+(kind nothing)                            ; "nothing"
+(kind +)                                  ; "primitive"
+(kind (lambda (x) x))                     ; "procedure"
+```
+
+The names are `boolean`, `double`, `hashmap`, `integer`, `list`, `nothing`,
+`set`, `string` and `symbol` for data, and `primitive` or `procedure` for
+anything callable. A primitive is built in or supplied by the host; a procedure
+is written in Myron with `lambda` or `define`. The [predicates](#predicates)
+are usually the better test — `(integer? x)` rather than
+`(eq (kind x) "integer")` — and `kind` is there for when the type itself is the
+answer, such as in a message.
 
 ### Logic
 
@@ -1743,6 +1790,13 @@ a `lambda` if you need them as values.
 | Name | Value |
 |---|---|
 | `pi` | `3.141592653589793`, a double |
+| `infinity` | positive infinity, a double |
+| `nan` | not a number, a double |
+
+Negative infinity is `(neg infinity)`. The same values also turn up from
+arithmetic — `(pow 10.0 400.0)` overflows to `infinity` and `(sqrt -1.0)` is a
+`nan` — and the constants are simply the direct way to write them. Like
+anything in the standard environment, they can be shadowed.
 
 #### Arithmetic
 
@@ -1797,10 +1851,16 @@ negative integer exponent yields `0`, except that `(pow 1 -n)` is `1` and
 
 ```lisp
 (min 3 1 2)                               ; 1
+(max 1.5 infinity)                        ; inf
 (abs -5)                                  ; 5
 (floor 3.7)                               ; 3.0
 (round 3.5)                               ; 4.0
 ```
+
+`min` and `max` agree with [the comparisons](#comparison) that a `nan` comes
+after every other double, so `min` passes over a `nan` and `max` gives one back:
+`(min 1.0 nan)` is `1.0` and `(max 1.0 nan)` is `nan`. Every argument is still
+checked, so `(max nan 3)` is a type error rather than `nan`.
 
 `floor`, `ceil` and `round` take doubles only and return doubles — `(floor 3)`
 is a type error, and `(floor 3.7)` is `3.0`, not `3`. Reach for `integer` when
@@ -2012,9 +2072,9 @@ An infinity equals itself, so it keys like anything else, and a `nan` is
 perfectly good as a *value*:
 
 ```lisp
-(put (sqrt -1.0) 1 '())                   ; () — dropped
-(put (list 1 (sqrt -1.0)) 1 '())          ; () — dropped, at any depth
-(get "a" (put "a" (sqrt -1.0) '()))       ; nan — fine as a value
+(put nan 1 '())                           ; () — dropped
+(put (list 1 nan) 1 '())                  ; () — dropped, at any depth
+(get "a" (put "a" nan '()))               ; nan — fine as a value
 ```
 
 Storing `nothing` is a way to delete: `(put k nothing al)` is `(remove k al)`.
@@ -2213,7 +2273,7 @@ itself could never be found again. This applies on every path that builds a set,
 including `map`:
 
 ```lisp
-(length (set (sqrt -1.0) 1))              ; 1 — only 1 is stored
+(length (set nan 1))                      ; 1 — only 1 is stored
 (values (map (lambda (x) (sqrt x)) (set -1.0 4.0)))
                                           ; (2.0)
 ```
@@ -2223,7 +2283,44 @@ differ between runs. Use a list where order matters — and see the note on
 `reduce` under [higher-order functions](#higher-order-functions).
 
 The ordered sequence primitives do not accept a set, since a set has no
-positions; only `length`, `empty?` and `contains?` do.
+positions; only `length`, `empty?` and `contains?` do. To put a set's members
+in order, [`sort`](#ordering) it into a list.
+
+### Ordering
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `sort` | list or set | a list of the elements, ascending |
+| `sort-descending` | list or set | a list of the elements, descending |
+| `sortable?` | 1 value of any type | `true` if `sort` can order it |
+
+```lisp
+(sort '(3 1 2))                           ; (1 2 3)
+(sort-descending '(3 1 2))                ; (3 2 1)
+(sort '("pear" "apple" "fig"))            ; ("apple" "fig" "pear")
+(sort (set 3 1 2))                        ; (1 2 3) — a set sorts into a list
+(sort '())                                ; ()
+(sort (list 2.0 nan 1.0))                 ; (1.0 2.0 nan)
+(sortable? '(1 2.0))                      ; false — integers and doubles
+(sortable? "cba")                         ; false — not a list or set
+```
+
+The elements are ordered as `lt` orders them, so they must all be of one
+comparable kind: all integers, all doubles, or all strings. A list that mixes
+kinds raises `unexpectedType`, and one of booleans, lists or anything else
+without an ordering raises `incomparableTypes`. Strings sort by their
+characters, so upper case comes before lower case: `(sort '("b" "B" "a"))` is
+`("B" "a" "b")`. A `nan` [orders after every other double](#comparison), so it
+goes to the end of an ascending sort and the start of a descending one.
+
+`sortable?` answers ahead of time whether `sort` would succeed: `true` for an
+empty list or set, or one whose elements are all of a single
+[`comparable?`](#predicates) kind. Like the other predicates it takes a value
+of any type, and anything that is not a list or a set is `false`.
+
+Both sorts always give back a list, whatever they were given; the original is
+left as it was. Sorting a set is the way to enumerate its members in a
+predictable order. There is not yet a way to sort by a comparison of your own.
 
 ### Strings
 
@@ -2340,8 +2437,8 @@ those arguments alone.
 
 Still to come:
 
-- `sort`, which will also put the members of a hashmap or set in order, and
-  `range`, `zip`, `flatten`, `take-while`, `drop-while` and `foldr`.
+- Sorting with a comparison procedure of your own, and sorting a hashmap's
+  entries; `range`, `zip`, `flatten`, `take-while`, `drop-while` and `foldr`.
 - Literal syntax for sets and hashmaps. Until then, build them with `set`,
   `make-set` and `make-hashmap`.
 - Escape sequences in string literals. Until then, a string cannot contain a

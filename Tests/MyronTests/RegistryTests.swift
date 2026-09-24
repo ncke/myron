@@ -16,19 +16,19 @@ struct StandardRegistryTests {
         "!=", "%", "*", "+", "-", "/",
         "<", "<=", "==", ">", ">=", "abs",
         "acos", "add", "append", "asin", "atan", "atan2",
-        "boolean?", "callable?", "cartesian-product", "ceil", "cons", "contains?", "cos",
-        "degs-to-rads", "difference", "div", "double", "double?", "drop",
+        "boolean?", "callable?", "cartesian-product", "ceil", "comparable?", "cons",
+        "contains?", "cos", "degs-to-rads", "difference", "div", "double", "double?", "drop",
         "empty?", "eq", "explode", "finite?", "floor", "get",
         "get-or", "gt", "gte", "has-key?", "head", "implode",
         "infinite?", "init", "insert", "integer", "integer?", "intersection",
         "is-disjoint?", "is-strict-subset?", "is-strict-superset?",
-        "is-subset?", "is-superset?", "key-index", "keys", "keys-values",
+        "is-subset?", "is-superset?", "key-index", "keys", "keys-values", "kind",
         "last", "length", "lines", "list", "list?", "ln",
         "log", "lowercase", "lt", "lte", "make-hashmap", "make-set",
         "max", "min", "mod", "mul", "nan?", "neg",
         "negative?", "neq", "not", "nothing?", "nth", "number?",
         "positive?", "pow", "powerset", "put", "rads-to-degs", "rem", "remove",
-        "reverse", "round", "set", "set?", "sin", "sqrt",
+        "reverse", "round", "set", "set?", "sin", "sort", "sort-descending", "sortable?", "sqrt",
         "string", "string?", "sub", "symmetric-difference", "tail", "take",
         "tan", "trim", "union", "uppercase", "values", "words",
         "zero?"
@@ -55,10 +55,8 @@ struct StandardRegistryTests {
         }
     }
 
-    /// Names the standard environment answers directly rather than through a
-    /// registered primitive, so the roster above cannot see them.
     private static let intrinsics: Set<String> = [
-        "nothing", "pi", "map", "filter", "reduce", "all", "any"
+        "nothing", "pi", "nan", "infinity", "map", "filter", "reduce", "all", "any"
     ]
 
     @Test("the intrinsic names resolve and are not also registered")

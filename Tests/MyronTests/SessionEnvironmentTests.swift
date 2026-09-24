@@ -35,6 +35,8 @@ struct SessionEnvironmentTests {
         let session = MyronSession()
 
         #expect(session.query("pi")?.asDouble == Double.pi)
+        #expect(session.query("nan")?.asDouble?.isNaN == true)
+        #expect(session.query("infinity")?.asDouble == Double.infinity)
         #expect(session.query("map") != nil)
         #expect(session.query("sqrt")?.kind == .primitive)
     }

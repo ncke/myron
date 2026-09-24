@@ -15,6 +15,8 @@ final class StandardEnvironment {
         // Constants.
         case "nothing": return .nothing
         case "pi": return .double(Double.pi)
+        case "nan": return .double(.nan)
+        case "infinity": return .double(.infinity)
             
         // Higher-order lists.
         case "map": return .higherOrder(.map)
@@ -47,9 +49,11 @@ extension StandardEnvironment {
         StandardAlist.self,
         StandardComparison.self,
         StandardHashmap.self,
+        StandardKinds.self,
         StandardLists.self,
         StandardLogic.self,
         StandardMathematics.self,
+        StandardOrdering.self,
         StandardPredicates.self,
         StandardSet.self,
         StandardStrings.self

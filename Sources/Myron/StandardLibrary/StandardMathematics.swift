@@ -212,7 +212,11 @@ struct StandardMathematics: StandardModule {
                 }
 
                 if var minimum = fst.asDouble {
-                    for arg in tail { minimum = min(minimum, try arg.unwrapDouble(location)) }
+                    for arg in tail {
+                        let number = try arg.unwrapDouble(location)
+                        if number.isNaN { continue }
+                        minimum = minimum.isNaN ? number : min(minimum, number)
+                    }
                     return .double(minimum)
                 }
 
@@ -234,7 +238,11 @@ struct StandardMathematics: StandardModule {
                 }
 
                 if var maximum = fst.asDouble {
-                    for arg in tail { maximum = max(maximum, try arg.unwrapDouble(location)) }
+                    for arg in tail {
+                        let number = try arg.unwrapDouble(location)
+                        if maximum.isNaN { continue }
+                        maximum = number.isNaN ? number : max(maximum, number)
+                    }
                     return .double(maximum)
                 }
 

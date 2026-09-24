@@ -295,6 +295,52 @@ struct StandardMathematicsTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("constants", arguments: [
+        ("pi", "3.141592653589793"),
+        ("nan", "nan"),
+        ("infinity", "inf"),
+        ("(neg infinity)", "-inf"),
+        ("(nan? nan)", "true"),
+        ("(infinite? infinity)", "true"),
+        ("(infinite? (neg infinity))", "true"),
+        ("(eq infinity (pow 10.0 400.0))", "true"),
+        ("(nan? (- infinity infinity))", "true"),
+        ("(let ((nan 1)) nan)", "1")
+    ] as [ValueCase])
+    func constants(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a nan is the greatest double to min and max", arguments: [
+        ("(min nan 1.0)", "1.0"),
+        ("(min 1.0 nan)", "1.0"),
+        ("(min nan 2.0 1.0)", "1.0"),
+        ("(min 2.0 nan 1.0)", "1.0"),
+        ("(min nan nan)", "nan"),
+        ("(min nan)", "nan"),
+        ("(min infinity nan)", "inf"),
+        ("(max nan 1.0)", "nan"),
+        ("(max 1.0 nan)", "nan"),
+        ("(max 1.0 nan 2.0)", "nan"),
+        ("(max infinity nan)", "nan"),
+        ("(max nan)", "nan"),
+        ("(max (neg infinity) 1.0)", "1.0"),
+        ("(min infinity 1.0)", "1.0")
+    ] as [ValueCase])
+    func minMaxNaN(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a nan does not excuse min and max from checking types", arguments: [
+        ("(min 1.0 nan 3)", .unexpectedType(.integer, [.double])),
+        ("(min nan 3)", .unexpectedType(.integer, [.double])),
+        ("(max 1.0 nan 3)", .unexpectedType(.integer, [.double])),
+        ("(max nan 3)", .unexpectedType(.integer, [.double]))
+    ] as [FailureCase])
+    func minMaxNaNErrors(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
     @Test("floor, ceil, round", arguments: [
         ("(floor 3.7)", "3.0"),
         ("(floor -1.5)", "-2.0"),

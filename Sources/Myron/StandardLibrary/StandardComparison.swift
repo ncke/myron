@@ -31,20 +31,15 @@ struct StandardComparison: StandardModule {
             primitiveName: "comparison.gte",
             representations: ["gte", ">="],
             body: { args, location in
-                let greater = try compareGt(args, at: location)
-                if greater { return .boolean(true) }
-                let equal = try compareEq(args, at: location)
-                return equal ? .boolean(true) : .boolean(false)
+                let lesser = try compareLt(args, at: location)
+                return .boolean(!lesser)
             }),
         
         MyronPrimitive(
             primitiveName: "comparison.lt",
             representations: ["lt", "<"],
             body: { args, location in
-                let greater = try compareGt(args, at: location)
-                if greater { return .boolean(false) }
-                let equal = try compareEq(args, at: location)
-                return equal ? .boolean(false) : .boolean(true)
+                return try .boolean(compareLt(args, at: location))
             }),
         
         MyronPrimitive(
@@ -52,8 +47,7 @@ struct StandardComparison: StandardModule {
             representations: ["lte", "<="],
             body: { args, location in
                 let greater = try compareGt(args, at: location)
-                if greater { return .boolean(false) }
-                return .boolean(true)
+                return .boolean(!greater)
             })
         
     ]
@@ -72,6 +66,33 @@ extension StandardComparison {
         return fst.isEqual(snd)
     }
     
+    static func compareLt(
+        _ args: [MyronValue],
+        at location: MyronLocation?
+    ) throws -> Bool {
+        let (fst, snd) = try args.unwrap2(location)
+
+        guard fst.kind == snd.kind else {
+            throw MyronError(.unexpectedType(snd.kind, [fst.kind]), at: location)
+        }
+
+        if let f = fst.asInteger, let s = snd.asInteger { return f < s }
+        if let f = fst.asDouble, let s = snd.asDouble {
+            //f       s       comp
+            //nnn     nnn     f < s
+            //nnn     nan     true
+            //nan     nnn     false
+            //nan     nan     false
+            
+            if f.isNaN { return false }
+            if s.isNaN { return true }
+            return f < s
+        }
+        if let f = fst.asString, let s = snd.asString { return f < s }
+
+        throw MyronError(.incomparableTypes, at: location)
+    }
+    
     static func compareGt(
         _ args: [MyronValue],
         at location: MyronLocation?
@@ -83,7 +104,11 @@ extension StandardComparison {
         }
 
         if let f = fst.asInteger, let s = snd.asInteger { return f > s }
-        if let f = fst.asDouble, let s = snd.asDouble { return f > s }
+        if let f = fst.asDouble, let s = snd.asDouble {
+            if s.isNaN { return false }
+            if f.isNaN { return true }
+            return f > s
+        }
         if let f = fst.asString, let s = snd.asString { return f > s }
 
         throw MyronError(.incomparableTypes, at: location)
