@@ -48,7 +48,7 @@ looking things up later.
   [Kinds](#kinds) · [Logic](#logic) · [Mathematics](#mathematics) ·
   [Sequences](#sequences) · [Lists](#lists) ·
   [Association lists](#association-lists) · [Hashmaps](#hashmaps) ·
-  [Sets](#sets) · [Ordering](#ordering) ·
+  [Sets](#sets) · [Records](#records-1) · [Ordering](#ordering) ·
   [Strings](#strings) · [Higher-order functions](#higher-order-functions)
 - [Status](#status)
 - [Changelog](#changelog)
@@ -81,6 +81,9 @@ looking things up later.
   `symmetric-difference`, the subset and superset relations, `is-disjoint?`,
   `powerset` and `cartesian-product`. Sets compare by membership, so
   `(eq (set 1 2) (set 2 1))` is `true`.
+- Records: named, fixed-shape values described by a record type. A type is
+  identified by its name and its fields, so two systems that define the same
+  type agree on it without sharing anything else.
 - `map` and `filter` give back the kind they were given, so a set maps to a set
   and a list to a list.
 - A session's environment is open to its host: names can be read, written and
@@ -132,10 +135,6 @@ Ready.
 > (map (lambda (x) (* x x)) '(1 2 3))
 (1 4 9)
 ```
-
-The banner is drawn in colour when the terminal supports it, and in plain text
-when it does not — it is dropped if `NO_COLOR` is set, if `TERM` is unset or
-`dumb`, or if output is redirected to a file or a pipe.
 
 The REPL reads one line at a time, so keep each entry on a single line.
 Definitions persist for the life of the process. Errors are written to
@@ -228,7 +227,14 @@ will already have been written. A file that cannot be read also exits with
 status 1. A script that runs to the end exits with status 0, unless it calls
 `exit` first.
 
-To use Myron in your own project, add it to your package dependencies and
+The REPL's banner is plain text unless standard output is a colour terminal;
+set `NO_COLOR` to keep it plain regardless.
+
+### Adding Myron to your own project
+
+To add Myron to an Xcode project, go to File > Add Package Dependencies... The Package URL is "https://github.com/ncke/myron.git".
+
+To use Myron in your own Swift package, add it to your package dependencies and
 depend on the `Myron` library product:
 
 ```swift
@@ -517,6 +523,8 @@ public enum MyronValue {
     case list([MyronValue])
     case hashmap(MyronHashmap)
     case set(MyronSet)
+    case record(MyronRecord)
+    case recordType(MyronRecordType)
     case nothing
     case procedure(MyronProcedure)        // a lambda or a defined procedure
     case primitive(MyronPrimitive)        // a built-in function
@@ -549,6 +557,8 @@ value.asSymbol                            // String?
 value.asList                              // [MyronValue]?
 value.asHashmap                           // MyronHashmap?
 value.asSet                               // MyronSet?
+value.asRecord                            // MyronRecord?
+value.asRecordType                        // MyronRecordType?
 ```
 
 These do not coerce: `MyronValue.integer(1).asDouble` is `nil`, exactly as
@@ -585,8 +595,8 @@ seen.contains(.integer(1))                // true
 
 Equality is structural and does not coerce, matching Myron's own `eq`: lists
 compare element by element, hashmaps by their contents and sets by their
-membership, both regardless of the order they were built in, and an integer
-never equals a double.
+membership, both regardless of the order they were built in, records by their
+type and then field by field, and an integer never equals a double.
 
 Every case answers, including the callable ones. A `.primitive` compares by the
 name it registered under, so `+` equals `+`. A `.procedure` compares by
@@ -632,6 +642,7 @@ also has a `description`, which is the first line of the rendered message.
 | `containingEnvironmentNoLongerExists` | A procedure was called after the session that defined it was deallocated. |
 | `couldNotResolve(String, String, [String])` | No standard primitive of that name accepts that shape of call; carries the name, the argument kinds, and the forms that would have worked. |
 | `divisionByZero` | `/`, `mod`, or `rem` was given a zero divisor. |
+| `duplicateField(String, String)` | A record type named the same field twice; carries the field and the type's name. |
 | `duplicateKeys([Int])` | A key was found more than once in an alist; carries the indices. |
 | `emptyApplication` | The form `()` was evaluated. |
 | `exceededMaximumStackDepth(Int)` | Recursion passed the configured limit; carries the depth reached. |
@@ -641,12 +652,13 @@ also has a `description`, which is the first line of the rendered message.
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
-| `invalidName(String)` | `define` was given a name Myron source could not write; carries the name. Thrown by `define` itself, never by `eval`. |
+| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type or field name; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
 | `typeCastFailed(MyronValue.Kind, MyronValue.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
+| `unexpectedField(String, String, [String])` | A record was asked for a field its type does not have; carries the field, the type's name, and the fields it does have. |
 | `unexpectedArity(Int, IntegerExpectation)` | Wrong number of arguments; carries what was given and what was wanted. |
 | `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
 | `unimplementedFeature` | Reserved for primitives that are declared but not yet implemented. Nothing raises it today. |
@@ -723,6 +735,8 @@ try value.requireInteger()                // Int
 try value.requireDouble()                 // Double
 try value.requireString()                 // String
 try value.requireSymbol()                 // String, from a symbol
+try value.requireRecord()                 // MyronRecord
+try value.requireRecordType()             // MyronRecordType
 ```
 
 And a generic `require()` for everything else, which takes its type from
@@ -739,7 +753,8 @@ let held: MyronValue = try value.require()
 
 Nesting comes free, so a structure converts in one step however deep it goes.
 `Array`, `Set`, `Dictionary` and `Optional` conform where their elements do;
-`MyronValue`, `MyronHashmap` and `MyronSet` conform as themselves. A list and a
+`MyronValue`, `MyronHashmap`, `MyronSet`, `MyronRecord` and `MyronRecordType`
+conform as themselves. A list and a
 set each convert into either Swift collection, so the Swift type you ask for
 decides the shape — and asking for a `Set` collapses duplicates, as Swift's
 `Set` always does. `nothing` becomes `nil` for an optional and an error for
@@ -938,6 +953,122 @@ own `Set`:
 MyronSet([1, 2]) == MyronSet([2, 1])      // true
 ```
 
+#### `MyronRecord` and `MyronRecordType`
+
+The payloads of `MyronValue.record` and `MyronValue.recordType`. Both are
+immutable value types. A record type is a name and an ordered list of field
+names, and building one validates both, just as
+[`make-record-type`](#records-1) does:
+
+```swift
+let point = try MyronRecordType(name: "point", fields: "x", "y")
+let same = try MyronRecordType(name: "point", fields: ["x", "y"])
+
+point == same                             // true — see identity, below
+point.name                                // "point"
+point.fields                              // ["x", "y"]
+point.hasField("x")                       // true
+```
+
+A record is built from a type, either by position — one value for every field,
+in order — or by name, where any field left out is `nothing`:
+
+```swift
+let p = try MyronRecord(type: point, values: 1, 2)
+let q = try MyronRecord(type: point, values: [1, 2])
+let r = try MyronRecord(type: point, fields: ["y": 2])   // x is nothing
+```
+
+Positional construction throws `unexpectedArity` if the count is wrong, and
+construction by name throws `unexpectedField` for a field the type does not
+have. Note that an array literal is taken as the values themselves, so a list
+bound for a one-field record has to be written as a value:
+
+```swift
+let box = try MyronRecordType(name: "box", fields: "inner")
+try MyronRecord(type: box, values: [1, 2])           // throws — two values
+try MyronRecord(type: box, values: .list([1, 2]))    // one value, a list
+```
+
+Reading mirrors [`MyronHashmap`](#myronhashmap), with everything in the order
+the fields were declared:
+
+```swift
+p.type                                    // MyronRecordType
+p.typeName                                // "point"
+p.fields                                  // ["x", "y"]
+p["x"]                                    // MyronValue? — nil for no such field
+p.values                                  // [MyronValue]
+p.pairs                                   // [(key: MyronValue, value: …)]
+p.dictionary                              // [MyronValue: MyronValue]
+p.isa(type: point)                        // Bool
+```
+
+The keys in `pairs` and `dictionary` are symbols, as they are in Myron. `get`
+and `put` throw `unexpectedField` for a field the type does not have, and `put`
+returns a new record rather than changing the receiver:
+
+```swift
+try p.get(field: "x")                     // .integer(1)
+try p.put(field: "x", value: 10)          // a new record; p is unchanged
+```
+
+**Identity.** A record type is identified by its name and its fields, in order,
+and nothing else — there is no hidden identity behind it. Two types built
+separately with the same name and fields are equal, wherever they were built,
+and so are the records made from them. A type that differs in its name, in any
+field, or only in the order of its fields is another type:
+
+```swift
+try MyronRecordType(name: "point", fields: "x", "y") == point   // true
+try MyronRecordType(name: "point", fields: "y", "x") == point   // false
+try MyronRecordType(name: "vector", fields: "x", "y") == point  // false
+```
+
+That is what lets a record travel. A record made in one session is still a
+`point` in another, or on another machine, so long as both sides define `point`
+the same way:
+
+```swift
+let a = MyronSession()
+let b = MyronSession()
+a.eval("(define point (make-record-type 'point '(x y)))")
+b.eval("(define point (make-record-type 'point '(x y)))")
+
+b.set("p", to: a.eval("(make-record point 1 2)").asSuccess!)
+b.eval("(record-isa? point p)")           // .success(true)
+```
+
+It also means that a type is only as distinct as its name. Two unrelated
+definitions of `point (x y)` are the same type, so in a system where types come
+from more than one place, qualify the names — `acme.point` is a valid name.
+
+**Sharing a type with Myron.** A host can define a type in Swift, bind it for
+Myron code to use, and recognise the records that come back. `MyronRecordType`
+is `Sendable`, so a [host primitive](#defining-primitives) can capture it:
+
+```swift
+let point = try MyronRecordType(name: "point", fields: "x", "y")
+session.set("point", to: point.myronValue)
+
+try session.define("norm") { value in
+    let p = try value.requireRecord()
+    guard p.isa(type: point) else {
+        throw MyronHostError("norm needs a point")
+    }
+    let x = try p.get(field: "x").requireDouble()
+    let y = try p.get(field: "y").requireDouble()
+    return (x * x + y * y).squareRoot()
+}
+
+session.eval("(norm (make-record point 3.0 4.0))")    // .success(5.0)
+```
+
+Records and record types are `Equatable` and `Hashable`, so either can be a
+member of a set, a hashmap key, or an element of Swift's own `Set`. A record
+holding a `nan` follows the [keys](#keys) rule: it is not equal to itself, so
+it is dropped as a key or member.
+
 #### Keys
 
 A hashmap is keyed by `MyronValue`, so any value is a key — a string, a list, a
@@ -1050,7 +1181,7 @@ Comments run from a `;` to the end of the line.
 ### Values and types
 
 Myron has integers, doubles, booleans, strings, symbols, lists, hashmaps, sets,
-and `nothing`.
+records, and `nothing`.
 
 ```lisp
 42                                        ; integer
@@ -1063,7 +1194,8 @@ true                                      ; boolean
 ```
 
 Only the first six can be written as literals. A hashmap is built with
-`make-hashmap` and a set with `set` or `make-set`.
+`make-hashmap`, a set with `set` or `make-set`, and a record with
+`make-record`.
 
 `kind` names the type of any value, as a string:
 
@@ -1314,6 +1446,42 @@ Two sets are equal when they have the same members, however they were built:
 ```
 
 Where order matters, use a list.
+
+### Records
+
+A record is a value with a fixed set of named fields. First describe its shape
+with a record type — a name and a list of field names — and then make records
+of that type, giving a value for each field in order:
+
+```lisp
+(define point (make-record-type 'point '(x y)))
+(define p (make-record point 1 2))
+p                                         ; <record: point (x: 1 y: 2)>
+```
+
+Fields are read and replaced by name. As with every other collection, `put`
+gives back a new record and leaves the old one alone:
+
+```lisp
+(get 'x p)                                ; 1
+(put 'x 10 p)                             ; <record: point (x: 10 y: 2)>
+(get 'z p)                                ; ERROR: Unexpected field name ...
+```
+
+That last line is the difference from a hashmap. A hashmap will take any key
+and answers `nothing` for one it does not have, but a record's shape is fixed
+when its type is made, so asking for a field it does not have is a mistake, and
+Myron says so.
+
+A record type is identified by its name and its fields, so two definitions that
+agree are the same type — which is what lets records pass between programs
+that each define `point` for themselves:
+
+```lisp
+(eq p (make-record (make-record-type 'point '(x y)) 1 2))
+                                          ; true
+(record-isa? point p)                     ; true
+```
 
 ### Mapping, filtering, and reducing
 
@@ -1762,7 +1930,8 @@ and `infinite?` are both `false`.
 ```
 
 The names are `boolean`, `double`, `hashmap`, `integer`, `list`, `nothing`,
-`set`, `string` and `symbol` for data, and `primitive` or `procedure` for
+`record`, `record-type`, `set`, `string` and `symbol` for data, and
+`primitive` or `procedure` for
 anything callable. A primitive is built in or supplied by the host; a procedure
 is written in Myron with `lambda` or `define`. The [predicates](#predicates)
 are usually the better test — `(integer? x)` rather than
@@ -2099,7 +2268,7 @@ hashmap-specific.
 
 | Primitive | Arguments | Result |
 |---|---|---|
-| `make-hashmap` | nothing, or 1 alist | a new hashmap |
+| `make-hashmap` | nothing, 1 alist, or 1 record | a new hashmap |
 | `keys-values` | hashmap | an alist of its entries |
 
 ```lisp
@@ -2124,6 +2293,17 @@ and an entry whose key holds a `nan` is dropped. Together with
 ```lisp
 (eq (make-hashmap (keys-values ages)) ages)
                                           ; true
+```
+
+Given a [record](#records-1), `make-hashmap` keys each field by its name, as a
+symbol. A field holding `nothing` is left out, since a hashmap never stores
+`nothing` as a value:
+
+```lisp
+(define point (make-record-type 'point '(x y)))
+(make-hashmap (make-record point 1 2))    ; #((x 1) (y 2))
+(make-hashmap (make-record point nothing 2))
+                                          ; #((y 2))
 ```
 
 Everything else — [`get`, `get-or`, `put`, `remove`, `has-key?`, `keys` and
@@ -2285,6 +2465,107 @@ differ between runs. Use a list where order matters — and see the note on
 The ordered sequence primitives do not accept a set, since a set has no
 positions; only `length`, `empty?` and `contains?` do. To put a set's members
 in order, [`sort`](#ordering) it into a list.
+
+### Records
+
+A record holds a fixed set of named fields, and a record type describes that
+set: a name, and the names of the fields in order. Where a
+[hashmap](#hashmaps) takes any key, a record's fields are settled when its
+type is made.
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `make-record-type` | symbol, list of symbols | a new record type |
+| `make-record` | record type, then 1 value for each field | a new record |
+| `get` | symbol, record | the value of that field |
+| `put` | symbol, value, record | the record with that field replaced |
+| `keys-values` | record | an alist of its fields, in declaration order |
+| `record-type` | record | the record type it was made from |
+| `record-isa?` | record type, value of any type | `true` if the value is a record of that type |
+| `record-type-name` | record or record type | the type's name, as a symbol |
+| `record-type-fields` | record or record type | a list of the field names, as symbols |
+| `has-field?` | symbol, record or record type | boolean |
+
+```lisp
+(define point (make-record-type 'point '(x y)))
+(define p (make-record point 1 2))
+
+point                                     ; <record-type: point x y>
+p                                         ; <record: point (x: 1 y: 2)>
+(get 'x p)                                ; 1
+(put 'x 10 p)                             ; a new record, with x as 10
+(keys-values p)                           ; ((x 1) (y 2))
+(record-type p)                           ; <record-type: point x y>
+(record-isa? point p)                     ; true
+(record-type-name p)                      ; point
+(record-type-fields point)                ; (x y)
+(has-field? 'z point)                     ; false
+```
+
+`make-record-type` takes the type's name and its fields as symbols. Each must
+be a name Myron source could write, and not a special form, or it raises
+`invalidName`; a field named twice raises `duplicateField`. A type may have no
+fields at all.
+
+`make-record` takes the type and then one value per field, in the order the
+fields were declared. Any other count raises `unexpectedArity`, which counts
+the type as well as the values:
+
+```lisp
+(make-record point 1)                     ; ERROR: Unexpected arity: got 2,
+                                          ; expected 3
+(make-record (make-record-type 'unit '()))
+                                          ; <record: unit ()>
+```
+
+`get` and `put` name a field with a symbol, and share their names with the
+[associative primitives](#association-lists). Unlike a hashmap, a record raises
+`unexpectedField` for a field its type does not have rather than answering
+`nothing`, and `put` cannot add one. A field can hold `nothing`, like any other
+value, and `put` with `nothing` stores it rather than removing the field:
+
+```lisp
+(get 'z p)                                ; ERROR: Unexpected field name for
+                                          ; record-type point, got: z, has: (x y)
+(get 'x (put 'x nothing p))               ; <nothing>
+```
+
+The introspection primitives accept a record as readily as its type, so
+`(record-type-fields p)` and `(record-type-fields point)` are the same list.
+`record-isa?` is a predicate in its second argument: given anything other than
+a record it answers `false` rather than failing.
+
+A record type is identified by its name and its fields, in order — not by where
+or when it was made. Two definitions that agree are the same type, and records
+of that type compare field by field, however they were made. A type that
+differs in its name, in any field, or only in the order of its fields is
+another type, and its records are never equal to these:
+
+```lisp
+(eq point (make-record-type 'point '(x y)))
+                                          ; true
+(eq p (make-record (make-record-type 'point '(x y)) 1 2))
+                                          ; true
+(eq point (make-record-type 'point '(y x)))
+                                          ; false — order matters
+(eq point (make-record-type 'vector '(x y)))
+                                          ; false
+```
+
+This is what lets records cross boundaries: a record made by one session, or
+one machine, is recognised by any other that defines its type the same way, and
+redefining a type at the REPL leaves the records you already have still
+belonging to it. The flip side is that a type is only as distinct as its name,
+so where types come from more than one place, qualify them —
+`'acme.point` is a valid name.
+
+Records print with their type's name and each field in declaration order, and
+can be set members and hashmap keys under the same rules as any other value,
+including the one for [`nan`](#keys). They have no ordering, so `lt` and `sort`
+reject them, and they are not sequences, so `length`, `values` and `map` do
+too. To work with a record's contents as a collection, convert it with
+`keys-values`, or with [`make-hashmap`](#hashmaps), which keys each field by its
+name.
 
 ### Ordering
 

@@ -28,6 +28,42 @@ struct StandardHashmapTests {
         expectValue("(eq (make-hashmap (keys-values \(Self.ab))) \(Self.ab))", "true")
     }
 
+    private static let point = "(define point (make-record-type 'point '(x y)))"
+
+    @Test("make-hashmap over a record keys each field by its symbol", arguments: [
+        (point + " (eq (make-hashmap (make-record point 1 2)) (make-hashmap '((x 1) (y 2))))",
+         "true"),
+        (point + " (get 'x (make-hashmap (make-record point 1 2)))", "1"),
+        (point + " (get \"x\" (make-hashmap (make-record point 1 2)))", "<nothing>"),
+        (point + " (length (make-hashmap (make-record point '(1) (make-record point 1 2))))",
+         "2"),
+        ("(empty? (make-hashmap (make-record (make-record-type 'unit '()))))", "true"),
+        (point + " (nan? (get 'x (make-hashmap (make-record point (sqrt -1.0) 2))))", "true")
+    ] as [ValueCase])
+    func makeHashmapFromRecord(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    // A hashmap never holds nothing as a value, so a field holding nothing is
+    // left out, just as `put` with nothing removes the key.
+    @Test("make-hashmap over a record leaves out a field holding nothing", arguments: [
+        (point + " (length (make-hashmap (make-record point nothing 2)))", "1"),
+        (point + " (has-key? 'x (make-hashmap (make-record point nothing 2)))", "false"),
+        (point + " (eq (make-hashmap (make-record point nothing 2)) (make-hashmap '((y 2))))",
+         "true"),
+        (point + " (empty? (make-hashmap (make-record point nothing nothing)))", "true")
+    ] as [ValueCase])
+    func makeHashmapFromRecordSkipsNothing(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a record and its hashmap hold the same fields")
+    func recordRoundTrip() {
+        let p = Self.point + " (define p (make-record point 1 2))"
+        let fields = "(make-set (keys-values p))"
+        expectValue(p + " (eq (make-set (keys-values (make-hashmap p))) \(fields))", "true")
+    }
+
     // MARK: Reading
 
     @Test("get", arguments: [
@@ -275,18 +311,18 @@ struct StandardHashmapTests {
         expectFailure(c.source, reason: c.reason)
     }
 
-    @Test("make-hashmap wants a list", arguments: [
-        ("(make-hashmap 7)", .unexpectedType(.integer, [.list])),
-        ("(make-hashmap \"a\")", .unexpectedType(.string, [.list])),
-        ("(make-hashmap (make-hashmap))", .unexpectedType(.hashmap, [.list]))
+    @Test("make-hashmap wants a list or record", arguments: [
+        ("(make-hashmap 7)", .unexpectedType(.integer, [.list, .record])),
+        ("(make-hashmap \"a\")", .unexpectedType(.string, [.list, .record])),
+        ("(make-hashmap (make-hashmap))", .unexpectedType(.hashmap, [.list, .record])),
     ] as [FailureCase])
     func makeHashmapWantsAList(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
     }
 
     @Test("keys-values wants a hashmap", arguments: [
-        ("(keys-values '())", .unexpectedType(.list, [.hashmap])),
-        ("(keys-values 7)", .unexpectedType(.integer, [.hashmap]))
+        ("(keys-values '())", .unexpectedType(.list, [.hashmap, .record])),
+        ("(keys-values 7)", .unexpectedType(.integer, [.hashmap, .record]))
     ] as [FailureCase])
     func keysValuesWantsAHashmap(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

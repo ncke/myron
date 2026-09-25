@@ -214,16 +214,7 @@ extension MyronSession {
     private static let hostNamespace = "host."
 
     private static func validatePrimitiveName(_ name: String) throws {
-        let (tokens, errors) = Lexer(input: name, sourceHandle: nil).tokenize()
-        guard
-            errors.isEmpty,
-            tokens.count == 1,
-            case .symbol(let symbol) = tokens[0].kind,
-            symbol == name,
-            !Machine.specialFormNames.contains(name)
-        else {
-            throw MyronError(.invalidName(name))
-        }
+        try MyronValue.validateAsName(name, location: nil)
     }
     
     private static func validatePrimitiveArity(

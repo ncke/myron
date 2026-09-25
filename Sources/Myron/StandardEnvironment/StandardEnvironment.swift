@@ -55,6 +55,8 @@ extension StandardEnvironment {
         StandardMathematics.self,
         StandardOrdering.self,
         StandardPredicates.self,
+        StandardRecord.self,
+        StandardRecordType.self,
         StandardSet.self,
         StandardStrings.self
     ]

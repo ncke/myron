@@ -7,6 +7,7 @@ extension MyronValue {
     public var kind: Kind {
         switch self {
         case .boolean: return .boolean
+        case .define: return .define
         case .double: return .double
         case .hashmap: return .hashmap
         case .higherOrder: return .higherOrder
@@ -14,12 +15,13 @@ extension MyronValue {
         case .integer: return .integer
         case .list: return .list
         case .nothing: return .nothing
+        case .primitive: return .primitive
+        case .procedure: return .procedure
+        case .record: return .record
+        case .recordType: return .recordType
         case .set: return .set
         case .string: return .string
         case .symbol: return .symbol
-        case .primitive: return .primitive
-        case .procedure: return .procedure
-        case .define: return .define
         }
     }
 
@@ -29,8 +31,9 @@ extension MyronValue {
 
 extension MyronValue {
 
-    public enum Kind: Equatable, Sendable {
+    public enum Kind: Equatable, Hashable, Sendable {
         case boolean
+        case define
         case double
         case hashmap
         case higherOrder
@@ -38,12 +41,13 @@ extension MyronValue {
         case integer
         case list
         case nothing
+        case primitive
+        case procedure
+        case record
+        case recordType
         case set
         case string
         case symbol
-        case primitive
-        case procedure
-        case define
     }
 
 }
@@ -55,6 +59,7 @@ extension MyronValue.Kind: CustomStringConvertible {
     public var description: String {
         switch self {
         case .boolean: return "boolean"
+        case .define: return "define"
         case .double: return "double"
         case .hashmap: return "hashmap"
         case .higherOrder: return "primitive"
@@ -62,12 +67,13 @@ extension MyronValue.Kind: CustomStringConvertible {
         case .integer: return "integer"
         case .list: return "list"
         case .nothing: return "nothing"
+        case .primitive: return "primitive"
+        case .procedure: return "procedure"
+        case .record: return "record"
+        case .recordType: return "record-type"
         case .set: return "set"
         case .string: return "string"
         case .symbol: return "symbol"
-        case .primitive: return "primitive"
-        case .procedure: return "procedure"
-        case .define: return "define"
         }
     }
 

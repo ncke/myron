@@ -4,6 +4,7 @@ import Foundation
 
 public enum MyronValue {
     case boolean(Bool)
+    case define(String)
     case double(Double)
     case hashmap(MyronHashmap)
     case higherOrder(MyronHigherOrder)
@@ -11,12 +12,13 @@ public enum MyronValue {
     case integer(Int)
     case list([MyronValue])
     case nothing
+    case primitive(MyronPrimitive)
+    case procedure(MyronProcedure)
+    case record(MyronRecord)
+    case recordType(MyronRecordType)
     case set(MyronSet)
     case string(String)
     case symbol(String)
-    case primitive(MyronPrimitive)
-    case procedure(MyronProcedure)
-    case define(String)
 }
 
 // MARK: - Atomic Type Helper
@@ -93,6 +95,7 @@ extension MyronValue: CustomStringConvertible {
     public var description: String {
         switch self {
         case .boolean(let boolean): "\(boolean)"
+        case .define(let name): "<define: \(name)>"
         case .double(let double): "\(double)"
         case .hashmap(let hashmap): "\(hashmap)"
         case .higherOrder(let higher): "\(higher)"
@@ -101,12 +104,13 @@ extension MyronValue: CustomStringConvertible {
         case .list(let list):
             "(" + list.map(\.description).joined(separator: " ") + ")"
         case .nothing: "<nothing>"
+        case .primitive(let primitive): "\(primitive.description)"
+        case .procedure: "<procedure>"
+        case .record(let record): "\(record)"
+        case .recordType(let recordType): "\(recordType)"
         case .set(let set): "\(set)"
         case .string(let string): "\"\(string)\""
         case .symbol(let symbol): "\(symbol)"
-        case .primitive(let primitive): "\(primitive.description)"
-        case .procedure: "<procedure>"
-        case .define(let name): "<define: \(name)>"
         }
     }
 

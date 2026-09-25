@@ -78,12 +78,6 @@ extension StandardComparison {
 
         if let f = fst.asInteger, let s = snd.asInteger { return f < s }
         if let f = fst.asDouble, let s = snd.asDouble {
-            //f       s       comp
-            //nnn     nnn     f < s
-            //nnn     nan     true
-            //nan     nnn     false
-            //nan     nan     false
-            
             if f.isNaN { return false }
             if s.isNaN { return true }
             return f < s

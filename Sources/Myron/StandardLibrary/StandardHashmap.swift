@@ -115,33 +115,45 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.make-hashmap",
             representations: ["make-hashmap"],
+            signature: StandardSignature([StandardSignature.listOrRec1]),
             body: { args, location in
                 try args.mustHaveAtMost(1, location)
-                guard let alist = try args.first?.unwrapList(location) else {
+                
+                guard let fst = args.first else {
                     return .hashmap(MyronHashmap())
                 }
                 
                 var contents = [MyronValue: MyronValue]()
-                var seen = [MyronValue: Int]()
                 
-                for (idx, element) in alist.enumerated() {
-                    guard case .list(let pair) = element, pair.count == 2 else {
-                        throw MyronError(.malformedAlist(idx), at: location)
+                if let record = fst.asRecord {
+                    for (key, value) in record.keysValues() where !value.isNothing {
+                        contents[key] = value
                     }
                     
-                    if case .nothing = pair[1] {
-                        throw MyronError(.malformedAlist(idx), at: location)
+                } else if let alist = fst.asList {
+                    var seen = [MyronValue: Int]()
+                    for (idx, element) in alist.enumerated() {
+                        guard case .list(let pair) = element, pair.count == 2 else {
+                            throw MyronError(.malformedAlist(idx), at: location)
+                        }
+                        
+                        if case .nothing = pair[1] {
+                            throw MyronError(.malformedAlist(idx), at: location)
+                        }
+                        
+                        let key = pair[0]
+                        guard key.isStorableKey else { continue }
+                        
+                        if let dupIdx = seen[key] {
+                            throw MyronError(.duplicateKeys([dupIdx, idx]), at: location)
+                        }
+                        
+                        contents[key] = pair[1]
+                        seen[key] = idx
                     }
                     
-                    let key = pair[0]
-                    guard key.isStorableKey else { continue }
-
-                    if let dupIdx = seen[key] {
-                        throw MyronError(.duplicateKeys([dupIdx, idx]), at: location)
-                    }
-                    
-                    contents[key] = pair[1]
-                    seen[key] = idx
+                } else {
+                    throw MyronError(.unexpectedType(fst.kind, [.list, .record]), at: location)
                 }
                 
                 return .hashmap(MyronHashmap(contents: contents))
@@ -150,6 +162,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.keys-values",
             representations: ["keys-values"],
+            signature: StandardSignature([StandardSignature.map1]),
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
                 let kvs = hashmap.keysValues()

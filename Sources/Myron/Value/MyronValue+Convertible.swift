@@ -20,6 +20,14 @@ extension MyronHashmap: MyronValueConvertible {
     public init(myronValue: MyronValue) throws { self = try myronValue.unwrapHashmap(nil) }
 }
 
+extension MyronRecord: MyronValueConvertible {
+    public init(myronValue: MyronValue) throws { self = try myronValue.unwrapRecord(nil) }
+}
+
+extension MyronRecordType: MyronValueConvertible {
+    public init(myronValue: MyronValue) throws { self = try myronValue.unwrapRecordType(nil) }
+}
+
 extension Bool: MyronValueConvertible {
     public init(myronValue: MyronValue) throws { self = try myronValue.unwrapBoolean(nil) }
 }
@@ -67,6 +75,8 @@ where Key: MyronValueConvertible, Value: MyronValueConvertible
     }
 }
 
+// MARK: - Require
+
 extension MyronValue {
     public func require<T: MyronValueConvertible>() throws -> T { try T(myronValue: self) }
 }
@@ -75,6 +85,8 @@ extension MyronValue {
     public func requireBoolean() throws -> Bool { try self.unwrapBoolean(nil) }
     public func requireInteger() throws -> Int { try self.unwrapInteger(nil) }
     public func requireDouble() throws -> Double { try self.unwrapDouble(nil) }
+    public func requireRecord() throws -> MyronRecord { try self.unwrapRecord(nil) }
+    public func requireRecordType() throws -> MyronRecordType { try self.unwrapRecordType(nil) }
     public func requireString() throws -> String { try self.unwrapString(nil) }
     public func requireSymbol() throws -> String { try self.unwrapSymbol(nil) }
 }
@@ -93,6 +105,14 @@ extension MyronSet: MyronValueRepresentable {
 
 extension MyronHashmap: MyronValueRepresentable {
     public var myronValue: MyronValue { return .hashmap(self) }
+}
+
+extension MyronRecord: MyronValueRepresentable {
+    public var myronValue: MyronValue { return .record(self) }
+}
+
+extension MyronRecordType: MyronValueRepresentable {
+    public var myronValue: MyronValue { return .recordType(self) }
 }
 
 extension Bool: MyronValueRepresentable   { public var myronValue: MyronValue { .boolean(self) } }

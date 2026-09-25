@@ -97,7 +97,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.append",
             representations: ["append"],
-            signature: StandardSignature([StandardSignature.list1], allowsVariadic: true),
+            signature: StandardSignature([StandardSignature.list1], allowsVariadic: .homogenous),
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = [MyronValue]()

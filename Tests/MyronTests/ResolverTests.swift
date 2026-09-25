@@ -139,7 +139,7 @@ struct StandardResolverTests {
     func variadicArity() throws {
         let variadic = Self.primitive(
             "a.r",
-            Signature([Signature.str1], allowsVariadic: true),
+            Signature([Signature.str1], allowsVariadic: .homogenous),
             yielding: "variadic")
 
         do {
@@ -155,7 +155,7 @@ struct StandardResolverTests {
     func variadicSurplus() throws {
         let variadic = Self.primitive(
             "a.r",
-            Signature([Signature.str1], allowsVariadic: true),
+            Signature([Signature.str1], allowsVariadic: .homogenous),
             yielding: "variadic")
 
         let strings: [MyronValue] = [.string("a"), .string("b"), .string("c")]
@@ -167,6 +167,61 @@ struct StandardResolverTests {
 
         } catch let error as MyronError {
             #expect(error.reason == .unexpectedType(.integer, [.string]))
+        }
+    }
+
+    @Test("a heterogenous signature accepts any surplus arguments")
+    func heterogenousSurplus() throws {
+        let variadic = Self.primitive(
+            "a.r",
+            Signature([Signature.str1], allowsVariadic: .heterogenous),
+            yielding: "variadic")
+
+        for args: [MyronValue] in [
+            [.string("a")],
+            [.string("a"), .integer(1)],
+            [.string("a"), .integer(1), .list([]), .nothing]
+        ] {
+            #expect(try Self.resolve([variadic], args).description == "\"variadic\"")
+        }
+    }
+
+    @Test("a heterogenous signature still constrains its fixed terms")
+    func heterogenousFixedTerms() throws {
+        let variadic = Self.primitive(
+            "a.r",
+            Signature([Signature.str1], allowsVariadic: .heterogenous),
+            yielding: "variadic")
+
+        do {
+            _ = try Self.resolve([variadic], [])
+            Issue.record("expected an arity error")
+
+        } catch let error as MyronError {
+            #expect(error.reason == .unexpectedArity(0, .atLeast(1)))
+        }
+
+        do {
+            _ = try Self.resolve([variadic], [.integer(1), .string("a")])
+            Issue.record("expected a type error for the fixed argument")
+
+        } catch let error as MyronError {
+            #expect(error.reason == .unexpectedType(.integer, [.string]))
+        }
+    }
+
+    @Test("a heterogenous signature resolves against a fixed one by its fixed terms")
+    func heterogenousAgainstFixed() throws {
+        let variadic = Self.primitive(
+            "a.r",
+            Signature([Signature.str1], allowsVariadic: .heterogenous),
+            yielding: "variadic")
+        let fixed = Self.primitive("b.r", Signature([Signature.list1]), yielding: "fixed")
+
+        for order in [[variadic, fixed], [fixed, variadic]] {
+            #expect(try Self.resolve(order, [.string("a"), .integer(1)]).description
+                    == "\"variadic\"")
+            #expect(try Self.resolve(order, [.list([])]).description == "\"fixed\"")
         }
     }
 
@@ -194,8 +249,11 @@ struct StandardResolverTests {
 
     @Test("a variadic form marks its surplus")
     func describedVariadic() throws {
-        let variadic = Signature([Signature.list1], allowsVariadic: true)
+        let variadic = Signature([Signature.list1], allowsVariadic: .homogenous)
         #expect(try variadic.describeForms(representation: "append") == ["append list ..."])
+
+        let heterogenous = Signature([Signature.list1], allowsVariadic: .heterogenous)
+        #expect(try heterogenous.describeForms(representation: "f") == ["f list ..."])
 
         let fixed = Signature([Signature.list1])
         #expect(try fixed.describeForms(representation: "head") == ["head list"])

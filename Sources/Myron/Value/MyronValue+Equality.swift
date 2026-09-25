@@ -21,6 +21,10 @@ extension MyronValue {
                     work.append((fv, sv))
                 }
 
+            case (.record(let f), .record(let s)):
+                guard f.type == s.type else { return false }
+                work.append(contentsOf: zip(f.values, s.values))
+                
             case (.boolean(let f), .boolean(let s)): guard f == s else { return false }
             case (.double(let f), .double(let s)): guard f == s else { return false }
             case (.integer(let f), .integer(let s)): guard f == s else { return false }
@@ -32,6 +36,7 @@ extension MyronValue {
             case (.procedure(let f), .procedure(let s)): guard f == s else { return false }
             case (.higherOrder(let f), .higherOrder(let s)): guard f == s else { return false }
             case (.higherProbe(let f), .higherProbe(let s)): guard f == s else { return false }
+            case (.recordType(let f), .recordType(let s)): guard f == s else { return false }
             case (.nothing, .nothing): break
 
             default: return false

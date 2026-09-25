@@ -9,8 +9,13 @@ struct StandardSignature {
     static let int1: Term = (.exactly(1), .subset(Set([ .integer ])))
     static let list1: Term = (.exactly(1), .subset(Set([ .list ])))
     static let listOrMap1: Term = (.exactly(1), .subset(Set([ .list, .hashmap ])))
+    static let listOrRec1: Term = (.exactly(1), .subset(Set([ .list, .record ])))
+    static let rec1: Term = (.exactly(1), .subset(Set([ .record ])))
+    static let recOrType1: Term = (.exactly(1), .subset(Set([ .record, .recordType ])))
+    static let rectype1: Term = (.exactly(1), .subset(Set([ .recordType ])))
     static let set1: Term = (.exactly(1), .subset(Set([ .set ])))
     static let str1: Term = (.exactly(1), .subset(Set([ .string ])))
+    static let sym1: Term = (.exactly(1), .subset(Set([ .symbol ])))
     
     typealias Term = (Multiple, Constraint)
     
@@ -23,11 +28,19 @@ struct StandardSignature {
         case exactly(Int)
     }
     
+    enum VariadicStyle {
+        case homogenous
+        case heterogenous
+        
+        var inHomogenousStyle: Bool { return self == .homogenous }
+        var inHeterogenousStyle: Bool { return self == .heterogenous }
+    }
+    
     private let terms: [Term]
     private let requiredArity: Int?
-    private let allowsVariadic: Bool
+    private let allowsVariadic: VariadicStyle?
 
-    init(_ terms: [Term], allowsVariadic: Bool = false) {
+    init(_ terms: [Term], allowsVariadic: VariadicStyle? = nil) {
         self.terms = terms
         self.requiredArity = Self.computeRequiredArityIfPossible(terms)
         self.allowsVariadic = allowsVariadic
@@ -63,11 +76,11 @@ extension StandardSignature {
 
     func matchesKinds(_ kinds: [MyronValue.Kind]) throws -> MatchResult {
         if let requiredArity {
-            if allowsVariadic, kinds.count < requiredArity {
+            if allowsVariadic != nil, kinds.count < requiredArity {
                 return .unmetArity(.atLeast(requiredArity))
             }
 
-            if !allowsVariadic, kinds.count != requiredArity {
+            if allowsVariadic == nil, kinds.count != requiredArity {
                 return .unmetArity(.exactly(requiredArity))
             }
         }
@@ -98,7 +111,7 @@ extension StandardSignature {
             trailing = constraint
         }
 
-        if allowsVariadic, let trailing {
+        if allowsVariadic == .homogenous, let trailing {
             while kindCursor < kinds.count {
                 if let unmet = Self.unmetKind(trailing, kinds[kindCursor], at: kindCursor) {
                     return unmet
@@ -107,6 +120,10 @@ extension StandardSignature {
                 matchedConstraints.append(trailing)
                 kindCursor += 1
             }
+        }
+        
+        if allowsVariadic == .heterogenous {
+            kindCursor = kinds.count
         }
 
         guard kindCursor == kinds.count else {
@@ -220,7 +237,7 @@ extension StandardSignature {
         }
 
         // A variadic signature repeats its final term, so the surplus is marked instead.
-        if allowsVariadic { forms = forms.map { form in form + " ..." } }
+        if allowsVariadic != nil { forms = forms.map { form in form + " ..." } }
 
         return Set(forms)
     }

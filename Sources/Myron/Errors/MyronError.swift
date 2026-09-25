@@ -10,6 +10,7 @@ public struct MyronError: Error, Sendable {
         case containingEnvironmentNoLongerExists
         case couldNotResolve(String, String, [String])
         case divisionByZero
+        case duplicateField(String, String)
         case duplicateKeys([Int])
         case emptyApplication
         case exceededMaximumStackDepth(Int)
@@ -26,6 +27,7 @@ public struct MyronError: Error, Sendable {
         case subscriptOutOfBounds(Int, Int)
         case unexpectedArity(Int, IntegerExpectation)
         case typeCastFailed(MyronValue.Kind, MyronValue.Kind)
+        case unexpectedField(String, String, [String])
         case unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)
         case unimplementedFeature
         case unmatchedParenthesis
@@ -106,6 +108,8 @@ extension MyronError.Reason: CustomStringConvertible {
             return "\(msg)\nDid you mean:\n\(dym)"
         case .divisionByZero: return "Division by zero"
         case .duplicateKeys(let idxs): return "Duplicate keys at indices: \(idxs)"
+        case .duplicateField(let field, let name):
+            return "Record-type \(name) cannot have duplicate fields, got: \(field)"
         case .emptyApplication: return "Empty application"
         case .exceededMaximumStackDepth(let depth): return "Exceeded maximum stack depth: \(depth)"
         case .expectedExpressionAfterTick: return "Expected expression after tick"
@@ -129,6 +133,9 @@ extension MyronError.Reason: CustomStringConvertible {
             }
         case .typeCastFailed(let src, let dst):
             return "Type cast failed: \(src) -> \(dst)"
+        case .unexpectedField(let got, let name, let fields):
+            let has = "(\(fields.joined(separator: " ")))"
+            return "Unexpected field name for record-type \(name), got: \(got), has: \(has)"
         case .unexpectedType(let got, let expected):
             let expectedString = expected
                 .map(\MyronValue.Kind.description)

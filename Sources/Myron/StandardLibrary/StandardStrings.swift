@@ -97,7 +97,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.append",
             representations: ["append"],
-            signature: StandardSignature([StandardSignature.str1], allowsVariadic: true),
+            signature: StandardSignature([StandardSignature.str1], allowsVariadic: .homogenous),
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = ""

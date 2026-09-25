@@ -62,7 +62,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.set",
             representations: ["set"],
-            signature: StandardSignature([StandardSignature.any1], allowsVariadic: true),
+            signature: StandardSignature([StandardSignature.any1], allowsVariadic: .homogenous),
             body: { args, location in
                 guard args.count > 0 else { return .set(MyronSet()) }
                 let result = MyronSet(array: args)
@@ -108,7 +108,7 @@ struct StandardSet: StandardModule {
             representations: ["union"],
             signature: StandardSignature(
                 [StandardSignature.set1],
-                allowsVariadic: true),
+                allowsVariadic: .homogenous),
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = try args.unwrapFirst(location).unwrapSet(location)
@@ -127,7 +127,7 @@ struct StandardSet: StandardModule {
             representations: ["intersection"],
             signature: StandardSignature(
                 [StandardSignature.set1],
-                allowsVariadic: true),
+                allowsVariadic: .homogenous),
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = try args.unwrapFirst(location).unwrapSet(location)
@@ -146,7 +146,7 @@ struct StandardSet: StandardModule {
             representations: ["difference"],
             signature: StandardSignature(
                 [StandardSignature.set1],
-                allowsVariadic: true),
+                allowsVariadic: .homogenous),
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = try args.unwrapFirst(location).unwrapSet(location)
@@ -247,7 +247,7 @@ struct StandardSet: StandardModule {
             representations: ["cartesian-product"],
             signature: StandardSignature(
                 [StandardSignature.set1, StandardSignature.set1],
-                allowsVariadic: true),
+                allowsVariadic: .homogenous),
             body: { args, location in
                 try args.mustHaveAtLeast(2, location)
                 let set = try args.unwrapFirst(location).unwrapSet(location)

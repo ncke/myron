@@ -11,6 +11,13 @@ extension MyronValue {
         return b
     }
     
+    func unwrapDouble(_ location: MyronLocation?) throws -> Double {
+        guard let n = asDouble else {
+            throw MyronError(.unexpectedType(self.kind, [.double]), at: location)
+        }
+        return n
+    }
+    
     func unwrapElements(_ location: MyronLocation?) throws -> [MyronValue] {
         switch self {
         case .list(let elements): return elements
@@ -26,25 +33,40 @@ extension MyronValue {
         return n
     }
 
-    func unwrapDouble(_ location: MyronLocation?) throws -> Double {
-        guard let n = asDouble else {
-            throw MyronError(.unexpectedType(self.kind, [.double]), at: location)
+    func unwrapHashmap(_ location: MyronLocation?) throws -> MyronHashmap {
+        guard let h = asHashmap else {
+            throw MyronError(.unexpectedType(self.kind, [.hashmap]), at: location)
         }
-        return n
+        return h
     }
-
+    
     func unwrapList(_ location: MyronLocation?) throws -> [MyronValue] {
         guard let l = asList else {
             throw MyronError(.unexpectedType(self.kind, [.list]), at: location)
         }
         return l
     }
-
-    func unwrapHashmap(_ location: MyronLocation?) throws -> MyronHashmap {
-        guard let h = asHashmap else {
-            throw MyronError(.unexpectedType(self.kind, [.hashmap]), at: location)
+    
+    func unwrapRecord(_ location: MyronLocation?) throws -> MyronRecord {
+        guard let r = asRecord else {
+            throw MyronError(.unexpectedType(self.kind, [.record]), at: location)
         }
-        return h
+        return r
+    }
+    
+    func unwrapRecordType(_ location: MyronLocation?) throws -> MyronRecordType {
+        guard let t = asRecordType else {
+            throw MyronError(.unexpectedType(self.kind, [.recordType]), at: location)
+        }
+        return t
+    }
+    
+    func unwrapForRecordType(_ location: MyronLocation?) throws -> MyronRecordType {
+        switch self {
+        case .record(let record): return record.type
+        case .recordType(let type): return type
+        default: throw MyronError(.unexpectedType(self.kind, [.record, .recordType]), at: location)
+        }
     }
     
     func unwrapSet(_ location: MyronLocation?) throws -> MyronSet {
@@ -78,24 +100,34 @@ extension MyronValue {
         if case .boolean(let b) = self { return b }
         return nil
     }
+    
+    public var asDouble: Double? {
+        if case .double(let n) = self { return n }
+        return nil
+    }
 
     public var asInteger: Int? {
         if case .integer(let n) = self { return n }
         return nil
     }
 
-    public var asDouble: Double? {
-        if case .double(let n) = self { return n }
+    public var asHashmap: MyronHashmap? {
+        if case .hashmap(let h) = self { return h }
         return nil
     }
-
+    
     public var asList: [MyronValue]? {
         if case .list(let l) = self { return l }
         return nil
     }
-
-    public var asHashmap: MyronHashmap? {
-        if case .hashmap(let h) = self { return h }
+    
+    public var asRecord: MyronRecord? {
+        if case .record(let record) = self { return record }
+        return nil
+    }
+    
+    public var asRecordType: MyronRecordType? {
+        if case .recordType(let recordType) = self { return recordType }
         return nil
     }
     
@@ -156,6 +188,33 @@ extension MyronValue {
 
 }
 
+// MARK: - Name Validation
+
+extension MyronValue {
+    
+    static func validateAsName(_ name: String, location: MyronLocation?) throws {
+        if !isValidAsName(name) {
+            throw MyronError(.invalidName(name), at: location)
+        }
+    }
+    
+    static func isValidAsName(_ name: String) -> Bool {
+        let (tokens, errors) = Lexer(input: name, sourceHandle: nil).tokenize()
+        guard
+            errors.isEmpty,
+            tokens.count == 1,
+            case .symbol(let symbol) = tokens[0].kind,
+            symbol == name,
+            !Machine.specialFormNames.contains(name)
+        else {
+            return false
+        }
+        
+        return true
+    }
+    
+}
+
 // MARK: - Flat
 
 extension MyronValue {
@@ -185,6 +244,8 @@ extension MyronValue {
             case .hashmap(let hm):
                 let elements = hm.keysValues().flatMap { (k, v) in [k, v] }
                 work.append(contentsOf: elements)
+            case .record(let record):
+                work.append(contentsOf: record.values)
             case .set(let s):
                 work.append(contentsOf: s.contents)
             default:
