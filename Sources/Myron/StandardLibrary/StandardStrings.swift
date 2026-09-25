@@ -77,6 +77,35 @@ struct StandardStrings: StandardModule {
             }),
         
         MyronPrimitive(
+            primitiveName: "string.take-last",
+            representations: ["take-last"],
+            signature: StandardSignature([StandardSignature.int1, StandardSignature.str1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let count = try fst.unwrapInteger(location)
+                guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
+
+                let elements = try snd.unwrapString(location)
+                let take = String(elements.suffix(count))
+                return .string(take)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "string.drop-last",
+            representations: ["drop-last"],
+            signature: StandardSignature([StandardSignature.int1, StandardSignature.str1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let count = try fst.unwrapInteger(location)
+                guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
+
+                let elements = try snd.unwrapString(location)
+                let prefixCount = max(0, elements.count - count)
+                let drop = String(elements.prefix(prefixCount))
+                return .string(drop)
+            }),
+        
+        MyronPrimitive(
             primitiveName: "string.length",
             representations: ["length"],
             signature: StandardSignature([StandardSignature.str1]),

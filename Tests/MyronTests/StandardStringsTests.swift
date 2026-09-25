@@ -67,6 +67,27 @@ struct StandardStringsTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("take-last", arguments: [
+        ("(take-last 2 \"abc\")", "\"bc\""),
+        ("(take-last 0 \"abc\")", "\"\""),
+        ("(take-last 5 \"ab\")", "\"ab\""),
+        ("(take-last 4 \"héllo\")", "\"éllo\""),
+        ("(take-last 1 \"\")", "\"\"")
+    ] as [ValueCase])
+    func takeLast(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("drop-last", arguments: [
+        ("(drop-last 1 \"abc\")", "\"ab\""),
+        ("(drop-last 0 \"abc\")", "\"abc\""),
+        ("(drop-last 5 \"ab\")", "\"\""),
+        ("(drop-last 3 \"héllo\")", "\"hé\"")
+    ] as [ValueCase])
+    func dropLast(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("length counts characters, not bytes", arguments: [
         ("(length \"abc\")", "3"),
         ("(length \"\")", "0"),
@@ -140,6 +161,10 @@ struct StandardStringsTests {
         ("(drop -1 \"ab\")", .cannotBeNegative),
         ("(take \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
         ("(drop \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
+        ("(take-last -1 \"ab\")", .cannotBeNegative),
+        ("(drop-last -1 \"ab\")", .cannotBeNegative),
+        ("(take-last \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
+        ("(drop-last \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
         ("(nth \"a\" \"abc\")", .unexpectedType(.string, [.integer])),
         ("(nth 3 \"abc\")", .subscriptOutOfBounds(3, 3)),
         ("(nth -1 \"abc\")", .subscriptOutOfBounds(-1, 3)),

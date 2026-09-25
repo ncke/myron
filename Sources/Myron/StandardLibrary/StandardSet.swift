@@ -254,6 +254,23 @@ struct StandardSet: StandardModule {
                 let others = try args.dropFirst().map { other in try other.unwrapSet(location) }
                 let result = set.cartesianProduct(with: others)
                 return .set(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "set.flatten",
+            representations: ["flatten"],
+            signature: StandardSignature([StandardSignature.set1]),
+            body: { args, location in
+                var work = Array(try args.unwrap1(location).unwrapSet(location).contents)
+                var members = [MyronValue]()
+                while let element = work.popLast() {
+                    switch element {
+                    case .set(let inner): work.append(contentsOf: Array(inner.contents))
+                    default: members.append(element)
+                    }
+                }
+
+                return .set(MyronSet(array: members))
             })
         
     ]

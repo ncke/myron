@@ -25,6 +25,37 @@ the language, and a patch release will not.
   which says whether a value has an ordering.
 - `kind`, which names the type of any value as a string.
 - The constants `nan` and `infinity`.
+- Records, through `make-record-type` and `make-record`. A record type is a
+  name and an ordered list of field names, and a record holds one value for
+  each field. `get`, `put` and `keys-values` resolve over records, and
+  `record-type`, `record-isa?`, `record-type-name`, `record-type-fields` and
+  `has-field?` describe them. Naming a field the type does not have is an
+  error rather than `nothing`.
+- A record type is identified by its name and its fields, in order, so two
+  definitions that agree are the same type, and a record made in one session
+  is recognised by any other that defines its type the same way.
+- `make-hashmap` accepts a record, keying each field by its name as a symbol
+  and leaving out any field that holds `nothing`.
+- `take-last` and `drop-last`, which work on lists and strings as `take` and
+  `drop` do, from the other end.
+- `integers` and `integers-between`, which build a list of consecutive
+  integers, leaving out the limit. A range that would count downwards is
+  empty.
+- `zip`, which pairs the elements of two lists and stops at the end of the
+  shorter, and `zip-all`, which runs to the end of the longer and pads the
+  shorter with `nothing`.
+- `flatten`, which opens every nested list in a list, or every nested set in a
+  set, at any depth.
+- `MyronRecord` and `MyronRecordType` as Swift types. Both are value types; a
+  record type is `Sendable`, so a host primitive can capture one. Records are
+  built by position or by field name, read with a subscript, `get`, `values`
+  and `pairs`, updated with `put`, and checked with `isa(type:)`.
+- `MyronValue` gains the accessors `asRecord` and `asRecordType`, and the
+  throwing `requireRecord()` and `requireRecordType()`. `MyronRecord` and
+  `MyronRecordType` conform to `MyronValueRepresentable` and
+  `MyronValueConvertible`.
+- `MyronValue.Kind` is `Hashable`.
+- The error kinds `duplicateField` and `unexpectedField`.
 
 ### Changed
 
@@ -38,6 +69,12 @@ the language, and a patch release will not.
 - The `myron-repl` executable is now `myron`. Run it with no arguments for the
   REPL, as before.
 - The REPL writes errors to standard error.
+- `MyronValue` gains the cases `record` and `recordType`, `MyronValue.Kind`
+  gains `record` and `recordType`, and `MyronError.Reason` gains
+  `duplicateField` and `unexpectedField`. A host that switches exhaustively
+  over any of these will need the new cases.
+- `invalidName` is also raised for a record type or field name that Myron
+  source could not write, and so can now come back from `eval`.
 
 ## [0.2.0] — 2026-09-23
 

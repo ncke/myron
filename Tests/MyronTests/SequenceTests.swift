@@ -24,6 +24,10 @@ struct StandardSequenceTests {
         ("(take 2 \"abc\")", "\"ab\""),
         ("(drop 2 '(1 2 3))", "(3)"),
         ("(drop 2 \"abc\")", "\"c\""),
+        ("(take-last 2 '(1 2 3))", "(2 3)"),
+        ("(take-last 2 \"abc\")", "\"bc\""),
+        ("(drop-last 2 '(1 2 3))", "(1)"),
+        ("(drop-last 2 \"abc\")", "\"a\""),
         ("(length '(1 2 3))", "3"),
         ("(length \"abc\")", "3"),
         ("(empty? '())", "true"),
@@ -57,6 +61,8 @@ struct StandardSequenceTests {
         ("(last 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(take 1 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(drop 1 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(take-last 1 5)", .unexpectedType(.integer, sequenceKinds)),
+        ("(drop-last 1 5)", .unexpectedType(.integer, sequenceKinds)),
         ("(length 5)", .unexpectedType(.integer, extendedSequenceKinds)),
         ("(empty? 5)", .unexpectedType(.integer, extendedSequenceKinds)),
         ("(append 5)", .unexpectedType(.integer, sequenceKinds)),
@@ -78,6 +84,7 @@ struct StandardSequenceTests {
     @Test("a missing sequence argument is an arity error", arguments: [
         "(head)", "(tail)", "(init)", "(last)", "(length)", "(empty?)",
         "(append)", "(reverse)", "(take)", "(take 1)", "(drop)", "(drop 1)",
+        "(take-last)", "(take-last 1)", "(drop-last)", "(drop-last 1)",
         "(nth)", "(nth 0)", "(contains?)", "(contains? 1)"
     ])
     func missingSequence(_ source: String) {
@@ -87,7 +94,7 @@ struct StandardSequenceTests {
     @Test("surplus arguments are still an arity error", arguments: [
         "(head '(1) '(2))", "(head \"a\" \"b\")", "(length '(1) 2)",
         "(length \"a\" \"b\")", "(reverse \"a\" \"b\")", "(take 1 \"ab\" 3)",
-        "(nth 0 \"ab\" 3)"
+        "(nth 0 \"ab\" 3)", "(take-last 1 \"ab\" 3)", "(drop-last 1 '(1) 3)"
     ])
     func surplusArguments(_ source: String) {
         expectArityFailure(source)

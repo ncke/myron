@@ -1366,11 +1366,13 @@ That means a literal list needs protecting from evaluation, which is what
 recursively. `'()` is the empty list, and `'x` is a symbol — the only way to
 get one.
 
-Build lists with `list` and `cons`, take them apart with `head` and `tail`:
+Build lists with `list`, `cons` and `integers`, take them apart with `head`
+and `tail`:
 
 ```lisp
 (list 1 2 3)                              ; (1 2 3) — arguments are evaluated
 (cons 1 '(2 3))                           ; (1 2 3)
+(integers 3)                              ; (0 1 2)
 (append '(1) '(2 3))                      ; (1 2 3)
 (head '(1 2 3))                           ; 1
 (tail '(1 2 3))                           ; (2 3)
@@ -2114,6 +2116,8 @@ rest do not, since neither a hashmap nor a set has an order.
 | `last` | 1 sequence | last element, or `nothing` if empty |
 | `take` | non-negative integer, sequence | the first n elements |
 | `drop` | non-negative integer, sequence | all but the first n elements |
+| `take-last` | non-negative integer, sequence | the last n elements |
+| `drop-last` | non-negative integer, sequence | all but the last n elements |
 | `nth` | integer index, sequence | the element at that index |
 | `length` | 1 sequence | integer |
 | `empty?` | 1 sequence | boolean |
@@ -2128,6 +2132,8 @@ rest do not, since neither a hashmap nor a set has an order.
 (init '(1 2 3))                           ; (1 2)
 (take 2 "hello")                          ; "he"
 (drop 5 '(1 2))                           ; () — over-dropping is fine
+(take-last 2 '(1 2 3))                    ; (2 3)
+(drop-last 2 "hello")                     ; "hel"
 (nth 2 '(1 2 3))                          ; 3 — indices are zero-based
 (length "hello")                          ; 5
 (empty? '())                              ; true
@@ -2141,7 +2147,8 @@ rest do not, since neither a hashmap nor a set has an order.
 
 `head` and `last` return `nothing` for an empty sequence, but `nth` raises
 `subscriptOutOfBounds` rather than returning `nothing`. A negative count to
-`take` or `drop` raises `cannotBeNegative`; a count past the end is fine.
+`take`, `drop`, `take-last` or `drop-last` raises `cannotBeNegative`; a count
+past the end is fine.
 
 `append` decides which kind of sequence it is building from its first argument,
 and every remaining argument must match, so lists and strings cannot be mixed.
@@ -2155,23 +2162,84 @@ everything.
 
 ### Lists
 
-These two build lists; everything else about lists is in
+These work on lists only; everything lists share with strings is in
 [Sequences](#sequences) above.
 
 | Primitive | Arguments | Result |
 |---|---|---|
 | `cons` | value, list | the list with the value prepended |
 | `list` | 0 or more values | a list of those values |
+| `integers` | 1 integer | the integers from zero up to, but not including, it |
+| `integers-between` | 2 integers | the integers from the first up to, but not including, the second |
+| `zip` | 2 lists | a list of two-element lists, pairing the elements in turn, as long as the shorter list |
+| `zip-all` | 2 lists | as `zip`, but as long as the longer list, padded with `nothing` |
+| `flatten` | 1 list or 1 set | its elements and those of every nested list or set, in the same kind |
 
 ```lisp
 (cons 1 '(2 3))                           ; (1 2 3)
 (list 1 2 3)                              ; (1 2 3) — arguments are evaluated
 (list)                                    ; ()
 (list (+ 1 1) "two")                      ; (2 "two")
+(integers 4)                              ; (0 1 2 3)
+(integers-between 2 5)                    ; (2 3 4)
+(zip '(1 2 3) '(a b c))                   ; ((1 a) (2 b) (3 c))
+(flatten '(1 (2 (3 4)) ()))               ; (1 2 3 4)
 ```
 
 `cons` requires a list as its second argument. There are no dotted pairs, so
 `(cons 1 2)` is a type error rather than an improper list.
+
+`integers` and `integers-between` count upwards and leave out the limit, so
+`(integers n)` has `n` elements and is exactly the indices of a list of that
+length. A range that would have to count downwards is empty rather than an
+error — `(integers -3)` and `(integers-between 5 2)` are both `()`, and so is
+`(integers-between 3 3)`. Note that this differs from `take` and `drop`, which
+reject a negative count.
+
+`zip` stops at the end of the shorter list, and the rest of the longer one is
+left out. `zip-all` runs to the end of the longer list instead, and pairs
+whatever is left over with `nothing`, so no element is lost:
+
+```lisp
+(zip '(1 2 3) '(a))                       ; ((1 a))
+(zip-all '(1 2 3) '(a))                   ; ((1 a) (2 <nothing>) (3 <nothing>))
+(zip-all '() '(a b))                      ; ((<nothing> a) (<nothing> b))
+```
+
+On lists of the same length the two agree. An element that is itself `nothing`
+is paired like any other, so a `nothing` in the result of `zip-all` may be
+padding or may have come from the list — compare the lengths first if the
+difference matters.
+
+Each pair is a two-element list, which is exactly the shape of an
+[alist](#association-lists) entry, so zipping keys with values builds an
+associative structure in one step. Use `zip` for this: an alist entry may not
+hold `nothing`, so where the lengths differ, the padding from `zip-all` makes
+the result a malformed alist.
+
+```lisp
+(get 'b (zip '(a b) '(1 2)))              ; 2
+(make-hashmap (zip '(a b) '(1 2)))        ; #((a 1) (b 2))
+(make-hashmap (zip '(a b c) '(1 2)))      ; #((a 1) (b 2)) — c is left out
+(make-hashmap (zip-all '(a b c) '(1 2)))  ; ERROR: Malformed alist at index: 2
+```
+
+`flatten` takes a list or a set and gives back the same kind. Over a list it
+opens every nested list, at any depth, keeping the order; over a set it opens
+every nested set. Everything else stays whole — a set inside a list, a list
+inside a set, and a hashmap in either — and an empty list or set contributes
+nothing:
+
+```lisp
+(flatten '(((1)) (2 (3))))                ; (1 2 3)
+(flatten '(() (()) 1))                    ; (1)
+(flatten (list (set 1 2) '(3)))           ; ({1 2} 3)
+(flatten (set 1 (set 2 (set 3))))         ; {1 2 3}
+(flatten (set '(1 (2))))                  ; {(1 (2))}
+```
+
+Flattening a set can bring equal members together, and they collapse as they
+would in any set: `(flatten (set 1 (set 1)))` is `{1}`.
 
 Between `cons`, `list`, `append` and the sequence primitives, lists can be
 built as well as taken apart, which means list utilities can be written in
@@ -2359,6 +2427,7 @@ decided exactly as `eq` decides equality, so `1` and `1.0` are two members.
 | `is-disjoint?` | 2 sets | `true` if they share no member |
 | `powerset` | 1 set | a set of every subset of it |
 | `cartesian-product` | 2 or more sets | a set of lists, one for each way of picking a member from each set in turn |
+| `flatten` | 1 set | the members of the set and of every set nested in it |
 
 ```lisp
 (set 1 2 3)                               ; {1 2 3}
@@ -2461,6 +2530,15 @@ including `map`:
 The order in which `values` and printing enumerate a set is unspecified, and may
 differ between runs. Use a list where order matters — and see the note on
 `reduce` under [higher-order functions](#higher-order-functions).
+
+`flatten` opens nested sets at any depth and leaves every other member whole,
+so a list inside a set stays a list; see [Lists](#lists) for the list form.
+Members that meet as it flattens collapse into one:
+
+```lisp
+(flatten (set 1 (set 2 (set 3))))         ; {1 2 3}
+(flatten (set (set 1 2) (set 2 3)))       ; {1 2 3}
+```
 
 The ordered sequence primitives do not accept a set, since a set has no
 positions; only `length`, `empty?` and `contains?` do. To put a set's members
@@ -2719,7 +2797,7 @@ those arguments alone.
 Still to come:
 
 - Sorting with a comparison procedure of your own, and sorting a hashmap's
-  entries; `range`, `zip`, `flatten`, `take-while`, `drop-while` and `foldr`.
+  entries; `take-while`, `drop-while` and `foldr`.
 - Literal syntax for sets and hashmaps. Until then, build them with `set`,
   `make-set` and `make-hashmap`.
 - Escape sequences in string literals. Until then, a string cannot contain a

@@ -45,6 +45,50 @@ struct StandardSetTests {
         expectValue(c.source, c.expected)
     }
 
+    // MARK: flatten
+
+    @Test("flatten opens every nested set", arguments: [
+        ("(eq (flatten (set 1 2)) (set 1 2))", "true"),
+        ("(flatten (set))", "{}"),
+        ("(flatten (set (set)))", "{}"),
+        ("(eq (flatten (set 1 (set 2 (set 3)))) (set 1 2 3))", "true"),
+        ("(eq (flatten (set (set (set (set 1))) 2)) (set 1 2))", "true"),
+        ("(length (flatten (set 1 (set 1) (set (set 1)))))", "1"),
+        ("(length (flatten (set (set 1 2) (set 2 3))))", "3")
+    ] as [ValueCase])
+    func flatten(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("flatten over a set leaves lists and hashmaps whole", arguments: [
+        ("(flatten (set '(1 (2))))", "{(1 (2))}"),
+        ("(eq (flatten (set '(1) (set '(2)))) (set '(1) '(2)))", "true"),
+        ("(flatten (set (make-hashmap)))", "{#()}"),
+        ("(length (flatten (set 1 '(1))))", "2")
+    ] as [ValueCase])
+    func flattenOpensOnlySets(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("flatten over a list leaves sets whole, and the reverse")
+    func flattenStaysInKind() {
+        expectValue("(eq (flatten (list (set 1 (set 2)) '(3))) (list (set 1 (set 2)) 3))", "true")
+        expectValue("(set? (flatten (set '(1))))", "true")
+        expectValue("(list? (flatten '((1))))", "true")
+    }
+
+    @Test("flatten over a set drops a nan as any set does")
+    func flattenNan() {
+        expectValue("(flatten (set (set \(Self.nan)) 1))", "{1}")
+    }
+
+    @Test("flatten over a large set", arguments: [
+        ("(length (flatten (make-set (integers 20000))))", "20000")
+    ] as [ValueCase])
+    func flattenLarge(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     // MARK: make-set
 
     @Test("make-set", arguments: [

@@ -18,9 +18,11 @@ struct StandardRegistryTests {
         "acos", "add", "append", "asin", "atan", "atan2",
         "boolean?", "callable?", "cartesian-product", "ceil", "comparable?", "cons",
         "contains?", "cos", "degs-to-rads", "difference", "div", "double", "double?", "drop",
-        "empty?", "eq", "explode", "finite?", "floor", "get",
+        "drop-last",
+        "empty?", "eq", "explode", "finite?", "flatten", "floor", "get",
         "get-or", "gt", "gte", "has-field?", "has-key?", "head", "implode",
-        "infinite?", "init", "insert", "integer", "integer?", "intersection",
+        "infinite?", "init", "insert", "integer", "integer?", "integers", "integers-between",
+        "intersection",
         "is-disjoint?", "is-strict-subset?", "is-strict-superset?",
         "is-subset?", "is-superset?", "key-index", "keys", "keys-values", "kind",
         "last", "length", "lines", "list", "list?", "ln",
@@ -30,9 +32,9 @@ struct StandardRegistryTests {
         "positive?", "pow", "powerset", "put", "rads-to-degs", "record-isa?", "record-type",
         "record-type-fields", "record-type-name", "rem", "remove",
         "reverse", "round", "set", "set?", "sin", "sort", "sort-descending", "sortable?", "sqrt",
-        "string", "string?", "sub", "symmetric-difference", "tail", "take",
+        "string", "string?", "sub", "symmetric-difference", "tail", "take", "take-last",
         "tan", "trim", "union", "uppercase", "values", "words",
-        "zero?"
+        "zero?", "zip", "zip-all"
     ]
 
     @Test("the registered names are exactly the promised roster")

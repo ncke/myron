@@ -77,6 +77,35 @@ struct StandardLists: StandardModule {
             }),
         
         MyronPrimitive(
+            primitiveName: "list.take-last",
+            representations: ["take-last"],
+            signature: StandardSignature([StandardSignature.int1, StandardSignature.list1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let count = try fst.unwrapInteger(location)
+                guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
+
+                let elements = try snd.unwrapList(location)
+                let take = Array(elements.suffix(count))
+                return .list(take)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "list.drop-last",
+            representations: ["drop-last"],
+            signature: StandardSignature([StandardSignature.int1, StandardSignature.list1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let count = try fst.unwrapInteger(location)
+                guard count >= 0 else { throw MyronError(.cannotBeNegative, at: location) }
+
+                let elements = try snd.unwrapList(location)
+                let prefixCount = max(0, elements.count - count)
+                let drop = Array(elements.prefix(prefixCount))
+                return .list(drop)
+            }),
+        
+        MyronPrimitive(
             primitiveName: "list.length",
             representations: ["length"],
             signature: StandardSignature([StandardSignature.list1]),
@@ -165,7 +194,122 @@ struct StandardLists: StandardModule {
             representations: ["list"],
             body: { args, location in
                 return .list(args)
-            })
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "list.zip",
+            representations: ["zip"],
+            signature: StandardSignature([StandardSignature.list1, StandardSignature.list1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let (list1, list2) = (try fst.unwrapList(location), try snd.unwrapList(location))
+                var result = [MyronValue]()
+                var iterator1 = list1.makeIterator()
+                var iterator2 = list2.makeIterator()
+                
+                while true {
+                    guard let e1 = iterator1.next(), let e2 = iterator2.next() else { break }
+                    result.append(.list([e1, e2]))
+                }
+                
+                return .list(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "list.zip-all",
+            representations: ["zip-all"],
+            signature: StandardSignature([StandardSignature.list1, StandardSignature.list1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let (list1, list2) = (try fst.unwrapList(location), try snd.unwrapList(location))
+                var result = [MyronValue]()
+                var iterator1 = list1.makeIterator()
+                var iterator2 = list2.makeIterator()
+                
+                while true {
+                    let (e1, e2) = (iterator1.next(), iterator2.next())
+                    if e1 == nil && e2 == nil { break }
+                    result.append(.list([e1 ?? .nothing, e2 ?? .nothing]))
+                }
+                
+                return .list(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "list.flatten",
+            representations: ["flatten"],
+            signature: StandardSignature([StandardSignature.list1]),
+            body: { args, location in
+                var result = [MyronValue]()
+                var stack = [(Int, [MyronValue])]()
+                var work = try args.unwrap1(location).unwrapList(location)
+                var cursor = work.startIndex
+                
+                func next() -> MyronValue? {
+                    if cursor < work.endIndex { defer { cursor += 1 }; return work[cursor] }
+                    
+                    while let popped = stack.popLast() {
+                        (cursor, work) = popped
+                        if cursor < work.endIndex { defer { cursor += 1 }; return work[cursor] }
+                    }
+                    
+                    return nil
+                }
+                
+                func push(then elements: [MyronValue]) {
+                    guard elements.count > 0 else { return }
+                    stack.append((cursor, work))
+                    work = elements
+                    cursor = work.startIndex
+                }
+                
+                while let value = next() {
+                    switch value {
+                    case .list(let elements): push(then: elements)
+                    default: result.append(value)
+                    }
+                }
+                
+                return .list(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "list.integers",
+            representations: ["integers"],
+            signature: StandardSignature([StandardSignature.int1]),
+            body: { args, location in
+                let limit = try args.unwrap1(location).unwrapInteger(location)
+                guard limit >= 1 else { return .list([]) }
+                
+                var result = [MyronValue]()
+                var counter = 0
+                while counter != limit {
+                    result.append(.integer(counter))
+                    counter += 1
+                }
+                
+                return .list(result)
+            }),
+        
+        MyronPrimitive(
+            primitiveName: "list.integers-between",
+            representations: ["integers-between"],
+            signature: StandardSignature([StandardSignature.int1, StandardSignature.int1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let start = try fst.unwrapInteger(location)
+                let finish = try snd.unwrapInteger(location)
+                guard finish > start else { return .list([]) }
+                
+                var result = [MyronValue]()
+                var counter = start
+                while counter != finish {
+                    result.append(.integer(counter))
+                    counter += 1
+                }
+                
+                return .list(result)
+            }),
     ]
 
 }
@@ -174,9 +318,6 @@ struct StandardLists: StandardModule {
 // TODO: foldr
 // TODO: take-while
 // TODO: drop-while
-// TODO: zip
-// TODO: flatten
-// TODO: sort
 
 // MARK: - Helpers
 
