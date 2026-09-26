@@ -135,10 +135,12 @@ struct StandardHashmap: StandardModule {
                     for (idx, element) in alist.enumerated() {
                         guard case .list(let pair) = element, pair.count == 2 else {
                             throw MyronError(.malformedAlist(idx), at: location)
+                                .withHint(.alistElementDidNotMeetRequirements)
                         }
                         
                         if case .nothing = pair[1] {
                             throw MyronError(.malformedAlist(idx), at: location)
+                                .withHint(.alistValueCannotBeNothing)
                         }
                         
                         let key = pair[0]

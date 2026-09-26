@@ -145,10 +145,12 @@ extension StandardAlist {
         for (idx, element) in list.enumerated() {
             guard case .list(let pair) = element, pair.count == 2 else {
                 throw MyronError(.malformedAlist(idx), at: location)
+                    .withHint(.alistElementDidNotMeetRequirements)
             }
             
             if case .nothing = pair[1] {
                 throw MyronError(.malformedAlist(idx), at: location)
+                    .withHint(.alistValueCannotBeNothing)
             }
             
             pairs.append((pair[0], pair[1]))
@@ -168,10 +170,12 @@ extension StandardAlist {
         for (idx, element) in list.enumerated() {
             guard case .list(let pair) = element, pair.count == 2 else {
                 throw MyronError(.malformedAlist(idx), at: location)
+                    .withHint(.alistElementDidNotMeetRequirements)
             }
 
             if case .nothing = pair[1] {
                 throw MyronError(.malformedAlist(idx), at: location)
+                    .withHint(.alistValueCannotBeNothing)
             }
 
             if pair[0] == key {

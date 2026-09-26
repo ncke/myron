@@ -615,7 +615,7 @@ Swift already applies — `(eq nan nan)` is `false`.
 ### `MyronError`
 
 ```swift
-public struct MyronError: Error, Sendable {
+public struct MyronError: Error, Sendable, Equatable, Hashable {
     public let reason: Reason             // what went wrong
     public let location: MyronLocation?   // where, a Range<Int> of offsets
     public let message: String?           // a pre-rendered diagnostic
@@ -632,6 +632,14 @@ ERROR: Unrecognised symbol
 (+ 1 undefined)
      ^^^^^^^^^
 ```
+
+Some errors also carry informal advice from the place they were raised, which
+the message adds after the caret — `HINT:` for one, or a `HINTS:` list for
+several. Hints are part of the message only: the `.terse` error style, which
+leaves `message` as `nil`, shows none, and there is no separate property to read
+them from.
+
+Two errors are equal when their `reason`, `location` and `message` are.
 
 `reason` is an enum you can switch over to react programmatically. Every case
 also has a `description`, which is the first line of the rendered message.
@@ -1588,6 +1596,19 @@ responsible:
 ERROR: Unrecognised symbol
 (+ 1 undefined)
      ^^^^^^^^^
+```
+
+Where the place an error was raised knows something that would help, a hint
+follows the caret:
+
+```
+> (< 1 2.0)
+ERROR: Unexpected type, got double, expected integer
+(< 1 2.0)
+^^^^^^^^^
+HINTS:
+- Values of different kinds cannot be compared
+- Use `double` and `integer` to convert between numeric kinds
 ```
 
 That is the whole language. The rest of this page is reference material.

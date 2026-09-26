@@ -306,11 +306,11 @@ extension Machine {
             }
 
         case .branch(let thenClause, let elseClause, let environment, let location):
-            let condition = try value.unwrapBoolean(location)
+            let condition = try hinting(.conditionNotBoolean, value.unwrapBoolean(location))
             control = .eval(condition ? thenClause : elseClause, environment)
 
         case .condition(let bodies, let remaining, let environment, let location):
-            if try value.unwrapBoolean(location) == true {
+            if try hinting(.conditionNotBoolean, value.unwrapBoolean(location)) == true {
                 if bodies.count > 1 {
                     stack.append(.sequence(bodies.dropFirst(), environment, location))
                 }

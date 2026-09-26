@@ -4,7 +4,7 @@ import Foundation
 
 public struct MyronError: Error, Sendable {
 
-    public enum Reason: Sendable, Equatable {
+    public enum Reason: Sendable, Equatable, Hashable {
         case ambiguousResolution(String, String, [String])
         case cannotBeNegative
         case containingEnvironmentNoLongerExists
@@ -37,27 +37,61 @@ public struct MyronError: Error, Sendable {
     public let reason: Reason
     public let location: MyronLocation?
     public let message: String?
+    let hints: [Hint]?
+
+    init(
+        reason: Reason,
+        location: MyronLocation?,
+        message: String?,
+        hints: [Hint]?
+    ) {
+        self.reason = reason
+        self.location = location
+        self.message = message
+        let augmentedHints = Self.addAutomaticHintsIfNecessary(for: reason, to: hints)
+        self.hints = augmentedHints
+    }
 
     init(
         reason: Reason,
         location: MyronLocation?,
         message: String? = nil
     ) {
-        self.reason = reason
-        self.location = location
-        self.message = message
+        self.init(reason: reason, location: location, message: message, hints: nil)
     }
 
     init(_ reason: Reason, at location: MyronLocation?) {
-        self.reason = reason
-        self.location = location
-        self.message = nil
+        self.init(reason: reason, location: location, message: nil, hints: nil)
     }
 
     init(_ reason: Reason) {
-        self.reason = reason
-        self.location = nil
-        self.message = nil
+        self.init(reason: reason, location: nil, message: nil, hints: nil)
+    }
+
+}
+
+// MARK: - Location
+
+extension MyronError {
+
+    func withLocation(_ relocation: MyronLocation?) -> MyronError {
+        return MyronError(reason: reason, location: relocation, message: message, hints: hints)
+    }
+
+}
+
+// MARK: - Equatable & Hashable
+
+extension MyronError: Hashable {
+
+    public static func ==(lhs: MyronError, rhs: MyronError) -> Bool {
+        lhs.reason == rhs.reason && lhs.location == rhs.location && lhs.message == rhs.message
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(self.reason)
+        hasher.combine(self.location)
+        hasher.combine(self.message)
     }
 
 }
@@ -66,7 +100,7 @@ public struct MyronError: Error, Sendable {
 
 extension MyronError {
 
-    public enum IntegerExpectation: Sendable, Equatable {
+    public enum IntegerExpectation: Sendable, Equatable, Hashable {
         case exactly(Int)
         case atLeast(Int)
         case atMost(Int)

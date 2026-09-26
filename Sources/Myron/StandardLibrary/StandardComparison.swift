@@ -74,6 +74,8 @@ extension StandardComparison {
 
         guard fst.kind == snd.kind else {
             throw MyronError(.unexpectedType(snd.kind, [fst.kind]), at: location)
+                .withHint(.comparisonBetweenDifferentKinds)
+                .withHint(.mixedDifferentNumericKinds, if: fst.isNumeric && snd.isNumeric)
         }
 
         if let f = fst.asInteger, let s = snd.asInteger { return f < s }
@@ -85,6 +87,7 @@ extension StandardComparison {
         if let f = fst.asString, let s = snd.asString { return f < s }
 
         throw MyronError(.incomparableTypes, at: location)
+            .withHint(.comparisonMetIncomparableKind)
     }
     
     static func compareGt(
@@ -95,6 +98,8 @@ extension StandardComparison {
 
         guard fst.kind == snd.kind else {
             throw MyronError(.unexpectedType(snd.kind, [fst.kind]), at: location)
+                .withHint(.comparisonBetweenDifferentKinds)
+                .withHint(.mixedDifferentNumericKinds, if: fst.isNumeric && snd.isNumeric)
         }
 
         if let f = fst.asInteger, let s = snd.asInteger { return f > s }
@@ -106,6 +111,7 @@ extension StandardComparison {
         if let f = fst.asString, let s = snd.asString { return f > s }
 
         throw MyronError(.incomparableTypes, at: location)
+            .withHint(.comparisonMetIncomparableKind)
     }
     
 }

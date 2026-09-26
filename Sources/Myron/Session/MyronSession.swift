@@ -183,16 +183,8 @@ extension MyronSession {
                 return try wrapped(args, location)
                 
             } catch let error as MyronError {
-                var trampolineError = error
-                if error.location == nil {
-                    trampolineError = MyronError(
-                        reason: error.reason,
-                        location: location,
-                        message: error.message)
-                }
-                
-                throw trampolineError
-                
+                throw error.location == nil ? error.withLocation(location) : error
+
             } catch let error as MyronHostError {
                 throw MyronError(.hostError(error.description), at: location)
                 

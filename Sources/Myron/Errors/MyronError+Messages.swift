@@ -6,13 +6,18 @@ extension MyronError {
 
     func withMessage(in expression: String) -> MyronError {
         let message = self.asErrorMessage(in: expression)
-        return MyronError(reason: self.reason, location: self.location, message: message)
+        return MyronError(
+            reason: self.reason,
+            location: self.location,
+            message: message,
+            hints: self.hints)
     }
 
     private func asErrorMessage(in expression: String) -> String {
         var message = "ERROR: " + self.reason.description
 
         guard let (errorText, errorLocation) = extractText(from: expression) else {
+            if let block = createHintBlock() { message += block }
             return message
         }
 
@@ -22,7 +27,18 @@ extension MyronError {
         let highlight = String(repeating: "^", count: errorLocation.count)
         message += "\n\(spacer)\(highlight)"
 
+        if let block = createHintBlock() { message += block }
         return message
+    }
+
+    private func createHintBlock() -> String? {
+        guard let hints, hints.count > 0 else { return nil }
+
+        if hints.count == 1, let hint = hints.first {
+            return "\nHINT: \(hint)"
+        } else {
+            return "\nHINTS:\n- " + hints.map { h in h.description }.joined(separator: "\n- ")
+        }
     }
 
     private func extractText(from expression: String) -> (String, MyronLocation)? {

@@ -64,6 +64,13 @@ the language, and a patch release will not.
   `MyronRecordType` conform to `MyronValueRepresentable` and
   `MyronValueConvertible`.
 - `MyronValue.Kind` is `Hashable`.
+- Error messages can end with hints: informal advice from the place the error
+  was raised, such as which conversion would let two numbers be compared. One
+  hint follows the caret as `HINT:`, several as a `HINTS:` list. Hints are part
+  of the message only, so the terse error style shows none.
+- `MyronError` is `Equatable` and `Hashable`, comparing its reason, location and
+  message. `MyronError.Reason` and `MyronError.IntegerExpectation` are
+  `Hashable`.
 - The error kinds `duplicateField` and `unexpectedField`.
 
 ### Changed

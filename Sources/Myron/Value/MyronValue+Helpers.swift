@@ -164,6 +164,13 @@ extension MyronValue {
         return false
     }
 
+    var isNumeric: Bool {
+        switch self {
+        case .double, .integer: return true
+        default: return false
+        }
+    }
+
     var isCallable: Bool {
         switch self {
         case .higherOrder, .higherProbe, .primitive, .procedure: return true
