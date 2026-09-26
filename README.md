@@ -65,7 +65,7 @@ looking things up later.
   bounded by a configurable limit rather than by the host's thread stack.
 - A standard environment covering comparison, predicates, logic, mathematics,
   sequences, lists, association lists, hashmaps, sets, sorting, strings, and the
-  higher-order staples (`map`, `filter`, `reduce`, `all`, `any`).
+  higher-order staples (`map`, `filter`, `reduce`, `foldr`, `all`, `any`).
 - Two associative types behind one set of names: `get`, `put` and friends
   resolve over alists and hashmaps alike.
 - Swift interoperability in both directions. Swift values convert to
@@ -528,7 +528,7 @@ public enum MyronValue {
     case nothing
     case procedure(MyronProcedure)        // a lambda or a defined procedure
     case primitive(MyronPrimitive)        // a built-in function
-    case higherOrder(MyronHigherOrder)    // map, filter, reduce
+    case higherOrder(MyronHigherOrder)    // map, filter, reduce, foldr
     case higherProbe(MyronHigherProbe)    // all, any
     case define(String)                   // the marker a definition returns
 }
@@ -1487,14 +1487,15 @@ that each define `point` for themselves:
 
 ### Mapping, filtering, and reducing
 
-You will not often need `my-map`, because `map`, `filter` and `reduce` are
-built in. They take a function as their first argument — a `lambda`, a defined
+You will not often need `my-map`, because `map`, `filter`, `reduce` and
+`foldr` are built in. They take a function as their first argument — a `lambda`, a defined
 procedure, or a primitive:
 
 ```lisp
 (map square '(1 2 3))                     ; (1 4 9)
 (filter (lambda (x) (> x 1)) '(1 2 3))    ; (2 3)
 (reduce + 0 '(1 2 3 4))                   ; 10
+(foldr cons '() '(1 2 3))                 ; (1 2 3)
 (all (lambda (x) (> x 0)) '(1 2 3))       ; true
 (any (lambda (x) (> x 2)) '(1 2 3))       ; true
 ```
@@ -1503,7 +1504,17 @@ procedure, or a primitive:
 function with the accumulator first and the element second. Passing a primitive
 directly, as in `(reduce + 0 …)`, is idiomatic.
 
-All five take a [set](#sets) as readily as a list, and `map` and `filter` give
+`foldr` takes the same three arguments but works from the right-hand end of the
+list, and calls the function with the element first and the accumulator second.
+That order is what lets `(foldr cons '() xs)` rebuild `xs`. The two agree when
+the function does not care about order, and differ when it does:
+
+```lisp
+(reduce - 0 '(1 2 3))                     ; -6, from ((0 - 1) - 2) - 3
+(foldr - 0 '(1 2 3))                      ; 2, from 1 - (2 - (3 - 0))
+```
+
+All six take a [set](#sets) as readily as a list, and `map` and `filter` give
 back the kind they were given:
 
 ```lisp
@@ -2724,7 +2735,8 @@ literal written on one line, and the line-based REPL cannot enter one.
 |---|---|---|
 | `map` | function, list or set | the results, in the kind given |
 | `filter` | predicate, list or set | the elements the predicate accepted |
-| `reduce` | function, initial value, list or set | the accumulated value |
+| `reduce` | function, initial value, list or set | the accumulated value, folded from the left |
+| `foldr` | function, initial value, list or set | the accumulated value, folded from the right |
 | `all` | predicate, list or set | `true` if every element satisfies it |
 | `any` | predicate, list or set | `true` if some element satisfies it |
 
@@ -2733,17 +2745,20 @@ literal written on one line, and the line-based REPL cannot enter one.
 (filter (lambda (x) (> x 1)) '(1 2 3))    ; (2 3)
 (reduce + 0 '(1 2 3 4))                   ; 10
 (reduce * 1 '(1 2 3 4))                   ; 24
+(foldr - 0 '(1 2 3))                      ; 2
+(foldr cons '() '(1 2 3))                 ; (1 2 3)
 (all (lambda (x) (> x 0)) '(1 2 3))       ; true
 (any (lambda (x) (> x 2)) '(1 2 3))       ; true
 ```
 
 The function may be a `lambda`, a defined procedure, or a primitive —
 `(reduce + 0 …)` passes the built-in `+` directly. `map` and `filter` call it
-with one argument; `reduce` calls it with two, the accumulator first; `all` and
-`any` call it with one and require a boolean back. A `filter`, `all` or `any`
+with one argument; `reduce` calls it with two, the accumulator first; `foldr`
+calls it with two, the element first; `all` and `any` call it with one and
+require a boolean back. A `filter`, `all` or `any`
 predicate that returns a non-boolean is a type error.
 
-All five also accept a [set](#sets), and `map` and `filter` give back the kind
+All six also accept a [set](#sets), and `map` and `filter` give back the kind
 they were given — a list maps to a list, a set to a set, including when it is
 empty:
 
@@ -2763,10 +2778,10 @@ a `nan` — is dropped, as it would be anywhere else:
 (length (map (lambda (x) 0) '(1 2 3)))    ; 3 — a list keeps all three
 ```
 
-A set has no order, so the order in which `reduce` folds it is unspecified. Fold
-a set only with a function where that does not matter — `(reduce + 0 …)` is
-fine, `(reduce - 0 …)` is not — and use a list when the order is part of the
-answer.
+A set has no order, so the order in which `reduce` and `foldr` fold it is
+unspecified. Fold a set only with a function where that does not matter —
+`(reduce + 0 …)` is fine, `(reduce - 0 …)` is not — and use a list when the
+order is part of the answer.
 
 They take nothing else. Use `explode` to reach a string's characters, and
 `keys`, `values` or `keys-values` to reach a hashmap's:
@@ -2778,7 +2793,7 @@ They take nothing else. Use `explode` to reach a string's characters, and
 
 `all` and `any` stop at the first element that decides the answer, so a
 predicate that would fail on a later element may never run. Over the empty list
-`all` is `true` and `any` is `false`, following the usual convention. All five
+`all` is `true` and `any` is `false`, following the usual convention. All six
 check that their first argument is callable before iterating, so `(all 5 '())`
 is an error rather than `true`.
 
@@ -2797,7 +2812,7 @@ those arguments alone.
 Still to come:
 
 - Sorting with a comparison procedure of your own, and sorting a hashmap's
-  entries; `take-while`, `drop-while` and `foldr`.
+  entries; `take-while` and `drop-while`.
 - Literal syntax for sets and hashmaps. Until then, build them with `set`,
   `make-set` and `make-hashmap`.
 - Escape sequences in string literals. Until then, a string cannot contain a

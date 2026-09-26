@@ -13,18 +13,19 @@ final class StandardEnvironment {
         switch representation {
             
         // Constants.
+        case "infinity": return .double(.infinity)
+        case "nan": return .double(.nan)
         case "nothing": return .nothing
         case "pi": return .double(Double.pi)
-        case "nan": return .double(.nan)
-        case "infinity": return .double(.infinity)
-            
-        // Higher-order lists.
-        case "map": return .higherOrder(.map)
-        case "filter": return .higherOrder(.filter)
-        case "reduce": return .higherOrder(.reduce)
+
+        // Higher-order functions.
         case "all": return .higherProbe(.all)
         case "any": return .higherProbe(.any)
-            
+        case "filter": return .higherOrder(.filter)
+        case "foldr": return .higherOrder(.foldr)
+        case "map": return .higherOrder(.map)
+        case "reduce": return .higherOrder(.reduce)
+
         default :break
         }
         

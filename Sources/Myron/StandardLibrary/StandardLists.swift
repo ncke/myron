@@ -315,7 +315,6 @@ struct StandardLists: StandardModule {
 }
 
 // TODO: range
-// TODO: foldr
 // TODO: take-while
 // TODO: drop-while
 

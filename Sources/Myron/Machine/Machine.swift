@@ -30,6 +30,7 @@ extension Machine {
         case define(String, Environment)
         case disjunction(ArraySlice<Expression>, Environment, MyronLocation?)
         case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
+        case foldring(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
         case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
@@ -345,6 +346,10 @@ extension Machine {
                 control = .value(.boolean(true))
             }
 
+        case .define(let name, let environment):
+            environment.insert(name, value: value)
+            control = .value(.define(name))
+
         case .disjunction(let remaining, let environment, let location):
             if try value.unwrapBoolean(location) == true {
                 control = .value(.boolean(true))
@@ -368,6 +373,15 @@ extension Machine {
             }
 
             control = .value(shape.rebuild(done))
+
+        case .foldring(let function, let remaining, let location):
+            if let next = remaining.last {
+                stack.append(.foldring(function, remaining.dropLast(), location))
+                try apply(function, to: [next, value], at: location)
+                return
+            }
+
+            control = .value(value)
 
         case .mapping(let function, let remaining, var done, let shape, let location):
             done.append(value)
@@ -417,11 +431,6 @@ extension Machine {
             } else {
                 control = .value(value)
             }
-
-        case .define(let name, let environment):
-            environment.insert(name, value: value)
-            control = .value(.define(name))
-
         }
     }
 
@@ -456,16 +465,16 @@ extension Machine {
                     control = .value(shape.rebuild([]))
                 }
 
-            case .reduce:
+            case .foldr:
                 let (function, partial, valueList) = try arguments.unwrap3(location)
                 guard function.isCallable else {
                     throw MyronError(.expectedFunction(function.kind), at: location)
                 }
                 let values = try valueList.unwrapElements(location)
-
-                if let headValue = values.first {
-                    stack.append(.reducing(function, values.dropFirst(), location))
-                    try apply(function, to: [partial, headValue], at: location)
+                
+                if let tailValue = values.last {
+                    stack.append(.foldring(function, values.dropLast(), location))
+                    try apply(function, to: [tailValue, partial], at: location)
                 } else {
                     control = .value(partial)
                 }
@@ -479,10 +488,25 @@ extension Machine {
                 let shape = try Shape(valueList)
 
                 if let headValue = values.first {
-                    stack.append(.filtering(function, headValue, values.dropFirst(), [], shape, location))
+                    stack.append(
+                        .filtering(function, headValue, values.dropFirst(), [], shape, location))
                     try apply(function, to: [headValue], at: location)
                 } else {
                     control = .value(shape.rebuild([]))
+                }
+
+            case .reduce:
+                let (function, partial, valueList) = try arguments.unwrap3(location)
+                guard function.isCallable else {
+                    throw MyronError(.expectedFunction(function.kind), at: location)
+                }
+                let values = try valueList.unwrapElements(location)
+
+                if let headValue = values.first {
+                    stack.append(.reducing(function, values.dropFirst(), location))
+                    try apply(function, to: [partial, headValue], at: location)
+                } else {
+                    control = .value(partial)
                 }
             }
 

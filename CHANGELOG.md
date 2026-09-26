@@ -46,6 +46,9 @@ the language, and a patch release will not.
   shorter with `nothing`.
 - `flatten`, which opens every nested list in a list, or every nested set in a
   set, at any depth.
+- `foldr`, which folds a list or set from the right. It takes the same
+  arguments as `reduce` but calls the function with the element first and the
+  accumulator second, so `(foldr cons '() xs)` rebuilds `xs`.
 - `MyronRecord` and `MyronRecordType` as Swift types. Both are value types; a
   record type is `Sendable`, so a host primitive can capture one. Records are
   built by position or by field name, read with a subscript, `get`, `values`
@@ -71,8 +74,9 @@ the language, and a patch release will not.
 - The REPL writes errors to standard error.
 - `MyronValue` gains the cases `record` and `recordType`, `MyronValue.Kind`
   gains `record` and `recordType`, and `MyronError.Reason` gains
-  `duplicateField` and `unexpectedField`. A host that switches exhaustively
-  over any of these will need the new cases.
+  `duplicateField` and `unexpectedField`, and `MyronHigherOrder` gains
+  `foldr`. A host that switches exhaustively over any of these will need the
+  new cases.
 - `invalidName` is also raised for a record type or field name that Myron
   source could not write, and so can now come back from `eval`.
 

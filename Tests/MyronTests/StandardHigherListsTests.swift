@@ -56,6 +56,39 @@ struct StandardHigherListsTests {
             "60")
     }
 
+    @Test("foldr folds from the right with an accumulator")
+    func foldr() {
+        expectValue("(foldr + 0 '(1 2 3 4 5))", "15")
+        expectValue("(foldr * 1 '(1 2 3 4))", "24")
+    }
+
+    @Test("foldr calls the function with the element first")
+    func foldrOrder() {
+        expectValue("(foldr - 0 '(1 2 3))", "2")
+        expectValue("(reduce - 0 '(1 2 3))", "-6")
+        expectValue("(foldr cons '() '(1 2 3))", "(1 2 3)")
+    }
+
+    @Test("foldr over the empty list returns the initial value")
+    func foldrEmpty() {
+        expectValue("(foldr + 0 '())", "0")
+    }
+
+    @Test("foldr with a user-defined procedure")
+    func foldrProcedure() {
+        expectValue(
+            """
+            (define (keep-positive x acc) 
+                (if (gt x 0) (cons x acc) acc)) (foldr keep-positive '() '(-1 2 -3 4))
+            """,
+            "(2 4)")
+    }
+
+    @Test("foldr over a set")
+    func foldrSet() {
+        expectValue("(foldr + 0 (set 1 2 3))", "6")
+    }
+
     @Test("all is true when every element satisfies the predicate")
     func all() {
         expectValue("(all (lambda (x) (> x 0)) '(1 2 3))", "true")
@@ -99,6 +132,9 @@ struct StandardHigherListsTests {
         ("(map sqrt 5)", .unexpectedType(.integer, [.list, .set])),
         ("(filter sqrt '(1.0))", .unexpectedType(.double, [.boolean])),
         ("(reduce + 0 5)", .unexpectedType(.integer, [.list, .set])),
+        ("(foldr 5 0 '(1 2))", .expectedFunction(.integer)),
+        ("(foldr + 0 5)", .unexpectedType(.integer, [.list, .set])),
+        ("(foldr +)", .unexpectedArity(1, .exactly(3))),
         ("(all 5 '(1 2))", .expectedFunction(.integer)),
         ("(any 5 '(1 2))", .expectedFunction(.integer)),
         ("(all sqrt 5)", .unexpectedType(.integer, [.list, .set])),
