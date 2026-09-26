@@ -52,6 +52,9 @@ the language, and a patch release will not.
 - `range` and `range-len`, which extract a stretch of a list or string, given
   its start and either the index it finishes before or its length. Like `take`
   and `drop`, they reject a negative number and are forgiving past the end.
+- `apply`, which calls a function with the elements of a list or set as its
+  arguments, after any arguments given before it: `(apply + 1 2 '(3 4))` is
+  `10`. The last argument must be a list or a set.
 - `MyronRecord` and `MyronRecordType` as Swift types. Both are value types; a
   record type is `Sendable`, so a host primitive can capture one. Records are
   built by position or by field name, read with a subscript, `get`, `values`
@@ -78,8 +81,8 @@ the language, and a patch release will not.
 - `MyronValue` gains the cases `record` and `recordType`, `MyronValue.Kind`
   gains `record` and `recordType`, and `MyronError.Reason` gains
   `duplicateField` and `unexpectedField`, and `MyronHigherOrder` gains
-  `foldr`. A host that switches exhaustively over any of these will need the
-  new cases.
+  `foldr` and `apply`. A host that switches exhaustively over any of these will
+  need the new cases.
 - `invalidName` is also raised for a record type or field name that Myron
   source could not write, and so can now come back from `eval`.
 

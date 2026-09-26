@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Higher Order and Probe
 
 public enum MyronHigherOrder {
-    case map, filter, foldr, reduce
+    case apply, map, filter, foldr, reduce
 }
 
 public enum MyronHigherProbe {
@@ -16,6 +16,7 @@ extension MyronHigherOrder: CustomStringConvertible {
 
     public var description: String {
         switch self {
+        case .apply: return "<primitive: higher.apply>"
         case .map: return "<primitive: higher.map>"
         case .filter: return "<primitive: higher.filter>"
         case .foldr: return "<primitive: higher.foldr>"

@@ -89,6 +89,55 @@ struct StandardHigherListsTests {
         expectValue("(foldr + 0 (set 1 2 3))", "6")
     }
 
+    @Test("apply spreads a list as the function's arguments", arguments: [
+        ("(apply + '(1 2 3))", "6"),
+        ("(apply max '(3 9 4))", "9"),
+        ("(apply list '())", "()"),
+        ("(apply (lambda (a b) (- a b)) '(10 3))", "7"),
+        ("(define (add a b) (+ a b)) (apply add '(1 2))", "3")
+    ] as [ValueCase])
+    func applyList(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("apply passes leading arguments before the spread list", arguments: [
+        ("(apply + 1 2 '(3 4))", "10"),
+        ("(apply list 1 '())", "(1)"),
+        ("(apply list 1 2 '(3))", "(1 2 3)"),
+        ("(apply - 10 '(3))", "7")
+    ] as [ValueCase])
+    func applyLeading(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("apply spreads a set", arguments: [
+        ("(apply + (set 1 2 3))", "6"),
+        ("(apply + 10 (set 1 2))", "13"),
+        ("(eq (apply union (set (set 1 2) (set 3 4))) (set 1 2 3 4))", "true"),
+        ("(eq (apply intersection (set (set 1 2 3) (set 2 3 4))) (set 2 3))", "true")
+    ] as [ValueCase])
+    func applySet(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("apply composes with the other higher-order functions")
+    func applyHigherOrder() {
+        expectValue("(apply map (lambda (x) (* x 2)) '((1 2 3)))", "(2 4 6)")
+        expectValue("(apply apply (list + 1 '(2 3)))", "6")
+        expectValue("(map (lambda (xs) (apply + xs)) '((1 2) (3 4)))", "(3 7)")
+    }
+
+    @Test("apply in tail position does not consume depth")
+    func applyTailCall() {
+        expectValue(
+            """
+            (define (count-down n)
+                (if (eq n 0) 'done (apply count-down (list (- n 1)))))
+            (count-down 100000)
+            """,
+            "done")
+    }
+
     @Test("all is true when every element satisfies the predicate")
     func all() {
         expectValue("(all (lambda (x) (> x 0)) '(1 2 3))", "true")
@@ -135,6 +184,15 @@ struct StandardHigherListsTests {
         ("(foldr 5 0 '(1 2))", .expectedFunction(.integer)),
         ("(foldr + 0 5)", .unexpectedType(.integer, [.list, .set])),
         ("(foldr +)", .unexpectedArity(1, .exactly(3))),
+        ("(apply 5 '(1 2))", .expectedFunction(.integer)),
+        ("(apply 5 '())", .expectedFunction(.integer)),
+        ("(apply + 1 2)", .unexpectedType(.integer, [.list, .set])),
+        ("(apply + \"ab\")", .unexpectedType(.string, [.list, .set])),
+        ("(apply +)", .unexpectedArity(1, .atLeast(2))),
+        ("(apply)", .unexpectedArity(0, .atLeast(2))),
+        ("(apply + '())", .unexpectedArity(0, .atLeast(2))),
+        ("(apply (lambda (x) x) '(1 2))", .unexpectedArity(2, .exactly(1))),
+        ("(apply and '(true false))", .unrecognisedSymbol),
         ("(all 5 '(1 2))", .expectedFunction(.integer)),
         ("(any 5 '(1 2))", .expectedFunction(.integer)),
         ("(all sqrt 5)", .unexpectedType(.integer, [.list, .set])),

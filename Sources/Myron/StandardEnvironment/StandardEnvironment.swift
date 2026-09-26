@@ -20,6 +20,7 @@ final class StandardEnvironment {
 
         // Higher-order functions.
         case "all": return .higherProbe(.all)
+        case "apply": return .higherOrder(.apply)
         case "any": return .higherProbe(.any)
         case "filter": return .higherOrder(.filter)
         case "foldr": return .higherOrder(.foldr)

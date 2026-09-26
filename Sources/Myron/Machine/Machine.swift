@@ -450,6 +450,23 @@ extension Machine {
         case .higherOrder(let higher):
             switch higher {
 
+            case .apply:
+                try arguments.mustHaveAtLeast(2, location)
+
+                let function = try arguments.unwrapFirst(location)
+                guard function.isCallable else {
+                    throw MyronError(.expectedFunction(function.kind), at: location)
+                }
+
+                guard let last = arguments.last else {
+                    let explain = "apply must have at least two arguments"
+                    throw MyronError(.internal(explain), at: location)
+                }
+
+                var values = arguments.dropFirst().dropLast()
+                values.append(contentsOf: try last.unwrapElements(location))
+                try apply(function, to: values, at: location)
+
             case .map:
                 let (function, valueList) = try arguments.unwrap2(location)
                 guard function.isCallable else {

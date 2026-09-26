@@ -65,7 +65,8 @@ looking things up later.
   bounded by a configurable limit rather than by the host's thread stack.
 - A standard environment covering comparison, predicates, logic, mathematics,
   sequences, lists, association lists, hashmaps, sets, sorting, strings, and the
-  higher-order staples (`map`, `filter`, `reduce`, `foldr`, `all`, `any`).
+  higher-order staples (`map`, `filter`, `reduce`, `foldr`, `all`, `any`,
+  `apply`).
 - Two associative types behind one set of names: `get`, `put` and friends
   resolve over alists and hashmaps alike.
 - Swift interoperability in both directions. Swift values convert to
@@ -528,7 +529,7 @@ public enum MyronValue {
     case nothing
     case procedure(MyronProcedure)        // a lambda or a defined procedure
     case primitive(MyronPrimitive)        // a built-in function
-    case higherOrder(MyronHigherOrder)    // map, filter, reduce, foldr
+    case higherOrder(MyronHigherOrder)    // map, filter, reduce, foldr, apply
     case higherProbe(MyronHigherProbe)    // all, any
     case define(String)                   // the marker a definition returns
 }
@@ -1487,8 +1488,8 @@ that each define `point` for themselves:
 
 ### Mapping, filtering, and reducing
 
-You will not often need `my-map`, because `map`, `filter`, `reduce` and
-`foldr` are built in. They take a function as their first argument — a
+You will not often need `my-map`, because `map`, `filter`, `reduce`, `foldr`
+and `apply` are built in. They take a function as their first argument — a
 `lambda`, a defined procedure, or a primitive:
 
 ```lisp
@@ -1498,6 +1499,7 @@ You will not often need `my-map`, because `map`, `filter`, `reduce` and
 (foldr cons '() '(1 2 3))                 ; (1 2 3)
 (all (lambda (x) (> x 0)) '(1 2 3))       ; true
 (any (lambda (x) (> x 2)) '(1 2 3))       ; true
+(apply + '(1 2 3))                        ; 6
 ```
 
 `reduce` takes the function, a starting value, and the list, and calls the
@@ -1514,7 +1516,16 @@ the function does not care about order, and differ when it does:
 (foldr - 0 '(1 2 3))                      ; 2, from 1 - (2 - (3 - 0))
 ```
 
-All six take a [set](#sets) as readily as a list, and `map` and `filter` give
+`apply` calls a function with the elements of a list as its arguments, which is
+how you call a function on arguments you only have as a list. Any arguments
+between the function and the list go in front:
+
+```lisp
+(apply max '(3 9 4))                      ; 9, as (max 3 9 4)
+(apply + 1 2 '(3 4))                      ; 10, as (+ 1 2 3 4)
+```
+
+All seven take a [set](#sets) as readily as a list, and `map` and `filter` give
 back the kind they were given:
 
 ```lisp
@@ -2753,6 +2764,7 @@ literal written on one line, and the line-based REPL cannot enter one.
 | `foldr` | function, initial value, list or set | the accumulated value, folded from the right |
 | `all` | predicate, list or set | `true` if every element satisfies it |
 | `any` | predicate, list or set | `true` if some element satisfies it |
+| `apply` | function, any leading arguments, list or set | the function's result |
 
 ```lisp
 (map (lambda (x) (* x x)) '(1 2 3))       ; (1 4 9)
@@ -2763,16 +2775,26 @@ literal written on one line, and the line-based REPL cannot enter one.
 (foldr cons '() '(1 2 3))                 ; (1 2 3)
 (all (lambda (x) (> x 0)) '(1 2 3))       ; true
 (any (lambda (x) (> x 2)) '(1 2 3))       ; true
+(apply + '(1 2 3))                        ; 6
+(apply list 1 2 '(3))                     ; (1 2 3)
 ```
 
 The function may be a `lambda`, a defined procedure, or a primitive —
 `(reduce + 0 …)` passes the built-in `+` directly. `map` and `filter` call it
 with one argument; `reduce` calls it with two, the accumulator first; `foldr`
 calls it with two, the element first; `all` and `any` call it with one and
-require a boolean back. A `filter`, `all` or `any`
-predicate that returns a non-boolean is a type error.
+require a boolean back. A `filter`, `all` or `any` predicate that returns a
+non-boolean is a type error.
 
-All six also accept a [set](#sets), and `map` and `filter` give back the kind
+`apply` calls the function once, with the leading arguments followed by the
+elements of the last. The last argument must be a list or a set —
+`(apply + 1 2)` is a type error, not `3` — and the function checks the argument
+count as it would for any other call, so `(apply + '())` fails because `+` needs
+at least two. `apply` in tail position is a tail call. `and` and `or` are
+special forms rather than functions, so they cannot be applied; use `all` and
+`any` instead.
+
+All seven also accept a [set](#sets), and `map` and `filter` give back the kind
 they were given — a list maps to a list, a set to a set, including when it is
 empty:
 
@@ -2792,9 +2814,10 @@ a `nan` — is dropped, as it would be anywhere else:
 (length (map (lambda (x) 0) '(1 2 3)))    ; 3 — a list keeps all three
 ```
 
-A set has no order, so the order in which `reduce` and `foldr` fold it is
-unspecified. Fold a set only with a function where that does not matter —
-`(reduce + 0 …)` is fine, `(reduce - 0 …)` is not — and use a list when the
+A set has no order, so the order in which `reduce` and `foldr` fold it, or
+`apply` passes its members, is unspecified. Fold or apply a set only with a
+function where that does not matter — `(reduce + 0 …)` and `(apply union …)`
+are fine, `(reduce - 0 …)` and `(apply - …)` are not — and use a list when the
 order is part of the answer.
 
 They take nothing else. Use `explode` to reach a string's characters, and
@@ -2807,7 +2830,7 @@ They take nothing else. Use `explode` to reach a string's characters, and
 
 `all` and `any` stop at the first element that decides the answer, so a
 predicate that would fail on a later element may never run. Over the empty list
-`all` is `true` and `any` is `false`, following the usual convention. All six
+`all` is `true` and `any` is `false`, following the usual convention. All seven
 check that their first argument is callable before iterating, so `(all 5 '())`
 is an error rather than `true`.
 
