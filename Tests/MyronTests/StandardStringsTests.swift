@@ -88,6 +88,33 @@ struct StandardStringsTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("range extracts characters up to the finish, excluding it", arguments: [
+        ("(range 1 3 \"abcde\")", "\"bc\""),
+        ("(range 0 5 \"abcde\")", "\"abcde\""),
+        ("(range 1 99 \"abcde\")", "\"bcde\""),
+        ("(range 2 2 \"abcde\")", "\"\""),
+        ("(range 3 1 \"abcde\")", "\"\""),
+        ("(range 5 7 \"abcde\")", "\"\""),
+        ("(range 1 3 \"héllo\")", "\"él\""),
+        ("(range 0 1 \"\")", "\"\"")
+    ] as [ValueCase])
+    func range(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("range-len extracts a length of characters from the start", arguments: [
+        ("(range-len 1 2 \"abcde\")", "\"bc\""),
+        ("(range-len 3 99 \"abcde\")", "\"de\""),
+        ("(range-len 2 0 \"abcde\")", "\"\""),
+        ("(range-len 5 2 \"abcde\")", "\"\""),
+        ("(range-len 1 2 \"héllo\")", "\"él\""),
+        ("(range-len 1 9223372036854775807 \"abc\")", "\"bc\""),
+        ("(range-len 0 1 \"\")", "\"\"")
+    ] as [ValueCase])
+    func rangeLen(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("length counts characters, not bytes", arguments: [
         ("(length \"abc\")", "3"),
         ("(length \"\")", "0"),
@@ -165,6 +192,12 @@ struct StandardStringsTests {
         ("(drop-last -1 \"ab\")", .cannotBeNegative),
         ("(take-last \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
         ("(drop-last \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
+        ("(range -1 2 \"ab\")", .cannotBeNegative),
+        ("(range 0 -1 \"ab\")", .cannotBeNegative),
+        ("(range \"x\" 1 \"ab\")", .unexpectedType(.string, [.integer])),
+        ("(range-len -1 2 \"ab\")", .cannotBeNegative),
+        ("(range-len 0 -1 \"ab\")", .cannotBeNegative),
+        ("(range-len 0 \"x\" \"ab\")", .unexpectedType(.string, [.integer])),
         ("(nth \"a\" \"abc\")", .unexpectedType(.string, [.integer])),
         ("(nth 3 \"abc\")", .subscriptOutOfBounds(3, 3)),
         ("(nth -1 \"abc\")", .subscriptOutOfBounds(-1, 3)),

@@ -1488,8 +1488,8 @@ that each define `point` for themselves:
 ### Mapping, filtering, and reducing
 
 You will not often need `my-map`, because `map`, `filter`, `reduce` and
-`foldr` are built in. They take a function as their first argument — a `lambda`, a defined
-procedure, or a primitive:
+`foldr` are built in. They take a function as their first argument — a
+`lambda`, a defined procedure, or a primitive:
 
 ```lisp
 (map square '(1 2 3))                     ; (1 4 9)
@@ -2129,6 +2129,8 @@ rest do not, since neither a hashmap nor a set has an order.
 | `drop` | non-negative integer, sequence | all but the first n elements |
 | `take-last` | non-negative integer, sequence | the last n elements |
 | `drop-last` | non-negative integer, sequence | all but the last n elements |
+| `range` | start index, finish index, sequence | the elements from start up to, not including, finish |
+| `range-len` | start index, length, sequence | length elements from start |
 | `nth` | integer index, sequence | the element at that index |
 | `length` | 1 sequence | integer |
 | `empty?` | 1 sequence | boolean |
@@ -2145,6 +2147,10 @@ rest do not, since neither a hashmap nor a set has an order.
 (drop 5 '(1 2))                           ; () — over-dropping is fine
 (take-last 2 '(1 2 3))                    ; (2 3)
 (drop-last 2 "hello")                     ; "hel"
+(range 1 3 '(a b c d e))                  ; (b c)
+(range 1 4 "hello")                       ; "ell"
+(range-len 1 3 "hello")                   ; "ell"
+(range-len 3 9 '(a b c d e))              ; (d e) — a length past the end is fine
 (nth 2 '(1 2 3))                          ; 3 — indices are zero-based
 (length "hello")                          ; 5
 (empty? '())                              ; true
@@ -2160,6 +2166,14 @@ rest do not, since neither a hashmap nor a set has an order.
 `subscriptOutOfBounds` rather than returning `nothing`. A negative count to
 `take`, `drop`, `take-last` or `drop-last` raises `cannotBeNegative`; a count
 past the end is fine.
+
+`range` and `range-len` extract a stretch of a sequence, given its start and
+either where it finishes or how long it is. Indices are zero-based and the
+finish is left out, so `(range s f xs)` is `(take (- f s) (drop s xs))` and
+`(range-len s n xs)` is `(take n (drop s xs))`. They forgive what `take` and
+`drop` forgive: a start or finish past the end is fine, and a finish at or
+before the start gives back an empty sequence. A negative index or length
+raises `cannotBeNegative`.
 
 `append` decides which kind of sequence it is building from its first argument,
 and every remaining argument must match, so lists and strings cannot be mixed.

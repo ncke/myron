@@ -176,7 +176,56 @@ struct StandardLists: StandardModule {
 
                 return .boolean(isContained)
             }),
-        
+
+        MyronPrimitive(
+            primitiveName: "list.range",
+            representations: ["range"],
+            signature: StandardSignature([
+                StandardSignature.int1,
+                StandardSignature.int1,
+                StandardSignature.list1]),
+            body: { args, location in
+                let (fst, snd, thd) = try args.unwrap3(location)
+                let start = try fst.unwrapInteger(location)
+                let finish = try snd.unwrapInteger(location)
+                let list = try thd.unwrapList(location)
+
+                guard start >= 0, finish >= 0 else {
+                    throw MyronError(.cannotBeNegative, at: location)
+                }
+
+                guard start < list.endIndex, finish > start else { return .list([]) }
+
+                let slice = list[start..<min(finish, list.endIndex)]
+                return .list(Array(slice))
+            }),
+
+        MyronPrimitive(
+            primitiveName: "list.range-len",
+            representations: ["range-len"],
+            signature: StandardSignature([
+                StandardSignature.int1,
+                StandardSignature.int1,
+                StandardSignature.list1]),
+            body: { args, location in
+                let (fst, snd, thd) = try args.unwrap3(location)
+                let start = try fst.unwrapInteger(location)
+                let len = try snd.unwrapInteger(location)
+                let list = try thd.unwrapList(location)
+
+                guard start >= 0, len >= 0 else {
+                    throw MyronError(.cannotBeNegative, at: location)
+                }
+
+                let (sum, isOverflow) = start.addingReportingOverflow(len)
+                let finish = isOverflow ? Int.max : sum
+
+                guard start < list.endIndex, finish > start else { return .list([]) }
+
+                let slice = list[start..<min(finish, list.endIndex)]
+                return .list(Array(slice))
+            }),
+
         // MARK: Native Lists
     
         MyronPrimitive(
@@ -314,7 +363,6 @@ struct StandardLists: StandardModule {
 
 }
 
-// TODO: range
 // TODO: take-while
 // TODO: drop-while
 

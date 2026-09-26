@@ -49,6 +49,9 @@ the language, and a patch release will not.
 - `foldr`, which folds a list or set from the right. It takes the same
   arguments as `reduce` but calls the function with the element first and the
   accumulator second, so `(foldr cons '() xs)` rebuilds `xs`.
+- `range` and `range-len`, which extract a stretch of a list or string, given
+  its start and either the index it finishes before or its length. Like `take`
+  and `drop`, they reject a negative number and are forgiving past the end.
 - `MyronRecord` and `MyronRecordType` as Swift types. Both are value types; a
   record type is `Sendable`, so a host primitive can capture one. Records are
   built by position or by field name, read with a subscript, `get`, `values`

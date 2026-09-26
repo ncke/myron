@@ -174,7 +174,66 @@ struct StandardStrings: StandardModule {
                 if target.isEmpty { return .boolean(true) }
                 return .boolean(str.contains(target))
             }),
-        
+
+        MyronPrimitive(
+            primitiveName: "string.range",
+            representations: ["range"],
+            signature: StandardSignature([
+                StandardSignature.int1,
+                StandardSignature.int1,
+                StandardSignature.str1]),
+            body: { args, location in
+                let (fst, snd, thd) = try args.unwrap3(location)
+                let n1 = try fst.unwrapInteger(location)
+                let n2 = try snd.unwrapInteger(location)
+                guard n1 >= 0, n2 >= 0 else {
+                    throw MyronError(.cannotBeNegative, at: location)
+                }
+
+                let str = try thd.unwrapString(location)
+                guard
+                    n2 > n1,
+                    let start = str.index(str.startIndex, offsetBy: n1, limitedBy: str.endIndex)
+                else {
+                    return .string("")
+                }
+
+                let finish = str.index(str.startIndex, offsetBy: n2, limitedBy: str.endIndex)
+                let slice = str[start..<(finish ?? str.endIndex)]
+                return .string(String(slice))
+            }),
+
+        MyronPrimitive(
+            primitiveName: "string.range-len",
+            representations: ["range-len"],
+            signature: StandardSignature([
+                StandardSignature.int1,
+                StandardSignature.int1,
+                StandardSignature.str1]),
+            body: { args, location in
+                let (fst, snd, thd) = try args.unwrap3(location)
+                let n1 = try fst.unwrapInteger(location)
+                let len = try snd.unwrapInteger(location)
+                guard n1 >= 0, len >= 0 else {
+                    throw MyronError(.cannotBeNegative, at: location)
+                }
+
+                let (sum, isOverflow) = n1.addingReportingOverflow(len)
+                let n2 = isOverflow ? Int.max : sum
+
+                let str = try thd.unwrapString(location)
+                guard
+                    n2 > n1,
+                    let start = str.index(str.startIndex, offsetBy: n1, limitedBy: str.endIndex)
+                else {
+                    return .string("")
+                }
+
+                let finish = str.index(str.startIndex, offsetBy: n2, limitedBy: str.endIndex)
+                let slice = str[start..<(finish ?? str.endIndex)]
+                return .string(String(slice))
+            }),
+
         // MARK: String Native
         
         MyronPrimitive(

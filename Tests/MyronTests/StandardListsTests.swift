@@ -77,6 +77,39 @@ struct StandardListsTests {
         expectValue("(append (drop-last 2 '(1 2 3 4)) (take-last 2 '(1 2 3 4)))", "(1 2 3 4)")
     }
 
+    @Test("range extracts from the start up to the finish, excluding it", arguments: [
+        ("(range 1 3 '(a b c d e))", "(b c)"),
+        ("(range 0 5 '(a b c d e))", "(a b c d e)"),
+        ("(range 1 99 '(a b c d e))", "(b c d e)"),
+        ("(range 2 2 '(a b c d e))", "()"),
+        ("(range 3 1 '(a b c d e))", "()"),
+        ("(range 5 7 '(a b c d e))", "()"),
+        ("(range 0 1 '())", "()")
+    ] as [ValueCase])
+    func range(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("range-len extracts a length from the start", arguments: [
+        ("(range-len 1 2 '(a b c d e))", "(b c)"),
+        ("(range-len 0 5 '(a b c d e))", "(a b c d e)"),
+        ("(range-len 3 99 '(a b c d e))", "(d e)"),
+        ("(range-len 2 0 '(a b c d e))", "()"),
+        ("(range-len 5 2 '(a b c d e))", "()"),
+        ("(range-len 1 9223372036854775807 '(a b c))", "(b c)"),
+        ("(range-len 0 1 '())", "()")
+    ] as [ValueCase])
+    func rangeLen(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("range and range-len agree with take and drop")
+    func rangeAgreesWithTakeDrop() {
+        let xs = "'(a b c d e f)"
+        expectValue("(eq (range 2 5 \(xs)) (take 3 (drop 2 \(xs))))", "true")
+        expectValue("(eq (range-len 2 3 \(xs)) (take 3 (drop 2 \(xs))))", "true")
+    }
+
     @Test("length", arguments: [
         ("(length '(1 2 3))", "3"),
         ("(length '())", "0"),
@@ -308,6 +341,16 @@ struct StandardListsTests {
         ("(take-last -1 '(1 2))", .cannotBeNegative),
         ("(drop-last -1 '(1 2))", .cannotBeNegative),
         ("(take-last \"x\" '(1))", .unexpectedType(.string, [.integer])),
+        ("(range -1 2 '(1 2))", .cannotBeNegative),
+        ("(range 0 -1 '(1 2))", .cannotBeNegative),
+        ("(range \"x\" 1 '(1))", .unexpectedType(.string, [.integer])),
+        ("(range 0 1 5)", .unexpectedType(.integer, [.list, .string])),
+        ("(range 0 1)", .unexpectedArity(2, .exactly(3))),
+        ("(range-len -1 2 '(1 2))", .cannotBeNegative),
+        ("(range-len 0 -1 '(1 2))", .cannotBeNegative),
+        ("(range-len 0 \"x\" '(1))", .unexpectedType(.string, [.integer])),
+        ("(range-len 0 1 5)", .unexpectedType(.integer, [.list, .string])),
+        ("(range-len 0 1)", .unexpectedArity(2, .exactly(3))),
         ("(zip '(1) 5)", .unexpectedType(.integer, [.list])),
         ("(zip 5 '(1))", .unexpectedType(.integer, [.list])),
         ("(zip '(1))", .unexpectedArity(1, .exactly(2))),
