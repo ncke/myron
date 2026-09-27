@@ -14,7 +14,8 @@ public final class MyronSession {
         self.environment = Environment(registry: environmentRegistry)
         self.machine = Machine(
             environment: environment,
-            maximumStackDepth: configuration.maximumStackDepth)
+            maximumStackDepth: configuration.maximumStackDepth,
+            maximumEvalDepth: configuration.maximumEvalDepth)
     }
 
     deinit {
@@ -168,7 +169,21 @@ extension MyronSession {
         let primitive = try primitivise(name: name, arity: .exactly(6), wrapped: wrapped)
         environment.insert(name, value: .primitive(primitive))
     }
-    
+
+    public func define(
+        _ name: String,
+        arity: MyronError.IntegerExpectation,
+        body: @escaping @Sendable ([MyronValue]) throws -> MyronValueRepresentable
+    ) throws {
+        let wrapped: MyronPrimitive.Body = {
+            args, location in
+            let result = try body(args)
+            return result.myronValue
+        }
+        let primitive = try primitivise(name: name, arity: arity, wrapped: wrapped)
+        environment.insert(name, value: .primitive(primitive))
+    }
+
     private func primitivise(
         name: String,
         arity: MyronError.IntegerExpectation,

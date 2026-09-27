@@ -21,14 +21,15 @@ enum Console {
 extension MyronSession {
 
     func defineConsolePrimitives() throws {
-        try define("print") { value in
-            print(Console.text(of: value))
+        try define("print", arity: .unspecified) { values in
+            values.forEach { value in print(Console.text(of: value), terminator: "") }
+            print()
             fflush(nil)
             return MyronValue.nothing
         }
 
-        try define("write") { value in
-            print(Console.text(of: value), terminator: "")
+        try define("write", arity: .unspecified) { values in
+            values.forEach { value in print(Console.text(of: value), terminator: "") }
             fflush(nil)
             return MyronValue.nothing
         }

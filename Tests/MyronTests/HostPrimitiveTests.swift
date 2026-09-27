@@ -426,4 +426,116 @@ struct HostPrimitiveTests {
         #expect(session.eval("(sum (+ 1 1) (* 2 2))").asSuccess?.asInteger == 6)
     }
 
+    // MARK: Re-entrancy
+
+    // A body that evaluates source in its own session, as a host's `load`
+    // would, runs while the outer evaluation is suspended mid-application.
+
+    @Test("a body that evaluates in its own session returns into the caller")
+    func reentrantEvalResumesCaller() throws {
+        let session = MyronSession()
+        let box = SessionBox(session)
+        try session.define("inner") { v in
+            try #require(box.session?.eval(v.requireString()).asSuccess)
+        }
+
+        let source = "(list 1 (inner \"(+ 2 3)\") (+ 3 4))"
+        #expect(session.eval(source).asSuccess?.description == "(1 5 7)")
+    }
+
+    @Test("definitions made by a re-entrant evaluation persist in the session")
+    func reentrantEvalDefines() throws {
+        let session = MyronSession()
+        let box = SessionBox(session)
+        try session.define("inner") { v in
+            try #require(box.session?.eval(v.requireString()).asSuccess)
+        }
+
+        let source = "(define (f) (inner \"(define x 10)\") (+ x 1))"
+        #expect(session.eval(source).isSuccess)
+        #expect(session.eval("(f)").asSuccess?.asInteger == 11)
+    }
+
+    @Test("a re-entrant failure returns into the caller as an ordinary error")
+    func reentrantEvalFailure() throws {
+        let session = MyronSession()
+        let box = SessionBox(session)
+        try session.define("inner") { v in
+            guard let result = try box.session?.eval(v.requireString()) else { return MyronValue.nothing }
+            if let error = result.asFailure?.first { throw error }
+            return result.asSuccess ?? .nothing
+        }
+
+        #expect(session.eval("(list (inner \"(/ 1 0)\"))").asFailure?.first?.reason
+            == .divisionByZero)
+        #expect(session.eval("(list 1 2)").asSuccess?.description == "(1 2)")
+    }
+
+    // MARK: Eval Depth
+
+    // `(nest n)` evaluates `(nest n-1)` in its own session, so reaching zero
+    // takes n + 1 evaluations nested one inside another.
+    private static func nestingSession(evalLimit: Int?) throws -> MyronSession {
+        let session = MyronSession(configuration: MyronSessionConfiguration(
+            errorStyle: .terse,
+            maximumStackDepth: 2000,
+            maximumEvalDepth: evalLimit))
+        let box = SessionBox(session)
+        try session.define("nest") { v in
+            let n = try v.requireInteger()
+            guard n > 0 else { return MyronValue.integer(0) }
+            guard let result = box.session?.eval("(nest \(n - 1))") else { return MyronValue.nothing }
+            if let error = result.asFailure?.first { throw error }
+            return result.asSuccess ?? .nothing
+        }
+        return session
+    }
+
+    @Test("evaluations nested up to the limit succeed")
+    func evalDepthWithinLimit() throws {
+        let session = try Self.nestingSession(evalLimit: 3)
+        #expect(session.eval("(nest 2)").asSuccess?.asInteger == 0)
+    }
+
+    @Test("an evaluation nested past the limit fails rather than overflowing")
+    func evalDepthPastLimit() throws {
+        let session = try Self.nestingSession(evalLimit: 3)
+        #expect(session.eval("(nest 3)").asFailure?.first?.reason
+            == .exceededMaximumEvalDepth(4))
+    }
+
+    @Test("unbounded nesting fails under the standard limit")
+    func evalDepthUnbounded() throws {
+        let session = try Self.nestingSession(
+            evalLimit: MyronSessionConfiguration.standard.maximumEvalDepth)
+        #expect(session.eval("(nest 1000000)").asFailure?.first?.reason
+            == .exceededMaximumEvalDepth(9))
+    }
+
+    @Test("the session is usable at full depth again after a depth failure")
+    func evalDepthRecovers() throws {
+        let session = try Self.nestingSession(evalLimit: 3)
+        #expect(session.eval("(nest 3)").isFailure)
+        #expect(session.eval("(nest 2)").asSuccess?.asInteger == 0)
+    }
+
+    // Nine evaluations passes the standard limit of eight, but stays within
+    // what a debug build's 512 KB test thread can hold: about ten.
+    @Test("a nil limit removes the check")
+    func evalDepthUnlimited() throws {
+        let session = try Self.nestingSession(evalLimit: nil)
+        #expect(session.eval("(nest 8)").asSuccess?.asInteger == 0)
+    }
+
+}
+
+// MARK: - Session Box
+
+// A primitive's body must be `Sendable`, and a session is not, so a body that
+// reaches back into its own session holds it through this. The reference is
+// weak to avoid a cycle through the session's environment.
+
+private final class SessionBox: @unchecked Sendable {
+    weak var session: MyronSession?
+    init(_ session: MyronSession) { self.session = session }
 }

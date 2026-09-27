@@ -10,15 +10,24 @@ the language, and a patch release will not.
 
 ### Added
 
-- The executable runs a file: `myron script.my` evaluates it and exits. An
-  error goes to standard error with the file, line and column, and the exit
-  status is non-zero. A leading `#!` line is ignored.
+- The executable runs files: `myron --load one.my --load two.my` evaluates each
+  in turn, in one environment, and exits. An error goes to standard error with
+  the file, line and column, stops the run, and the exit status is non-zero. A
+  leading `#!` line is ignored, and `#!/usr/bin/env -S myron --load` makes a
+  script executable.
+- `myron --repl` starts the REPL, after loading any files given with `--load`.
+  With neither, `myron` prints its usage and fails.
+- The executable binds `load`, which evaluates a file into the session from
+  inside a program and gives back the value of its last form.
 - The executable binds `print`, `write`, `read-line`, `read-character` and
   `read-all` for standard output and standard input, and `exit` to end the
   process with a given status.
-- The executable binds `arguments` to the command-line arguments after the
-  file, and `source-file` to the file's path. In the REPL they are `()` and
-  `nothing`.
+- The executable binds `arguments` to the command-line arguments: everything
+  from the first item that is not an option, or after `--`.
+- `print` and `write` take any number of values and write them one after
+  another.
+- `MyronSession.define(_:arity:body:)`, which defines a host primitive that
+  takes its arguments as an array, checked against the given arity.
 - `sort` and `sort-descending`, which put the elements of a list or set in
   order and give back a list.
 - `sortable?`, which says whether `sort` would succeed, and `comparable?`,
@@ -75,6 +84,15 @@ the language, and a patch release will not.
 
 ### Changed
 
+- A host primitive can call `eval` on its own session. The caller's pending
+  work is set aside and picks up where it left off once the nested evaluation
+  returns. Before, the nested evaluation discarded it, so the outer program
+  ended early with the inner result.
+- `MyronSessionConfiguration` gains `maximumEvalDepth`, which bounds how deeply
+  evaluations can nest through host primitives. Each level runs on the host
+  thread's stack, so past the limit the nested `eval` fails with the new
+  `exceededMaximumEvalDepth` rather than overflowing the thread. The default is
+  `8`, and the initialiser's parameter defaults to it.
 - A `nan` now has a place in the ordering, after every other double, so `lt`,
   `lte`, `gt` and `gte` always give a consistent answer and `sort` puts a `nan`
   at the end. Before, `<` answered `true` whichever side the `nan` was on, and
@@ -82,8 +100,8 @@ the language, and a patch release will not.
 - `min` and `max` follow the same ordering: `min` passes over a `nan` and `max`
   gives one back. Before, the answer depended on where the `nan` was in the
   arguments.
-- The `myron-repl` executable is now `myron`. Run it with no arguments for the
-  REPL, as before.
+- The `myron-repl` executable is now `myron`, and starts the REPL with
+  `--repl`.
 - The REPL writes errors to standard error.
 - `MyronValue` gains the cases `record` and `recordType`, `MyronValue.Kind`
   gains `record` and `recordType`, and `MyronError.Reason` gains

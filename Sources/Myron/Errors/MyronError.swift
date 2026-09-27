@@ -13,6 +13,7 @@ public struct MyronError: Error, Sendable {
         case duplicateField(String, String)
         case duplicateKeys([Int])
         case emptyApplication
+        case exceededMaximumEvalDepth(Int)
         case exceededMaximumStackDepth(Int)
         case expectedExpressionAfterTick
         case expectedFunction(MyronValue.Kind)
@@ -145,6 +146,7 @@ extension MyronError.Reason: CustomStringConvertible {
         case .duplicateField(let field, let name):
             return "Record-type \(name) cannot have duplicate fields, got: \(field)"
         case .emptyApplication: return "Empty application"
+        case .exceededMaximumEvalDepth(let depth): return "Exceeded maximum eval depth: \(depth)"
         case .exceededMaximumStackDepth(let depth): return "Exceeded maximum stack depth: \(depth)"
         case .expectedExpressionAfterTick: return "Expected expression after tick"
         case .expectedFunction(let kind): return "Expected function but got \(kind)"

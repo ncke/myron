@@ -90,7 +90,8 @@ looking things up later.
 - A session's environment is open to its host: names can be read, written and
   listed from Swift without going through source text.
 - Primitives can be written in Swift and called from Myron. A host supplies a
-  closure of up to six arguments and gets arity checking, namespacing and error
+  closure of up to six arguments, or one that takes them all as an array, and
+  gets arity checking, namespacing and error
   reporting for free — a failure inside the closure arrives as an ordinary
   Myron diagnostic, complete with a source location and caret.
 - Sequence primitives that work on both lists and strings, resolved on the
@@ -112,11 +113,11 @@ swift build
 swift test
 ```
 
-The `myron` executable is both a REPL and a script runner. Run it with no
-arguments to take the language for a spin in the REPL:
+The `myron` executable is both a REPL and a script runner. Run it with
+`--repl` to take the language for a spin in the REPL:
 
 ```bash
-swift run myron
+swift run myron --repl
 ```
 
 ```
@@ -141,15 +142,15 @@ The REPL reads one line at a time, so keep each entry on a single line.
 Definitions persist for the life of the process. Errors are written to
 standard error.
 
-Give it a file instead and it evaluates the file from top to bottom, then
-exits:
+Give it a file with `--load` instead and it evaluates the file from top to
+bottom, then exits:
 
 ```bash
-swift run myron greet.my
+swift run myron --load greet.my
 ```
 
 ```lisp
-#!/usr/bin/env myron
+#!/usr/bin/env -S myron --load
 ; greet.my — says hello to each line of input.
 
 (define (greet-all)
@@ -164,50 +165,86 @@ swift run myron greet.my
 ```
 
 ```
-$ printf 'Ada\nGrace\n' | myron greet.my
+$ printf 'Ada\nGrace\n' | myron --load greet.my
 Hello, Ada!
 Hello, Grace!
 ```
 
 A script is not echoed as it runs: what it prints is what appears. A leading
 `#!` line is ignored, so with `myron` on your `PATH` a script marked executable
-can be run directly. The `myron` executable binds some primitives of its own,
+can be run directly. The `-S` lets `env` pass `--load` along with `myron`, and
+the script's own path arrives after it.
+
+`--load` can be given more than once. The files are evaluated in turn, in the
+order given, into the same environment, so a later file can use what an
+earlier one defined. The first file to fail stops the run. With `--repl`, the
+REPL starts once every file has loaded, with their definitions in place:
+
+```bash
+swift run myron --load prelude.my --repl
+```
+
+The full form is:
+
+```
+myron [--repl] [--load file]... [argument ...]
+```
+
+Options come first. The first item that is not an option, and everything after
+it, is an [argument](#arguments) for the program rather than an option for
+`myron`. With neither `--load` nor `--repl`, or with an option it does not
+recognise, `myron` prints this usage line to standard error and exits with a
+non-zero status. The `myron` executable binds some primitives of its own,
 on top of the [standard library](#standard-library-reference), to connect a
 program to the terminal:
 
 | Primitive | Arguments | Result |
 |---|---|---|
-| `print` | any value | `nothing`; writes the value and a newline to standard output |
-| `write` | any value | `nothing`; writes the value to standard output, with no newline |
+| `print` | any number of values | `nothing`; writes the values and a newline to standard output |
+| `write` | any number of values | `nothing`; writes the values to standard output, with no newline |
 | `read-line` | none | the next line of standard input, without its newline, or `nothing` at the end of input |
 | `read-character` | none | the next character of standard input as a one-character string, or `nothing` at the end of input |
 | `read-all` | none | the rest of standard input, or `""` at the end of input |
 | `exit` | integer from 0 to 255 | ends the process with that exit status |
+| `load` | path, as a string | the value of the file's last form; evaluates the file into the environment |
 
-`print` and `write` render a value the way `string` does, so a string appears
-without its quotes. The three readers share one buffer, so they can be mixed
+`print` and `write` render each value the way `string` does, so a string
+appears without its quotes, and write the values one after another with nothing
+between them: `(print "next: " 3)` writes `next: 3`. The three readers share one buffer, so they can be mixed
 freely. `read-character` reads a single Unicode scalar, so a character built
 from several — an accented letter written with a combining accent, or a `\r\n`
 line ending — arrives one piece at a time, and a byte that is not valid UTF-8
 arrives as U+FFFD, the replacement character. `exit` works in the REPL too,
 where it ends the session.
 
-It also binds two names describing how it was run:
+`load` does from inside a program what `--load` does from the command line.
+The file's definitions land in the session's top-level environment, wherever
+the call is made, and a relative path is taken from the current directory, not
+from the file doing the loading. A failure in the loaded file stops it there
+and comes back as a failure of the `load` call, naming the file, line and
+column. A file cannot load itself, directly or by way of another file, while it
+is still loading.
 
-| Name | Value |
-|---|---|
-| `source-file` | the file's path, as given on the command line, or `nothing` in the REPL |
-| `arguments` | a list of the command-line arguments after the file, as strings — `()` if there are none, and in the REPL |
+#### Arguments
+
+It also binds `arguments`, a list of the command-line arguments, as strings, or
+`()` if there are none. They start at the first item that is not an option, so
+a script's own arguments reach it as they are, even those that begin with a
+dash:
 
 ```
-$ myron echo.my one "two words" 3
+$ ./echo.my one "two words" -v
 ```
 
 ```lisp
+#!/usr/bin/env -S myron --load
 ; echo.my
-(print source-file)                       ; echo.my
-(print arguments)                         ; ("one" "two words" "3")
+(print arguments)                         ; ("one" "two words" "-v")
 ```
+
+Only a first argument that begins with a dash needs care, since it would be
+read as an option: put `--` before it, and everything after the `--` is an
+argument.
 
 These are all [host primitives](#defining-primitives) and ordinary bindings,
 not part of the language: a Swift application that embeds Myron does not get
@@ -217,7 +254,7 @@ If evaluation fails, the error goes to standard error, prefixed with the file,
 line and column, and `myron` exits with status 1:
 
 ```
-$ myron broken.my
+$ myron --load broken.my
 broken.my:4:4: ERROR: Unexpected type, got string, expected integer
    (+ x "a")
    ^^^^^^^^^
@@ -378,6 +415,20 @@ try session.define("hypotenuse") { a, b in
 }
 
 session.eval("(hypotenuse 3.0 4.0)")      // .success(.double(5.0))
+```
+
+For any other count, or a variable one, pass `arity:` and take the arguments as
+an array. The arity is checked in the same way, as `.exactly`, `.atLeast`,
+`.atMost` or `.unspecified`:
+
+```swift
+try session.define("sum", arity: .atLeast(1)) { values in
+    try values.reduce(0) { total, value in try total + value.requireInteger() }
+}
+
+session.eval("(sum 1 2 3)")               // .success(.integer(6))
+session.eval("(sum)")
+// .failure — Unexpected arity: got 0, expected at least 1
 ```
 
 A body returns anything [representable](#swift-interoperability) — a Swift
@@ -654,6 +705,7 @@ also has a `description`, which is the first line of the rendered message.
 | `duplicateField(String, String)` | A record type named the same field twice; carries the field and the type's name. |
 | `duplicateKeys([Int])` | A key was found more than once in an alist; carries the indices. |
 | `emptyApplication` | The form `()` was evaluated. |
+| `exceededMaximumEvalDepth(Int)` | Evaluations nested through host primitives passed the configured limit; carries the depth reached. |
 | `exceededMaximumStackDepth(Int)` | Recursion passed the configured limit; carries the depth reached. |
 | `expectedExpressionAfterTick` | A `'` was not followed by an expression. |
 | `expectedFunction(MyronValue.Kind)` | The head of an application was not callable. |
@@ -1120,6 +1172,7 @@ let session = MyronSession(
 |---|---|---|
 | `errorStyle` | `.verbose` renders `message`; `.terse` leaves it `nil` | `.verbose` |
 | `maximumStackDepth` | An `Int` limit, or `nil` for no limit | `2000` |
+| `maximumEvalDepth` | An `Int` limit, or `nil` for no limit | `8` |
 
 Choose `.terse` when you are going to format diagnostics yourself from `reason`
 and `location` — it skips rendering work you would only throw away.
@@ -1131,6 +1184,18 @@ usable afterwards. Tail calls do not consume depth at all, so the limit only
 constrains genuinely non-tail recursion — `2000` is generous for most
 programs, and raising it costs memory rather than safety. Setting it to `nil`
 removes the check entirely; only do that for source you trust.
+
+`maximumEvalDepth` bounds something the heap cannot absorb. A
+[host primitive](#defining-primitives) may call `eval` on its own session —
+the executable's `load` does — and that nested evaluation runs on the host
+thread's stack, inside the call that made it. Each level costs about 7 KB in a
+release build and about 52 KB in a debug build, so a primitive whose
+evaluation calls it again would overflow the thread and crash the process.
+Past the limit, the nested `eval` fails with `exceededMaximumEvalDepth`
+instead. `8` fits within a 512 KB secondary thread even in a debug build; on
+the main thread, or in a release build, there is room to raise it. The
+initialiser's `maximumEvalDepth` parameter defaults to `8`, so existing
+configurations keep working.
 
 ### Lifetime and threading
 
@@ -1158,7 +1223,7 @@ which is worth knowing before you reach for a non-`Sendable` service inside one.
 ## A tour of Myron
 
 This section assumes you know Swift and are new to Lisp. Everything here can be
-typed straight into `swift run myron`.
+typed straight into `swift run myron --repl`.
 
 ### Everything is an expression
 
@@ -2876,8 +2941,6 @@ Still to come:
 - Escape sequences in string literals. Until then, a string cannot contain a
   `"`, and a newline goes in by letting the literal span source lines.
 - Variadic user procedures, and default and keyword parameters.
-- A variadic form for host primitives, which take between zero and six
-  arguments today.
 - `sourceHandle` on errors. It is carried through tokenisation but not yet
   surfaced.
 

@@ -27,6 +27,7 @@ extension MyronError {
         case comparisonBetweenDifferentKinds
         case comparisonMetIncomparableKind
         case conditionNotBoolean
+        case evalDepthAdvice
         case instructionForInternalError
         case mixedDifferentNumericKinds
         case stackDepthAdvice
@@ -50,6 +51,8 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Use `comparable?` to determine if a value is comparable"
         case .conditionNotBoolean:
             return "The condition did not evaluate to a `boolean`"
+        case .evalDepthAdvice:
+            return "Check for a host primitive whose evaluation calls itself again"
         case .instructionForInternalError:
             return "Issues can be raised at 'https://github.com/ncke/myron'"
         case .mixedDifferentNumericKinds:
@@ -78,6 +81,7 @@ extension MyronError.Hint {
 
     static func automaticHintsFor(reason: MyronError.Reason) -> [MyronError.Hint]? {
         switch reason {
+        case .exceededMaximumEvalDepth: return [.evalDepthAdvice]
         case .exceededMaximumStackDepth: return [.stackDepthAdvice]
         case .internal: return [.instructionForInternalError]
         default: return nil

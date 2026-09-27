@@ -4,15 +4,19 @@ import Foundation
 
 final class Machine {
     private let maximumStackDepth: Int?
+    private let maximumEvalDepth: Int?
     private let rootEnvironment: Environment
+    private var evaluationStack = [([Frame], Control)]()
     private var stack = [Frame]()
     private var control = Control.value(.nothing)
 
     init(
         environment: Environment,
-        maximumStackDepth: Int? = nil
+        maximumStackDepth: Int? = nil,
+        maximumEvalDepth: Int? = nil
     ) {
         self.maximumStackDepth = maximumStackDepth
+        self.maximumEvalDepth = maximumEvalDepth
         self.rootEnvironment = environment
     }
 
@@ -70,9 +74,29 @@ extension Machine {
 extension Machine {
 
     func eval(_ expression: Expression) throws -> MyronValue {
+        try checkEvalDepth()
+        reentrancyPush()
+        defer { reentrancyPop() }
+
         stack = []
         control = .eval(expression, rootEnvironment)
         return try run()
+    }
+
+    private func reentrancyPush() {
+        evaluationStack.append((stack, control))
+    }
+
+    private func reentrancyPop() {
+        guard let popped = evaluationStack.popLast() else { return }
+        (stack, control) = popped
+    }
+
+    private func checkEvalDepth() throws {
+        let depth = evaluationStack.count + 1
+        guard let limit = maximumEvalDepth, depth > limit else { return }
+
+        throw MyronError(.exceededMaximumEvalDepth(depth))
     }
 
     private func checkStackDepth(at location: @autoclosure () -> MyronLocation?) throws {
