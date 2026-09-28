@@ -10,24 +10,13 @@ do {
     exit(EXIT_FAILURE)
 }
 
-let session = MyronSession()
-let script = Script(session: session)
+let script = Script(arguments: invocation.arguments)
 
-do {
-    try session.defineConsolePrimitives()
-    try session.defineLoadPrimitive(using: script)
-} catch {
-    Console.error("myron: \(error)")
-    exit(EXIT_FAILURE)
-}
-
-session.set("arguments", to: .list(invocation.arguments.map(MyronValue.string)))
-
-for path in invocation.paths {
-    let status = script.run(path: path)
+for load in invocation.loads {
+    let status = script.run(path: load.path, mode: load.mode)
     if status != EXIT_SUCCESS { exit(status) }
 }
 
 if invocation.repl {
-    Repl.run(in: session)
+    Repl.run(in: script.session)
 }

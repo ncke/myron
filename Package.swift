@@ -30,6 +30,10 @@ let package = Package(
             name: "MyronTests",
             dependencies: ["Myron"]
         ),
+        .testTarget(
+            name: "MyronRunnerTests",
+            dependencies: ["MyronRunner", "Myron"]
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

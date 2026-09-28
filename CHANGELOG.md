@@ -19,6 +19,17 @@ the language, and a patch release will not.
   With neither, `myron` prints its usage and fails.
 - The executable binds `load`, which evaluates a file into the session from
   inside a program and gives back the value of its last form.
+- Literate Myron. A `.md` or `.markdown` file, given to `--load` or `load`, is
+  a markdown document whose fenced `lisp` and `myron` blocks are the program,
+  and a block marked `ignore` is left out. Errors report the line and column in
+  the document. The blocks share one environment, and a block marked
+  `reset-environment` starts a clean one.
+- `myron --show file` evaluates a file a form at a time and writes each form's
+  place, source and result, carrying on past a failing form.
+- `MyronSession.evalEach`, which evaluates each top-level form in turn and gives
+  back every result, as a `MyronFormResult` with the form's location. A failing
+  form does not stop the ones after it. Optional `willEvaluate` and
+  `didEvaluate` closures report on each form as it is evaluated.
 - The executable binds `print`, `write`, `read-line`, `read-character` and
   `read-all` for standard output and standard input, and `exit` to end the
   process with a given status.

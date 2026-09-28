@@ -149,7 +149,7 @@ bottom, then exits:
 swift run myron --load greet.my
 ```
 
-```lisp
+```lisp ignore
 #!/usr/bin/env -S myron --load
 ; greet.my — says hello to each line of input.
 
@@ -184,18 +184,35 @@ REPL starts once every file has loaded, with their definitions in place:
 swift run myron --load prelude.my --repl
 ```
 
+`--show` loads a file in the same way, but a form at a time, writing each
+form's place and source, then anything it prints, then its value or its error.
+A failing form is shown like any other result and does not stop the ones after
+it, so `--show` exits with status 0 unless the file cannot be read. It is a way
+to see what a file does, and suits a [literate](#literate-files) document best:
+
+```
+$ myron --show squares.md
+squares.md:6:1
+(define (sq x) (* x x))
+=> <define: sq>
+
+squares.md:10:1
+(sq 7)
+=> 49
+```
+
 The full form is:
 
 ```
-myron [--repl] [--load file]... [argument ...]
+myron [--repl] [--load file | --show file]... [argument ...]
 ```
 
 Options come first. The first item that is not an option, and everything after
 it, is an [argument](#arguments) for the program rather than an option for
-`myron`. With neither `--load` nor `--repl`, or with an option it does not
-recognise, `myron` prints this usage line to standard error and exits with a
-non-zero status. The `myron` executable binds some primitives of its own,
-on top of the [standard library](#standard-library-reference), to connect a
+`myron`. With none of `--load`, `--show` or `--repl`, or with an option it does
+not recognise, `myron` prints this usage line to standard error and exits with
+a non-zero status. The `myron` executable binds some primitives of its own, on
+top of the [standard library](#standard-library-reference), to connect a
 program to the terminal:
 
 | Primitive | Arguments | Result |
@@ -210,12 +227,12 @@ program to the terminal:
 
 `print` and `write` render each value the way `string` does, so a string
 appears without its quotes, and write the values one after another with nothing
-between them: `(print "next: " 3)` writes `next: 3`. The three readers share one buffer, so they can be mixed
-freely. `read-character` reads a single Unicode scalar, so a character built
-from several — an accented letter written with a combining accent, or a `\r\n`
-line ending — arrives one piece at a time, and a byte that is not valid UTF-8
-arrives as U+FFFD, the replacement character. `exit` works in the REPL too,
-where it ends the session.
+between them: `(print "next: " 3)` writes `next: 3`. The three readers share one
+buffer, so they can be mixed freely. `read-character` reads a single Unicode
+scalar, so a character built from several — an accented letter written with a
+combining accent, or a `\r\n` line ending — arrives one piece at a time, and a
+byte that is not valid UTF-8 arrives as U+FFFD, the replacement character.
+`exit` works in the REPL too, where it ends the session.
 
 `load` does from inside a program what `--load` does from the command line.
 The file's definitions land in the session's top-level environment, wherever
@@ -224,6 +241,48 @@ from the file doing the loading. A failure in the loaded file stops it there
 and comes back as a failure of the `load` call, naming the file, line and
 column. A file cannot load itself, directly or by way of another file, while it
 is still loading.
+
+#### Literate files
+
+A file ending in `.md` or `.markdown`, whether given to `--load` or to `load`,
+is literate Myron: a markdown document whose fenced code blocks are the
+program. A block runs when its language is `lisp` or `myron`, and everything
+else — prose, headings, blocks in other languages — is passed over:
+
+````markdown
+# Squares
+
+Squaring multiplies a number by itself.
+
+```lisp
+(define (sq x) (* x x))
+```
+````
+
+Prefer `lisp`. Markdown renderers such as GitHub have never heard of Myron, but
+they do highlight Lisp, so the document reads well wherever it is shown. A
+block whose language is followed by `ignore`, as in ` ```lisp ignore `, is
+highlighted but not run, which suits an example that is deliberately partial
+or wrong.
+
+Errors are reported against the document itself. An error in `(* x x)` above
+would be reported at `squares.md:6:16`, its line and column in the markdown
+file.
+
+A document's blocks share one environment, so a later block can use what an
+earlier one defined. A block marked ` ```lisp reset-environment ` starts a
+clean one instead: the environment is replaced with a new one holding only the
+standard library, the executable's own primitives, and `arguments`. The block
+and those after it continue there, and so does anything loaded afterwards,
+including the REPL. That suits a document made of separate examples, each
+of which should start fresh. Only a block that runs can reset the environment,
+so an `ignore` block never does. A program's own environment cannot be
+replaced while it runs, so `load` refuses a document that resets the
+environment; give it to `--load` or `--show` instead.
+
+Like `load`, this belongs to the executable rather than the language. Every
+line outside a runnable block is left empty before the program is evaluated,
+so Myron sees ordinary source and each line of code keeps its place.
 
 #### Arguments
 
@@ -236,7 +295,7 @@ dash:
 $ ./echo.my one "two words" -v
 ```
 
-```lisp
+```lisp ignore
 #!/usr/bin/env -S myron --load
 ; echo.my
 (print arguments)                         ; ("one" "two words" "-v")
@@ -270,7 +329,8 @@ set `NO_COLOR` to keep it plain regardless.
 
 ### Adding Myron to your own project
 
-To add Myron to an Xcode project, go to File > Add Package Dependencies... The Package URL is "https://github.com/ncke/myron.git".
+To add Myron to an Xcode project, go to File > Add Package Dependencies... The
+Package URL is "https://github.com/ncke/myron.git".
 
 To use Myron in your own Swift package, add it to your package dependencies and
 depend on the `Myron` library product:
@@ -342,6 +402,24 @@ errors, so treat it as reserved.
 
 Each session is independent. Create a new one when you want a clean
 environment; there is no way to reset an existing one.
+
+`evalEach` evaluates the same way, but gives back a result for every top-level
+form, each with the location of the form's source. A failing form does not stop
+the ones after it:
+
+```swift
+let results = session.evalEach("(+ 1 2) (car 1) (+ 3 4)")
+
+results.map(\.result.isSuccess)            // [true, false, true]
+results[0].location                       // 0..<7, the text "(+ 1 2)"
+```
+
+Source that does not lex or parse gives a single failure and evaluates nothing,
+since its forms cannot be told apart. Two optional closures report on each form
+as it goes: `willEvaluate` receives its location just before it is evaluated,
+and `didEvaluate` its `MyronFormResult` just after. A host can use them to
+interleave its own output with whatever the forms write, as `myron --show`
+does. A parse failure reaches `didEvaluate` alone.
 
 #### Reading and writing the environment
 
@@ -1763,7 +1841,7 @@ one needs to leave some part of itself unevaluated.
 
 #### `define`
 
-```lisp
+```lisp ignore
 (define name value)
 (define (name param …) body …)
 ```
@@ -1789,7 +1867,7 @@ when a parameter is not a symbol.
 
 #### `if`
 
-```lisp
+```lisp ignore
 (if test consequent alternative)
 ```
 
@@ -1800,7 +1878,7 @@ position.
 
 #### `cond`
 
-```lisp
+```lisp ignore
 (cond (test body …) …)
 ```
 
@@ -1808,7 +1886,7 @@ Tries each clause in order and evaluates the bodies of the first whose test is
 `true`, yielding the value of the last body. Tests after the first match are
 never evaluated, and neither are the bodies of clauses that do not match.
 
-```lisp
+```lisp ignore
 (cond ((< n 0) "negative")
       ((> n 0) "positive")
       (true    "zero"))
@@ -1825,7 +1903,7 @@ later in the form goes unreported.
 
 #### `lambda`
 
-```lisp
+```lisp ignore
 (lambda (param …) body …)
 ```
 
@@ -1841,7 +1919,7 @@ Parameters must be symbols, and arity is exact at the call site.
 
 #### `let`
 
-```lisp
+```lisp ignore
 (let ((name value) …) body …)
 ```
 
@@ -1863,7 +1941,7 @@ name and a value.
 
 #### `begin`
 
-```lisp
+```lisp ignore
 (begin expr …)
 ```
 
@@ -1874,7 +1952,7 @@ tail position.
 
 #### `and` and `or`
 
-```lisp
+```lisp ignore
 (and test …)
 (or  test …)
 ```

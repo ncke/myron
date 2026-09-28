@@ -28,49 +28,85 @@ public final class MyronSession {
     ) -> MyronResult {
         defer { environmentRegistry.tidy() }
         environmentRegistry.resetTidyTrigger()
-        let lexer = Lexer(input: expression, sourceHandle: sourceHandle)
-        let (tokens, lexingErrors) = lexer.tokenize()
-        let parser = Parser(tokens: tokens)
-        let (forms, parsingErrors) = parser.parse()
 
-        guard lexingErrors.isEmpty, parsingErrors.isEmpty else {
-            let errors = lexingErrors + parsingErrors
-            let adornedErrors = adornErrorsIfNecessary(errors, in: expression)
-            return .failure(adornedErrors)
+        let (forms, errors) = parse(expression, sourceHandle: sourceHandle)
+        guard errors.isEmpty else {
+            return .failure(errors)
         }
-
-        let silentForms = forms.dropLast()
 
         guard let lastForm = forms.last else {
             return .nothing
         }
 
-        func caughtEval(_ form: Expression) -> MyronResult {
-            do {
-                let value = try machine.eval(form)
-                return .success(value)
-
-            } catch let error as MyronError {
-                let adornedError = adornErrorIfNecessary(error, in: expression)
-                return .failure([adornedError])
-
-            } catch {
-                let message = "unhandled error type: \(error)"
-                let error = MyronError(.internal(message), at: form.location)
-                let adornedError = adornErrorIfNecessary(error, in: expression)
-                return .failure([adornedError])
-            }
-        }
-
-        for form in silentForms {
-            let result = caughtEval(form)
+        for form in forms.dropLast() {
+            let result = caughtEval(form, in: expression)
             if result.isFailure {
                 return result
             }
         }
 
-        let result = caughtEval(lastForm)
+        let result = caughtEval(lastForm, in: expression)
         return result
+    }
+
+    public func evalEach(
+        _ expression: String,
+        sourceHandle: Int? = nil,
+        willEvaluate: (MyronLocation?) -> Void = { _ in },
+        didEvaluate: (MyronFormResult) -> Void = { _ in }
+    ) -> [MyronFormResult] {
+        defer { environmentRegistry.tidy() }
+        environmentRegistry.resetTidyTrigger()
+
+        let (forms, errors) = parse(expression, sourceHandle: sourceHandle)
+        guard errors.isEmpty else {
+            let failure = MyronFormResult(
+                location: errors.first?.location,
+                result: .failure(errors))
+            didEvaluate(failure)
+            return [failure]
+        }
+
+        return forms.map { form in
+            willEvaluate(form.location)
+            let result = caughtEval(form, in: expression)
+            let formResult = MyronFormResult(location: form.location, result: result)
+            didEvaluate(formResult)
+            return formResult
+        }
+    }
+
+}
+
+// MARK: - Evaluation
+
+private extension MyronSession {
+
+    func parse(_ expression: String, sourceHandle: Int?) -> ([Expression], [MyronError]) {
+        let lexer = Lexer(input: expression, sourceHandle: sourceHandle)
+        let (tokens, lexingErrors) = lexer.tokenize()
+        let parser = Parser(tokens: tokens)
+        let (forms, parsingErrors) = parser.parse()
+
+        let errors = lexingErrors + parsingErrors
+        return (forms, adornErrorsIfNecessary(errors, in: expression))
+    }
+
+    func caughtEval(_ form: Expression, in expression: String) -> MyronResult {
+        do {
+            let value = try machine.eval(form)
+            return .success(value)
+
+        } catch let error as MyronError {
+            let adornedError = adornErrorIfNecessary(error, in: expression)
+            return .failure([adornedError])
+
+        } catch {
+            let message = "unhandled error type: \(error)"
+            let error = MyronError(.internal(message), at: form.location)
+            let adornedError = adornErrorIfNecessary(error, in: expression)
+            return .failure([adornedError])
+        }
     }
 
 }

@@ -8,6 +8,13 @@ public enum MyronResult {
     case nothing
 }
 
+// MARK: - MyronFormResult
+
+public struct MyronFormResult {
+    public let location: MyronLocation?
+    public let result: MyronResult
+}
+
 // MARK: - Result Helpers
 
 extension MyronResult {

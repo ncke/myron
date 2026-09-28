@@ -4,10 +4,15 @@ import Foundation
 
 struct Invocation {
     var repl = false
-    var paths = [String]()
+    var loads = [Load]()
     var arguments = [String]()
 
-    static let usage = "usage: myron [--repl] [--load file]... [argument ...]"
+    struct Load: Equatable {
+        let path: String
+        let mode: Script.Mode
+    }
+
+    static let usage = "usage: myron [--repl] [--load file | --show file]... [argument ...]"
 
 }
 
@@ -34,12 +39,13 @@ extension Invocation {
             case "--repl":
                 remaining.removeFirst()
                 invocation.repl = true
-            case "--load":
+            case "--load", "--show":
                 remaining.removeFirst()
                 guard let path = remaining.popFirst() else {
-                    throw UsageError(description: "--load needs a file")
+                    throw UsageError(description: "\(argument) needs a file")
                 }
-                invocation.paths.append(path)
+                let mode = argument == "--show" ? Script.Mode.show : .run
+                invocation.loads.append(Load(path: path, mode: mode))
             case _ where argument.hasPrefix("-"):
                 throw UsageError(description: "unknown option: \(argument)")
             default:
@@ -48,8 +54,8 @@ extension Invocation {
             }
         }
 
-        guard invocation.repl || !invocation.paths.isEmpty else {
-            throw UsageError(description: "nothing to do: give --load file, or --repl")
+        guard invocation.repl || !invocation.loads.isEmpty else {
+            throw UsageError(description: "nothing to do: give --load file, --show file, or --repl")
         }
 
         return invocation
