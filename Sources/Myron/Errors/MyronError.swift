@@ -25,9 +25,10 @@ public struct MyronError: Error, Sendable {
         case invalidNumber
         case malformedAlist(Int)
         case overflow
+        case raised(String)
         case subscriptOutOfBounds(Int, Int)
-        case unexpectedArity(Int, IntegerExpectation)
         case typeCastFailed(MyronValue.Kind, MyronValue.Kind)
+        case unexpectedArity(Int, IntegerExpectation)
         case unexpectedField(String, String, [String])
         case unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)
         case unimplementedFeature
@@ -158,8 +159,11 @@ extension MyronError.Reason: CustomStringConvertible {
         case .invalidNumber: return "Invalid number"
         case .malformedAlist(let idx): return "Malformed alist at index: \(idx)"
         case .overflow: return "Overflow"
+        case .raised(let message): return "Raised: \(message)"
         case .subscriptOutOfBounds(let got, let length):
             return "Subscript out of bounds: got \(got) for length \(length)"
+        case .typeCastFailed(let src, let dst):
+            return "Type cast failed: \(src) -> \(dst)"
         case .unexpectedArity(let got, let expected):
             switch expected {
             case .exactly, .atLeast, .atMost:
@@ -167,8 +171,6 @@ extension MyronError.Reason: CustomStringConvertible {
             case .unspecified:
                 return "Unexpected arity: got \(got)"
             }
-        case .typeCastFailed(let src, let dst):
-            return "Type cast failed: \(src) -> \(dst)"
         case .unexpectedField(let got, let name, let fields):
             let has = "(\(fields.joined(separator: " ")))"
             return "Unexpected field name for record-type \(name), got: \(got), has: \(has)"

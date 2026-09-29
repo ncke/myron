@@ -50,6 +50,7 @@ extension StandardEnvironment {
     static let modules: [any StandardModule.Type] = [
         StandardAlist.self,
         StandardComparison.self,
+        StandardError.self,
         StandardHashmap.self,
         StandardKinds.self,
         StandardLists.self,

@@ -49,7 +49,8 @@ looking things up later.
   [Sequences](#sequences) · [Lists](#lists) ·
   [Association lists](#association-lists) · [Hashmaps](#hashmaps) ·
   [Sets](#sets) · [Records](#records-1) · [Ordering](#ordering) ·
-  [Strings](#strings) · [Higher-order functions](#higher-order-functions)
+  [Strings](#strings) · [Higher-order functions](#higher-order-functions) ·
+  [Errors](#errors-1)
 - [Status](#status)
 - [Changelog](#changelog)
 - [Licence](#licence)
@@ -57,8 +58,8 @@ looking things up later.
 ## Features
 
 - Classic s-expression syntax, with `quote` and its `'` abbreviation.
-- Nine special forms: `and`, `begin`, `cond`, `define`, `if`, `lambda`, `let`,
-  `or`, and `quote`.
+- Ten special forms: `and`, `begin`, `cond`, `define`, `if`, `lambda`, `let`,
+  `or`, `quote`, and `try`.
 - Lexically scoped closures. `and` and `or` short-circuit.
 - Proper tail calls. A tail-recursive loop runs in constant stack, and the
   interpreter's continuation stack lives on the heap, so recursion depth is
@@ -100,6 +101,8 @@ looking things up later.
 - Errors are values, not traps. Overflow, division by zero, runaway recursion
   and type mismatches all come back as a `MyronError` rather than crashing the
   host process.
+- A program can signal an error of its own with `raise`, and catch one with
+  `try`, which hands the message to a handler.
 - Diagnostics carry a source location and render with a caret highlight.
 - No dependencies.
 
@@ -564,7 +567,7 @@ session.eval("(double \"a\")")
 Myron source could actually write. Validation runs the lexer itself: the name
 must lex as exactly one symbol token equal to the name given. That rules out the
 empty string, anything containing whitespace, brackets, a `;`, a `'` or a `"`,
-and anything that would lex as something else — `42`, `3.5`, `true`. The nine
+and anything that would lex as something else — `42`, `3.5`, `true`. The ten
 [special forms](#special-forms) are rejected too, since they are intercepted
 before symbol lookup and a primitive under one of those names could never be
 called. Everything else is fair game, including non-ASCII: if `(define café 1)`
@@ -795,6 +798,7 @@ also has a `description`, which is the first line of the rendered message.
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
+| `raised(String)` | A program called [`raise`](#errors-1) and no [`try`](#try) caught it; carries the message. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
 | `typeCastFailed(MyronValue.Kind, MyronValue.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
 | `unexpectedField(String, String, [String])` | A record was asked for a field its type does not have; carries the field, the type's name, and the fields it does have. |
@@ -1754,6 +1758,35 @@ HINTS:
 - Use `double` and `integer` to convert between numeric kinds
 ```
 
+A program can raise an error of its own with `raise`, which takes a message.
+Left alone, it stops the program like any other error:
+
+```
+> (raise "no such account")
+ERROR: Raised: no such account
+(raise "no such account")
+^^^^^^^^^^^^^^^^^^^^^^^^^
+```
+
+`try` catches it. It takes a handler and a list of bodies, and evaluates the
+bodies in order. If one of them raises, the rest are abandoned, and the handler
+is called with the message; whatever it gives back is the value of the `try`:
+
+```lisp
+(define (withdraw balance amount)
+  (if (> amount balance)
+      (raise "insufficient funds")
+      (- balance amount)))
+
+(try (lambda (message) (list "declined" message))
+     ((withdraw 100 30)))                 ; 70
+(try (lambda (message) (list "declined" message))
+     ((withdraw 100 300)))                ; ("declined" "insufficient funds")
+```
+
+Only `raise` is caught. The interpreter's own errors, such as a division by
+zero, pass straight through a `try`.
+
 That is the whole language. The rest of this page is reference material.
 
 ## Language reference
@@ -1820,11 +1853,13 @@ Evaluation is driven by an explicit machine whose continuation stack lives on
 the heap, so recursion depth is bounded by
 [`maximumStackDepth`](#configuration) rather than by the host thread's stack.
 Calls in tail position — the last body of a procedure, `let`, `begin` or a
-`cond` clause, and the selected branch of an `if` — do not grow that stack.
+`cond` clause, and the selected branch of an `if` — do not grow that stack. The
+last body of a `try` is not in tail position, since the handler has to stay in
+place until the body finishes.
 
 ### Special forms
 
-Nine forms are evaluated specially rather than as applications, because each
+Ten forms are evaluated specially rather than as applications, because each
 one needs to leave some part of itself unevaluated.
 
 | Form | Shape |
@@ -1838,6 +1873,7 @@ one needs to leave some part of itself unevaluated.
 | [`let`](#let) | `(let ((name value) …) body …)` |
 | [`or`](#and-and-or) | `(or test …)` |
 | [`quote`](#quote) | `(quote expr)`, abbreviated `'expr` |
+| [`try`](#try) | `(try handler (body …))` |
 
 #### `define`
 
@@ -1983,6 +2019,51 @@ stay lists, recursively:
 ```
 
 Exactly one expression may be quoted.
+
+#### `try`
+
+```lisp ignore
+(try handler (body …))
+```
+
+Evaluates the bodies in order, in the current environment, and yields the value
+of the last. If a body calls [`raise`](#errors-1), evaluation abandons whatever
+it was doing — however deeply nested in procedure calls or higher-order
+functions — and returns to the innermost `try` still waiting on its bodies.
+There the handler is evaluated, in the environment the `try` was written in,
+and called with the raised message as its one argument. Its result becomes the
+value of the `try`.
+
+```lisp
+(try (lambda (m) "fallback") (1 2 3))     ; 3
+(try (lambda (m) m) ((raise "oops")))     ; "oops"
+(+ 1 (try (lambda (m) 10) ((raise "x")))) ; 11
+```
+
+The bodies are always written as a list, even when there is only one, and
+`(try handler ())` yields `nothing`. The handler is not evaluated at all unless
+something raises, so a mistake in it — an unbound name, a value that is not a
+function, the wrong number of parameters — goes unreported until then. A
+`define` made by a body before the raise stays made.
+
+Once a `try` has finished, whether normally or by calling its handler, it no
+longer catches anything. A raise from inside the handler therefore goes to the
+next `try` out, which is how a handler passes an error on:
+
+```lisp
+(try (lambda (m) (list "outer" m))
+     ((try (lambda (m) (raise "again"))
+           ((raise "first")))))           ; ("outer" "again")
+```
+
+Only errors from `raise` are caught. The interpreter's own errors —
+`divisionByZero`, `unexpectedType` and the rest — pass through a `try`
+untouched, as does an error inside the handler. No body is in tail position,
+because the handler has to stay in place until the bodies finish, so a
+recursive call inside a `try` uses stack depth.
+
+*Errors:* `unexpectedArity` unless there are exactly a handler and a body list;
+`unexpectedType` when the bodies are not a list.
 
 ## Standard library reference
 
@@ -2998,6 +3079,22 @@ predicate that would fail on a later element may never run. Over the empty list
 check that their first argument is callable before iterating, so `(all 5 '())`
 is an error rather than `true`.
 
+### Errors
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `raise` | 1 string | never returns: raises the string as an error |
+
+```lisp
+(try (lambda (m) (list "caught" m))
+     ((raise "out of range")))            ; ("caught" "out of range")
+```
+
+`raise` stops the current evaluation and hands its message to the innermost
+[`try`](#try) waiting on it. With none, the program fails with the reason
+`raised`, carrying the message, located at the call to `raise`. The message
+must be a string; use `string` or `implode` to build one from other values.
+
 ## Status
 
 Myron is a young language, and version `0.2.0` should be read as an invitation
@@ -3019,6 +3116,8 @@ Still to come:
 - Escape sequences in string literals. Until then, a string cannot contain a
   `"`, and a newline goes in by letting the literal span source lines.
 - Variadic user procedures, and default and keyword parameters.
+- Catching the interpreter's own errors with `try`. Until then, it catches only
+  what `raise` raises.
 - `sourceHandle` on errors. It is carried through tokenisation but not yet
   surfaced.
 

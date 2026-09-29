@@ -29,7 +29,7 @@ struct StandardRegistryTests {
         "log", "lowercase", "lt", "lte", "make-hashmap", "make-record", "make-record-type",
         "make-set", "max", "min", "mod", "mul", "nan?", "neg",
         "negative?", "neq", "not", "nothing?", "nth", "number?",
-        "positive?", "pow", "powerset", "put", "rads-to-degs", "range", "range-len",
+        "positive?", "pow", "powerset", "put", "rads-to-degs", "raise", "range", "range-len",
         "record-isa?", "record-type",
         "record-type-fields", "record-type-name", "rem", "remove",
         "reverse", "round", "set", "set?", "sin", "sort", "sort-descending", "sortable?", "sqrt",

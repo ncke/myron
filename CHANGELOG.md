@@ -92,6 +92,12 @@ the language, and a patch release will not.
   message. `MyronError.Reason` and `MyronError.IntegerExpectation` are
   `Hashable`.
 - The error kinds `duplicateField` and `unexpectedField`.
+- `raise`, which raises a string as an error, and the special form `try`,
+  written `(try handler (body …))`, which evaluates its bodies and, if one
+  raises, calls the handler with the message and yields its result instead.
+  The handler is only evaluated when something raises. Only errors from `raise`
+  are caught; the interpreter's own errors pass through. An uncaught raise
+  fails with the new error kind `raised`.
 
 ### Changed
 
@@ -115,10 +121,13 @@ the language, and a patch release will not.
   `--repl`.
 - The REPL writes errors to standard error.
 - `MyronValue` gains the cases `record` and `recordType`, `MyronValue.Kind`
-  gains `record` and `recordType`, and `MyronError.Reason` gains
-  `duplicateField` and `unexpectedField`, and `MyronHigherOrder` gains
-  `foldr` and `apply`. A host that switches exhaustively over any of these will
-  need the new cases.
+  gains `record` and `recordType`, `MyronError.Reason` gains
+  `duplicateField`, `unexpectedField` and `raised`, and `MyronHigherOrder`
+  gains `foldr` and `apply`. A host that switches exhaustively over any of
+  these will need the new cases.
+- `try` is a special form, so it can no longer be bound: a host's `define`
+  rejects it with `invalidName`, and after `(define try …)` in source, `try`
+  still catches.
 - `invalidName` is also raised for a record type or field name that Myron
   source could not write, and so can now come back from `eval`.
 

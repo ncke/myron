@@ -35,6 +35,7 @@ extension Machine {
         case disjunction(ArraySlice<Expression>, Environment, MyronLocation?)
         case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
         case foldring(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
+        case handling(Expression, Environment, MyronLocation?)
         case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
         case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
@@ -109,17 +110,55 @@ extension Machine {
 
     private func run() throws -> MyronValue {
         while true {
-            switch control {
+            do {
+                switch control {
 
-            case .eval(let expression, let environment):
-                try step(expression: expression, environment: environment)
-                try checkStackDepth(at: expression.location)
+                case .eval(let expression, let environment):
+                    try step(expression: expression, environment: environment)
+                    try checkStackDepth(at: expression.location)
 
-            case .value(let value):
-                guard let frame = stack.popLast() else { return value }
-                try kontinue(frame, with: value)
+                case .value(let value):
+                    guard let frame = stack.popLast() else { return value }
+                    try kontinue(frame, with: value)
+                }
             }
+            catch { try popToHandlerForError(error) }
         }
+    }
+
+}
+
+// MARK: - Error Handling
+
+extension Machine {
+
+    private func pushHandler(_ handler: Expression, environment: Environment, location: MyronLocation?) {
+        let handling = Frame.handling(handler, environment, location)
+        stack.append(handling)
+    }
+
+    private func popToHandlerForError(_ error: Error) throws {
+        guard
+            let myronError = error as? MyronError,
+            case let .raised(message) = myronError.reason
+        else {
+            throw error
+        }
+
+        while let frame = stack.popLast() {
+            guard
+                case let .handling(handlingExpr, handlingEnvironment, handlerLocation) = frame
+            else { continue }
+
+            let meta = Expression.Metadata(location: handlerLocation)
+            let messageExpr = Expression.atom(.string(message), meta)
+            let exprs = [handlingExpr, messageExpr]
+
+            control = .eval(.list(exprs, meta), handlingEnvironment)
+            return
+        }
+
+        throw error
     }
 
 }
@@ -178,10 +217,11 @@ extension Machine {
     private static let specialLet = "let"
     private static let specialOr = "or"
     private static let specialQuote = "quote"
-    
+    private static let specialTry = "try"
+
     static let specialFormNames = Set([
         specialAnd, specialBegin, specialCond, specialDefine, specialIf,
-        specialLambda, specialLet, specialOr, specialQuote
+        specialLambda, specialLet, specialOr, specialQuote, specialTry
     ])
     
     private func interpretSpecialForm(
@@ -287,6 +327,18 @@ extension Machine {
             let quotation = try tail.unwrap1(meta.location)
             let value = try MyronValue.makeValue(from: quotation, at: meta.location)
             return (nil, .value(value))
+
+        case Self.specialTry:
+            let (handlingExpr, snd) = try tail.unwrap2(meta.location)
+            let (tryingExprs, tryingMeta) = try snd.unwrapList()
+            guard let firstTry = tryingExprs.first else { return (nil, .value(.nothing)) }
+
+            pushHandler(handlingExpr, environment: environment, location: meta.location)
+
+            let frame = tryingExprs.count > 1
+            ? Frame.sequence(tryingExprs.dropFirst(), environment, tryingMeta.location)
+            : nil
+            return (frame, .eval(firstTry, environment))
 
         default: return nil
         }
@@ -405,6 +457,9 @@ extension Machine {
                 return
             }
 
+            control = .value(value)
+
+        case .handling:
             control = .value(value)
 
         case .mapping(let function, let remaining, var done, let shape, let location):
