@@ -18,6 +18,44 @@ struct StandardPredicatesTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("something?", arguments: [
+        ("(something? 1)", "true"),
+        ("(something? nothing)", "false"),
+        ("(something? (head '()))", "false"),
+        ("(something? (last '()))", "false"),
+        ("(something? (head '(1)))", "true")
+    ] as [ValueCase])
+    func isSomething(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("something? holds for empty and false-like values", arguments: [
+        ("(something? false)", "true"),
+        ("(something? 0)", "true"),
+        ("(something? \"\")", "true"),
+        ("(something? '())", "true"),
+        ("(something? (set))", "true"),
+        ("(something? nan)", "true"),
+        ("(something? something?)", "true")
+    ] as [ValueCase])
+    func isSomethingForEmptyValues(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("something? is the negation of nothing?", arguments: [
+        "nothing", "(head '())", "1", "false", "'()", "\"\"", "'a", "+"
+    ])
+    func somethingNegatesNothing(_ value: String) {
+        expectValue("(eq (something? \(value)) (not (nothing? \(value))))", "true")
+    }
+
+    @Test("something? makes a possibly-nothing result usable as a condition")
+    func somethingAsCondition() {
+        expectValue("(if (something? (find-first \"=\" \"a=b\")) 'found 'absent)", "found")
+        expectValue("(if (something? (find-first \"=\" \"ab\")) 'found 'absent)", "absent")
+        expectValue("(filter something? (map head '((1) () (2))))", "(1 2)")
+    }
+
     @Test("number?", arguments: [
         ("(number? 1)", "true"),
         ("(number? 1.0)", "true"),
@@ -141,16 +179,6 @@ struct StandardPredicatesTests {
         expectValue(c.source, c.expected)
     }
 
-    @Test("nothing? makes an empty head observable")
-    func nothingIsObservable() {
-        expectValue(
-            """
-            (define (safe-head xs) (if (empty? xs) 0 (head xs)))
-            (safe-head '())
-            """,
-            "0")
-    }
-
     @Test("finite?", arguments: [
         ("(finite? 1.0)", "true"),
         ("(finite? 1)", "true"),
@@ -214,6 +242,8 @@ struct StandardPredicatesTests {
 
     @Test("predicate errors", arguments: [
         ("(nothing? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(something?)", .unexpectedArity(0, .exactly(1))),
+        ("(something? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(number?)", .unexpectedArity(0, .exactly(1))),
         ("(integer? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(list? 1 2)", .unexpectedArity(2, .exactly(1))),

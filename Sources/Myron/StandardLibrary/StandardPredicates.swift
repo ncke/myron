@@ -12,7 +12,14 @@ struct StandardPredicates: StandardModule {
             body: { args, location in
                 return .boolean(try args.unwrap1(location).isNothing)
         }),
-        
+
+        MyronPrimitive(
+            primitiveName: "predicate.something?",
+            representations: ["something?"],
+            body: { args, location in
+                return .boolean(try !args.unwrap1(location).isNothing)
+        }),
+
         MyronPrimitive(
             primitiveName: "predicate.number?",
             representations: ["number?"],

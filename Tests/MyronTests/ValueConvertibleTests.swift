@@ -47,6 +47,16 @@ struct ValueConvertibleTests {
         #expect(string == "a")
     }
 
+    @Test("a substring converts both ways as a string")
+    func substring() throws {
+        let substring: Substring = try MyronValue.string("abc").require()
+        #expect(substring == "abc")
+        #expect("abc".dropFirst().myronValue.asString == "bc")
+        #expect(throws: MyronError.self) {
+            let _: Substring = try MyronValue.integer(1).require()
+        }
+    }
+
     // Matching the probing accessors, which also refuse to stand in for each
     // other.
     @Test("integers and doubles do not convert into each other")

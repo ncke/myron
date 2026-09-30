@@ -6,6 +6,7 @@ public struct MyronError: Error, Sendable {
 
     public enum Reason: Sendable, Equatable, Hashable {
         case ambiguousResolution(String, String, [String])
+        case cannotBeEmpty
         case cannotBeNegative
         case containingEnvironmentNoLongerExists
         case couldNotResolve(String, String, [String])
@@ -135,6 +136,7 @@ extension MyronError.Reason: CustomStringConvertible {
             if candidates.isEmpty { return "\(msg)" }
             let listed = candidates.joined(separator: "\n")
             return "\(msg)\nCandidates:\n\(listed)"
+        case .cannotBeEmpty: return "Cannot be empty"
         case .cannotBeNegative: return "Cannot be negative"
         case .containingEnvironmentNoLongerExists: return "Containing environment no longer exists"
         case .couldNotResolve(let representation, let gotSignature, let expectedSignatures):

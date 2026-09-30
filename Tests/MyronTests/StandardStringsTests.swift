@@ -342,6 +342,112 @@ struct StandardStringsTests {
             "\"AB\nCD\"")
     }
 
+    @Test("split-all splits on every separator and keeps empty fields", arguments: [
+        ("(split-all \",\" \"a,b,c\")", "(\"a\" \"b\" \"c\")"),
+        ("(split-all \", \" \"a, b, c\")", "(\"a\" \"b\" \"c\")"),
+        ("(split-all \",\" \"a,,b\")", "(\"a\" \"\" \"b\")"),
+        ("(split-all \",\" \",a,\")", "(\"\" \"a\" \"\")"),
+        ("(split-all \",\" \",\")", "(\"\" \"\")"),
+        ("(split-all \",\" \"abc\")", "(\"abc\")"),
+        ("(split-all \",\" \"\")", "(\"\")"),
+        ("(split-all \"aa\" \"aaab\")", "(\"\" \"ab\")"),
+        ("(split-all \"ab\" \"aab\")", "(\"a\" \"\")"),
+        ("(split-all \"👍\" \"a👍b👍\")", "(\"a\" \"b\" \"\")"),
+        ("(split-all \"-\" \"hé-llo\")", "(\"hé\" \"llo\")")
+    ] as [ValueCase])
+    func splitAll(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("implode with the same separator undoes split-all", arguments: [
+        "a,b,c", "a,,b", ",a,", ",", "", "abc"
+    ])
+    func splitAllImplodeRoundTrip(_ str: String) {
+        expectValue("(implode \",\" (split-all \",\" \"\(str)\"))", "\"\(str)\"")
+    }
+
+    @Test("split-once splits on the first separator into two parts", arguments: [
+        ("(split-once \"=\" \"key=value\")", "(\"key\" \"value\")"),
+        ("(split-once \"=\" \"a=b=c\")", "(\"a\" \"b=c\")"),
+        ("(split-once \"::\" \"a::b\")", "(\"a\" \"b\")"),
+        ("(split-once \"=\" \"key=\")", "(\"key\" \"\")"),
+        ("(split-once \"=\" \"=value\")", "(\"\" \"value\")"),
+        ("(split-once \"=\" \"=\")", "(\"\" \"\")"),
+        ("(split-once \"👍\" \"a👍b\")", "(\"a\" \"b\")")
+    ] as [ValueCase])
+    func splitOnce(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("split-once gives the whole string alone when the separator is absent", arguments: [
+        ("(split-once \"=\" \"key\")", "(\"key\")"),
+        ("(split-once \"=\" \"\")", "(\"\")"),
+        ("(split-once \"abc\" \"ab\")", "(\"ab\")")
+    ] as [ValueCase])
+    func splitOnceAbsent(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("the length of split-once tells whether the separator was found")
+    func splitOnceDistinguishesAbsence() {
+        expectValue("(length (split-once \"=\" \"key=\"))", "2")
+        expectValue("(length (split-once \"=\" \"key\"))", "1")
+    }
+
+    @Test("find-first gives the character position of the first match", arguments: [
+        ("(find-first \"a\" \"abc\")", "0"),
+        ("(find-first \"b\" \"abc\")", "1"),
+        ("(find-first \"c\" \"abc\")", "2"),
+        ("(find-first \"bc\" \"abcbc\")", "1"),
+        ("(find-first \"abc\" \"abc\")", "0"),
+        ("(find-first \"aab\" \"aaab\")", "1"),
+        ("(find-first \"b\" \"a👍b\")", "2"),
+        ("(find-first \"b\" \"🇬🇧b\")", "1"),
+        ("(find-first \"l\" \"héllo\")", "2")
+    ] as [ValueCase])
+    func findFirst(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("find-first finds the empty string at the start, as contains? does", arguments: [
+        ("(find-first \"\" \"abc\")", "0"),
+        ("(find-first \"\" \"\")", "0"),
+        ("(contains? \"\" \"\")", "true")
+    ] as [ValueCase])
+    func findFirstEmpty(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("find-first gives nothing when there is no match", arguments: [
+        ("(find-first \"z\" \"abc\")", "<nothing>"),
+        ("(find-first \"abcd\" \"abc\")", "<nothing>"),
+        ("(find-first \"cd\" \"abc\")", "<nothing>"),
+        ("(find-first \"a\" \"\")", "<nothing>")
+    ] as [ValueCase])
+    func findFirstAbsent(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a find-first position works with nth and range")
+    func findFirstComposes() {
+        expectValue("(nth (find-first \"b\" \"a👍b\") \"a👍b\")", "\"b\"")
+        expectValue("(range 0 (find-first \"=\" \"k👍=v\") \"k👍=v\")", "\"k👍\"")
+    }
+
+    @Test("an empty separator is refused with a hint", arguments: [
+        "(split-all \"\" \"abc\")",
+        "(split-once \"\" \"abc\")"
+    ])
+    func emptySeparatorHint(_ source: String) {
+        guard case .failure(let errors) = MyronSession().eval(source) else {
+            Issue.record("\(source) did not fail")
+            return
+        }
+
+        #expect(errors.map(\.reason) == [.cannotBeEmpty])
+        #expect(errors.first?.hints == [.splitSeparatorCannotBeEmptyString])
+    }
+
     @Test("native string errors", arguments: [
         ("(explode 5)", .unexpectedType(.integer, [.string])),
         ("(explode)", .unexpectedArity(0, .exactly(1))),
@@ -365,10 +471,50 @@ struct StandardStringsTests {
         ("(lines)", .unexpectedArity(0, .exactly(1))),
         ("(words)", .unexpectedArity(0, .exactly(1))),
         ("(lines \"a\" \"b\")", .unexpectedArity(2, .exactly(1))),
-        ("(words \"a\" \"b\")", .unexpectedArity(2, .exactly(1)))
+        ("(words \"a\" \"b\")", .unexpectedArity(2, .exactly(1))),
+        ("(split-all \"\" \"abc\")", .cannotBeEmpty),
+        ("(split-all \"\" \"\")", .cannotBeEmpty),
+        ("(split-all 1 \"a\")", .unexpectedType(.integer, [.string])),
+        ("(split-all \",\" 5)", .unexpectedType(.integer, [.string])),
+        ("(split-all \",\")", .unexpectedArity(1, .exactly(2))),
+        ("(split-all \",\" \"a\" \"b\")", .unexpectedArity(3, .exactly(2))),
+        ("(split-once \"\" \"abc\")", .cannotBeEmpty),
+        ("(split-once 1 \"a\")", .unexpectedType(.integer, [.string])),
+        ("(split-once \",\" 5)", .unexpectedType(.integer, [.string])),
+        ("(split-once \",\")", .unexpectedArity(1, .exactly(2))),
+        ("(find-first 1 \"a\")", .unexpectedType(.integer, [.string])),
+        ("(find-first \"a\" 5)", .unexpectedType(.integer, [.string])),
+        ("(find-first \"a\")", .unexpectedArity(1, .exactly(2)))
     ] as [FailureCase])
     func nativeErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
+    }
+
+    // A signature is only consulted once a second primitive shares its
+    // representation, so check each one against calls its body accepts.
+    @Test("native string signatures accept what their primitives accept", arguments: [
+        ("string.explode", [.string]),
+        ("string.implode", [.list]),
+        ("string.implode", [.string, .list]),
+        ("string.string", [.string]),
+        ("string.string", [.integer]),
+        ("string.string", [.list]),
+        ("string.lowercase", [.string]),
+        ("string.uppercase", [.string]),
+        ("string.trim", [.string]),
+        ("string.lines", [.string]),
+        ("string.words", [.string]),
+        ("string.split-all", [.string, .string]),
+        ("string.split-once", [.string, .string]),
+        ("string.find-first", [.string, .string])
+    ] as [(String, [MyronValue.Kind])])
+    func nativeSignatures(_ name: String, _ kinds: [MyronValue.Kind]) throws {
+        let primitive = StandardStrings.primitiveDefinitions.first { p in p.primitiveName == name }
+        let signature = try #require(primitive?.signature, "\(name) has no signature")
+        guard case .match = try signature.matchesKinds(kinds) else {
+            Issue.record("\(name) signature refuses \(kinds)")
+            return
+        }
     }
 
     // MARK: - Strings Elsewhere

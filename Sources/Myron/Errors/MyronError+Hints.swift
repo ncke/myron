@@ -30,6 +30,7 @@ extension MyronError {
         case evalDepthAdvice
         case instructionForInternalError
         case mixedDifferentNumericKinds
+        case splitSeparatorCannotBeEmptyString
         case stackDepthAdvice
     }
 
@@ -57,6 +58,8 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Issues can be raised at 'https://github.com/ncke/myron'"
         case .mixedDifferentNumericKinds:
             return "Use `double` and `integer` to convert between numeric kinds"
+        case .splitSeparatorCannotBeEmptyString:
+            return "An empty string cannot be used as a split separator"
         case .stackDepthAdvice:
             return "Check for unbounded recursion that is not in tail position"
         }

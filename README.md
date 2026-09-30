@@ -779,6 +779,7 @@ also has a `description`, which is the first line of the rendered message.
 | Reason | Raised when |
 |---|---|
 | `ambiguousResolution(String, String, [String])` | Two standard primitives matched a call equally well; carries the name, the argument kinds, and the primitives that tied. |
+| `cannotBeEmpty` | A value that must not be empty was — `(split-all "" s)`. A hint says which value it was. |
 | `cannotBeNegative` | A count that must be non-negative was not — `(take -1 xs)`. |
 | `containingEnvironmentNoLongerExists` | A procedure was called after the session that defined it was deallocated. |
 | `couldNotResolve(String, String, [String])` | No standard primitive of that name accepts that shape of call; carries the name, the argument kinds, and the forms that would have worked. |
@@ -1381,7 +1382,8 @@ line-based REPL.
 
 `nothing` is the absence of a value. It is what `head` gives you for an empty
 list, and it is bound to the name `nothing` so you can write one down. It is
-equal to itself and to nothing else, so `nothing?` and `eq` both work on it.
+equal to itself and to nothing else, so `nothing?` and `eq` both work on it, and
+`something?` asks the opposite.
 
 ```lisp
 (head '())                                ; <nothing>
@@ -2150,6 +2152,7 @@ them.
 | Primitive | True when the argument is |
 |---|---|
 | `nothing?` | `nothing` |
+| `something?` | anything but `nothing` |
 | `number?` | an integer or a double |
 | `integer?` | an integer |
 | `double?` | a double |
@@ -2169,12 +2172,20 @@ them.
 
 ```lisp
 (nothing? (head '()))                     ; true
+(something? (find-first "=" "a=b"))       ; true
+(something? false)                        ; true — false is a value
 (integer? 1.0)                            ; false — the types stay apart
 (list? '())                               ; true
 (list? sqrt)                              ; false — functions match none
 (positive? "x")                           ; false — non-numbers are never
 (nan? (sqrt -1.0))                        ; true — the one that is not
 ```
+
+`something?` is `(not (nothing? x))`, for code that reads better asking whether
+a result is there. A condition must be a boolean, so a primitive that gives back
+a value or `nothing` — `head`, `get`, `find-first` — is tested with one of the
+two before it can steer an `if` or `cond`, and `(filter something? xs)` drops
+the `nothing`s from a list. `false`, `0`, `""` and `'()` are all something.
 
 `integer?` and `double?` do not overlap; use `number?` when either will do. The
 numeric predicates answer `false` for non-numbers rather than failing —
@@ -2976,6 +2987,9 @@ These are string-specific; the sequence primitives above also work on strings.
 | `trim` | 1 string | string without leading or trailing whitespace |
 | `lines` | 1 string | a list of strings, split on newlines |
 | `words` | 1 string | a list of strings, split on whitespace |
+| `split-all` | separator string, string | a list of strings, split at every separator |
+| `split-once` | separator string, string | a list of the parts before and after the first separator |
+| `find-first` | string to find, string | the index of the first match, or `nothing` |
 
 ```lisp
 (string 42)                               ; "42"
@@ -2986,6 +3000,11 @@ These are string-specific; the sequence primitives above also work on strings.
 (uppercase "hi")                          ; "HI"
 (trim "  hi  ")                           ; "hi"
 (words "the quick  brown")                ; ("the" "quick" "brown")
+(split-all "," "a,b,,c")                  ; ("a" "b" "" "c")
+(split-once "=" "key=value=1")            ; ("key" "value=1")
+(split-once "=" "key")                    ; ("key") — no separator
+(find-first "lo" "hello")                 ; 3
+(find-first "z" "hello")                  ; nothing
 ```
 
 `string` is the identity on a string and otherwise gives the value's printed
@@ -2998,6 +3017,24 @@ is `"1-true"`.
 string literal may span several lines of source, so `lines` has something to
 work on — but with no escape sequence there is no way to put a newline into a
 literal written on one line, and the line-based REPL cannot enter one.
+
+`split-all` keeps empty fields: a separator at either end, or two in a row, gives
+an empty string. Nothing is lost, so `(implode sep (split-all sep s))` gives
+back `s`, and `(filter (lambda (f) (not (empty? f))) fields)` drops the empties
+when they are not wanted. The separator can be any non-empty string, and matches
+are taken from the left without overlapping: `(split-all "aa" "aaab")` is
+`("" "ab")`.
+
+`split-once` gives two parts when it finds the separator and the whole string
+alone when it does not, so its length says which happened:
+`(split-once "=" "key=")` is `("key" "")`. An empty separator to either split
+raises `cannotBeEmpty`, with a hint saying it was the separator; `explode` is
+the way to split a string into its characters.
+
+`find-first` gives an index that `nth`, `range` and `range-len` understand. It
+counts characters, as they do, so `(find-first "b" "a👍b")` is `2`. The empty
+string is found at the start of any string, so `(find-first "" s)` is `0`, just
+as `(contains? "" s)` is `true`.
 
 ### Higher-order functions
 

@@ -239,6 +239,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.explode",
             representations: ["explode"],
+            signature: StandardSignature([StandardSignature.str1]),
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let pieces = str.map { ch in MyronValue.string(String(ch)) }
@@ -248,6 +249,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.implode",
             representations: ["implode"],
+            signature: StandardSignature([StandardSignature.any1], allowsVariadic: .heterogenous),
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 let sep: String
@@ -280,6 +282,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.string",
             representations: ["string"],
+            signature: StandardSignature([StandardSignature.any1]),
             body: { args, location in
                 let src = try args.unwrap1(location)
                 if src.kind == .string { return src }
@@ -289,6 +292,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.lowercase",
             representations: ["lowercase"],
+            signature: StandardSignature([StandardSignature.str1]),
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .string(str.lowercased())
@@ -297,6 +301,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.uppercase",
             representations: ["uppercase"],
+            signature: StandardSignature([StandardSignature.str1]),
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .string(str.uppercased())
@@ -305,6 +310,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.trim",
             representations: ["trim"],
+            signature: StandardSignature([StandardSignature.str1]),
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .string(str.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -313,6 +319,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.lines",
             representations: ["lines"],
+            signature: StandardSignature([StandardSignature.str1]),
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let lines = str
@@ -325,6 +332,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.words",
             representations: ["words"],
+            signature: StandardSignature([StandardSignature.str1]),
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let words = str
@@ -332,8 +340,110 @@ struct StandardStrings: StandardModule {
                     .map { wordStr in MyronValue.string(String(wordStr)) }
 
                 return .list(words)
+            }),
+
+        MyronPrimitive(
+            primitiveName: "string.split-all",
+            representations: ["split-all"],
+            signature: StandardSignature([StandardSignature.str1, StandardSignature.str1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let target = try fst.unwrapString(location)
+                var str = Substring(try snd.unwrapString(location))
+
+                guard !target.isEmpty else {
+                    throw MyronError(.cannotBeEmpty, at: location)
+                        .withHint(.splitSeparatorCannotBeEmptyString)
+                }
+
+                var result = [MyronValue]()
+                while true {
+                    guard let (before, after) = splitOnce(target, in: str) else {
+                        result.append(str.myronValue)
+                        break
+                    }
+
+                    result.append(before.myronValue)
+                    str = after
+                }
+
+                return .list(result)
+            }),
+
+        MyronPrimitive(
+            primitiveName: "string.split-once",
+            representations: ["split-once"],
+            signature: StandardSignature([StandardSignature.str1, StandardSignature.str1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let target = try fst.unwrapString(location)
+                let str = Substring(try snd.unwrapString(location))
+
+                guard !target.isEmpty else {
+                    throw MyronError(.cannotBeEmpty, at: location)
+                        .withHint(.splitSeparatorCannotBeEmptyString)
+                }
+
+                guard let (before, after) = splitOnce(target, in: str) else {
+                    return .list([ snd ])
+                }
+
+                return .list([before.myronValue, after.myronValue])
+            }),
+
+        MyronPrimitive(
+            primitiveName: "string.find-first",
+            representations: ["find-first"],
+            signature: StandardSignature([StandardSignature.str1, StandardSignature.str1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+                let target = try fst.unwrapString(location)
+                let str = Substring(try snd.unwrapString(location))
+
+                guard !target.isEmpty else { return .integer(0) }
+                guard let find = find(target, in: str) else { return .nothing }
+                let idx = str.distance(from: str.startIndex, to: find)
+                return .integer(idx)
             })
-        
+
     ]
+
+}
+
+// MARK: - Helpers
+
+extension StandardStrings {
+
+    private static func splitOnce(_ target: String, in str: Substring) -> (Substring, Substring)? {
+        guard let posn = find(target, in: str) else { return nil }
+        let targetLength = target.count
+        let before = str[..<posn]
+        let afterIndex = str.index(posn, offsetBy: targetLength)
+        let after = str[afterIndex...]
+        return (before, after)
+    }
+
+    private static func find(_ target: String, in str: Substring) -> String.Index? {
+        guard let head = target.first else { return nil }
+        let targetLength = target.count
+        var cursor = str.startIndex
+
+        while true {
+            guard
+                let startFind = str[cursor...].firstIndex(where: { ch in ch == head }),
+                let endFind = str.index(startFind, offsetBy: targetLength, limitedBy: str.endIndex)
+            else {
+                return nil
+            }
+
+            if str[startFind..<endFind] == target { return startFind }
+
+            guard let next = str.index(startFind, offsetBy: 1, limitedBy: str.endIndex) else {
+                return nil
+            }
+
+            cursor = next
+        }
+    }
 
 }

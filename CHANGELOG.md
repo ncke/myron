@@ -98,6 +98,15 @@ the language, and a patch release will not.
   The handler is only evaluated when something raises. Only errors from `raise`
   are caught; the interpreter's own errors pass through. An uncaught raise
   fails with the new error kind `raised`.
+- `split-all` and `split-once`, which split a string at a separator string:
+  at every occurrence, keeping empty fields, or at the first only, into the
+  parts before and after. An empty separator raises the new error kind
+  `cannotBeEmpty`.
+- `find-first`, which gives the index of the first occurrence of one string in
+  another, counted in characters as `nth` and `range` count them, or `nothing`.
+- `Substring` conforms to `MyronValueRepresentable` and `MyronValueConvertible`,
+  as a string.
+- The predicate `something?`, the negation of `nothing?`.
 
 ### Changed
 
@@ -122,8 +131,8 @@ the language, and a patch release will not.
 - The REPL writes errors to standard error.
 - `MyronValue` gains the cases `record` and `recordType`, `MyronValue.Kind`
   gains `record` and `recordType`, `MyronError.Reason` gains
-  `duplicateField`, `unexpectedField` and `raised`, and `MyronHigherOrder`
-  gains `foldr` and `apply`. A host that switches exhaustively over any of
+  `duplicateField`, `unexpectedField`, `raised` and `cannotBeEmpty`, and
+  `MyronHigherOrder` gains `foldr` and `apply`. A host that switches exhaustively over any of
   these will need the new cases.
 - `try` is a special form, so it can no longer be bound: a host's `define`
   rejects it with `invalidName`, and after `(define try …)` in source, `try`

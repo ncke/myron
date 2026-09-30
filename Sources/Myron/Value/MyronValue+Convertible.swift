@@ -44,6 +44,12 @@ extension String: MyronValueConvertible {
     public init(myronValue: MyronValue) throws { self = try myronValue.unwrapString(nil) }
 }
 
+extension Substring: MyronValueConvertible {
+    public init(myronValue: MyronValue) throws {
+        self = Substring(try myronValue.unwrapString(nil))
+    }
+}
+
 extension Array: MyronValueConvertible where Element: MyronValueConvertible {
     public init(myronValue: MyronValue) throws {
         self = try myronValue.unwrapElements(nil).map { try Element(myronValue: $0) }
@@ -122,6 +128,10 @@ extension Double: MyronValueRepresentable { public var myronValue: MyronValue { 
 extension Int: MyronValueRepresentable    { public var myronValue: MyronValue { .integer(self) } }
 
 extension String: MyronValueRepresentable { public var myronValue: MyronValue { .string(self) } }
+
+extension Substring: MyronValueRepresentable {
+    public var myronValue: MyronValue { .string(String(self)) }
+}
 
 extension Optional: MyronValueRepresentable where Wrapped: MyronValueRepresentable {
     public var myronValue: MyronValue {
