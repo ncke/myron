@@ -48,9 +48,9 @@ looking things up later.
   [Kinds](#kinds) · [Logic](#logic) · [Mathematics](#mathematics) ·
   [Sequences](#sequences) · [Lists](#lists) ·
   [Association lists](#association-lists) · [Hashmaps](#hashmaps) ·
-  [Sets](#sets) · [Records](#records-1) · [Ordering](#ordering) ·
-  [Strings](#strings) · [Higher-order functions](#higher-order-functions) ·
-  [Errors](#errors-1)
+  [Sets](#sets) · [Records](#records-1) · [Modules](#modules-1) ·
+  [Ordering](#ordering) · [Strings](#strings) ·
+  [Higher-order functions](#higher-order-functions) · [Errors](#errors-1)
 - [Status](#status)
 - [Changelog](#changelog)
 - [Licence](#licence)
@@ -58,8 +58,12 @@ looking things up later.
 ## Features
 
 - Classic s-expression syntax, with `quote` and its `'` abbreviation.
-- Ten special forms: `and`, `begin`, `cond`, `define`, `if`, `lambda`, `let`,
-  `or`, `quote`, and `try`.
+- Twelve special forms: `and`, `begin`, `cond`, `define`, `if`, `import`,
+  `lambda`, `let`, `module`, `or`, `quote`, and `try`.
+- Modules. `module` gathers definitions behind a list of exports, `import`
+  brings them into scope, and a qualified name such as `geo.area` reaches one
+  without importing anything. A module is an ordinary value: it can be passed
+  around, nested inside another module, and defined inside a procedure.
 - Lexically scoped closures. `and` and `or` short-circuit.
 - Proper tail calls. A tail-recursive loop runs in constant stack, and the
   interpreter's continuation stack lives on the heap, so recursion depth is
@@ -658,6 +662,7 @@ public enum MyronValue {
     case set(MyronSet)
     case record(MyronRecord)
     case recordType(MyronRecordType)
+    case module(MyronModule)
     case nothing
     case procedure(MyronProcedure)        // a lambda or a defined procedure
     case primitive(MyronPrimitive)        // a built-in function
@@ -692,6 +697,7 @@ value.asHashmap                           // MyronHashmap?
 value.asSet                               // MyronSet?
 value.asRecord                            // MyronRecord?
 value.asRecordType                        // MyronRecordType?
+value.asModule                            // MyronModule?
 ```
 
 These do not coerce: `MyronValue.integer(1).asDouble` is `nil`, exactly as
@@ -795,7 +801,7 @@ also has a `description`, which is the first line of the rendered message.
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
-| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type or field name; carries the name. |
+| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type, field, module or export name; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
@@ -807,7 +813,7 @@ also has a `description`, which is the first line of the rendered message.
 | `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
 | `unimplementedFeature` | Reserved for primitives that are declared but not yet implemented. Nothing raises it today. |
 | `unmatchedParenthesis` | A bracket had no partner — a `(` that was never closed, or a `)` with nothing to close. The location points at the unmatched bracket. |
-| `unrecognisedSymbol` | A symbol had no binding. |
+| `unrecognisedSymbol` | A symbol had no binding, a qualified name named something its module does not export, or a module left out one of its exports. |
 
 ### Swift interoperability
 
@@ -881,6 +887,7 @@ try value.requireString()                 // String
 try value.requireSymbol()                 // String, from a symbol
 try value.requireRecord()                 // MyronRecord
 try value.requireRecordType()             // MyronRecordType
+try value.requireModule()                 // MyronModule
 ```
 
 And a generic `require()` for everything else, which takes its type from
@@ -897,8 +904,8 @@ let held: MyronValue = try value.require()
 
 Nesting comes free, so a structure converts in one step however deep it goes.
 `Array`, `Set`, `Dictionary` and `Optional` conform where their elements do;
-`MyronValue`, `MyronHashmap`, `MyronSet`, `MyronRecord` and `MyronRecordType`
-conform as themselves. A list and a
+`MyronValue`, `MyronHashmap`, `MyronSet`, `MyronRecord`, `MyronRecordType` and
+`MyronModule` conform as themselves. A list and a
 set each convert into either Swift collection, so the Swift type you ask for
 decides the shape — and asking for a `Set` collapses duplicates, as Swift's
 `Set` always does. `nothing` becomes `nil` for an optional and an error for
@@ -1212,6 +1219,31 @@ Records and record types are `Equatable` and `Hashable`, so either can be a
 member of a set, a hashmap key, or an element of Swift's own `Set`. A record
 holding a `nan` follows the [keys](#keys) rule: it is not equal to itself, so
 it is dropped as a key or member.
+
+#### `MyronModule`
+
+The payload of `MyronValue.module`. A module is made by Myron's
+[`module`](#module) form rather than in Swift, and a host reads one through its
+name, its exports and a subscript. `query` understands
+[qualified names](#evaluation-model), so a host can also reach an export
+directly:
+
+```swift
+session.eval("(module geo (area) (define (area r) (* 3.0 r r)))")
+
+let geo = try session.query("geo")!.requireModule()
+geo.name                                  // "geo"
+geo.exports                               // ["area"], sorted
+geo["area"]                               // the procedure, as a MyronValue
+geo["square"]                             // nil — not exported
+geo.description                           // "<module: geo>"
+
+session.query("geo.area")                 // the same procedure
+```
+
+A module is an immutable value type, `Equatable` and `Hashable`. Two modules are
+equal when they have the same name and their exports are equal, so a module is
+equal to itself however many names it is bound to.
 
 #### Keys
 
@@ -1734,6 +1766,49 @@ function with an accumulator to put the call back in tail position:
 (sum-from 0 1000000)                      ; 500000500000
 ```
 
+### Modules
+
+A module gathers related definitions under one name and decides which of them
+the rest of the program can see. It takes a name, a list of exports, and a body
+of definitions:
+
+```lisp
+(module geo (area circumference)
+  (define (square x) (* x x))
+  (define (area r) (* pi (square r)))
+  (define (circumference r) (* 2.0 pi r)))
+
+geo                                       ; <module: geo>
+(geo.area 1.0)                            ; 3.141592653589793
+geo.square                                ; ERROR: Unrecognised symbol ...
+```
+
+The module binds only its own name. Its exports are reached with a qualified
+name, `geo.area`, and anything it does not export, such as `square`, stays
+private. `import` brings a module's exports into scope under their own names:
+
+```lisp
+(import geo)
+                                          ; (<define: area> <define: circumference>)
+(circumference 1.0)                       ; 6.283185307179586
+```
+
+A module body sees the names around it, just as a procedure body does, so a
+module can use one defined before it, and can import it too. Whatever a module
+imports, it can export again:
+
+```lisp
+(module shapes (area volume)
+  (import geo)
+  (define (volume r h) (* (area r) h)))
+
+(shapes.volume 1.0 2.0)                   ; 6.283185307179586
+```
+
+A module is a value like any other. It can be bound to another name, passed to
+a procedure, or exported from another module, in which case the qualified name
+walks through both: `outer.inner.x`.
+
 ### Errors
 
 Myron reports errors rather than trapping. Overflow, division by zero, a
@@ -1817,7 +1892,8 @@ string cannot contain a `"`. An unterminated string is an error.
 **Symbols.** Any token that is none of the above: `x`, `factorial`, `+`, `<=`,
 `nothing?`, `my-map`. Symbols name bindings. There is no reserved character
 set: brackets, whitespace and `;` end a symbol, and everything else is fair
-game.
+game. A dot inside a symbol, as in `geo.area`, makes it a
+[qualified name](#evaluation-model) when it is looked up.
 
 **The tick.** `'expr` abbreviates `(quote expr)`. It works anywhere, including
 inside a list: `(length '(1 2 3))`.
@@ -1833,6 +1909,13 @@ Semicolons inside a string literal are ordinary characters.
 - **Symbols** evaluate to the value they are bound to. Lookup walks outward
   from the innermost environment and ends at the standard environment; an
   unbound symbol is an `unrecognisedSymbol` error.
+- **Qualified names** are symbols with dots in them, such as `geo.area`. A
+  symbol that is bound as it stands is used as it stands, dots and all.
+  Otherwise the part before the first dot is looked up as above and must be a
+  [module](#module), each following part must be one of the exports of the
+  module before it, and the last part's value is the result. A name the module
+  does not export is an `unrecognisedSymbol` error with a hint naming the
+  module, and a part that is not a module is an `unexpectedType` error.
 - **Lists** are applications, except where the head names a special form. In
   `(f a b)`, `f`, `a` and `b` are each evaluated, left to right, and the value
   of `f` is applied to the argument values. Applying a non-callable value is an
@@ -1847,9 +1930,9 @@ User bindings shadow standard-environment names, so `(define max 9)` hides the
 built-in `max`. Special form names are recognised before any lookup and so
 cannot be shadowed: after `(define if 3)`, `if` still branches.
 
-New scopes are created by a procedure call and by `let`. A `define` binds into
-whichever environment is current, which means a `define` inside a procedure
-body or a `let` is local to it and does not escape.
+New scopes are created by a procedure call, by `let` and by `module`. A `define`
+binds into whichever environment is current, which means a `define` inside a
+procedure body, a `let` or a module is local to it and does not escape.
 
 Evaluation is driven by an explicit machine whose continuation stack lives on
 the heap, so recursion depth is bounded by
@@ -1861,7 +1944,7 @@ place until the body finishes.
 
 ### Special forms
 
-Ten forms are evaluated specially rather than as applications, because each
+Twelve forms are evaluated specially rather than as applications, because each
 one needs to leave some part of itself unevaluated.
 
 | Form | Shape |
@@ -1871,8 +1954,10 @@ one needs to leave some part of itself unevaluated.
 | [`cond`](#cond) | `(cond (test body …) …)` |
 | [`define`](#define) | `(define name value)` or `(define (name param …) body …)` |
 | [`if`](#if) | `(if test consequent alternative)` |
+| [`import`](#import) | `(import module …)` |
 | [`lambda`](#lambda) | `(lambda (param …) body …)` |
 | [`let`](#let) | `(let ((name value) …) body …)` |
+| [`module`](#module) | `(module name (export …) body …)` |
 | [`or`](#and-and-or) | `(or test …)` |
 | [`quote`](#quote) | `(quote expr)`, abbreviated `'expr` |
 | [`try`](#try) | `(try handler (body …))` |
@@ -2067,6 +2152,72 @@ recursive call inside a `try` uses stack depth.
 *Errors:* `unexpectedArity` unless there are exactly a handler and a body list;
 `unexpectedType` when the bodies are not a list.
 
+#### `module`
+
+```lisp ignore
+(module name (export …) body …)
+```
+
+Evaluates the bodies in order in a fresh environment inside the current one,
+then binds `name` in the current environment to a module holding the value of
+each export. The bodies see every name the surrounding code can see, so a
+module can use, and import, what was defined before it. Nothing the bodies
+define escapes except through the exports, and until it is imported or reached
+by a [qualified name](#evaluation-model), not even that.
+
+```lisp
+(module counter (start step)
+  (define start 0)
+  (define (step n) (+ n 1)))
+
+(counter.step counter.start)              ; 1
+```
+
+Like `define`, the form evaluates to a define marker naming the module. The
+export list may be empty and the body may be absent. Each export must be defined
+by the module itself — by a `define` in its body, or by an `import` there, which
+is how a module re-exports another's names. A name that only exists outside the
+module, including one from the standard library, does not count.
+
+Myron has no `set!`, so the exports are taken once, when the body finishes, and
+never change afterwards. Module and export names cannot contain a dot, which is
+what lets a qualified name be split unambiguously, and cannot be the name of a
+special form.
+
+*Errors:* `unexpectedArity` without a name and an export list; `unexpectedType`
+when the name or an export is not a symbol, or the export list is not a list;
+`invalidName` for a dotted or reserved name; `unrecognisedSymbol`, with a hint
+listing them, when exports were never defined. If a body fails, the module is
+not bound.
+
+#### `import`
+
+```lisp ignore
+(import module …)
+```
+
+Binds every export of each module in the current environment, under the
+export's own name. Each module is written as a name, which may be qualified, so
+`(import outer.inner)` imports a module that `outer` exports. The form evaluates
+to a list of define markers for the names it bound, in alphabetical order for
+each module.
+
+```lisp
+(module greek (alpha beta) (define alpha 1) (define beta 2))
+(import greek)                            ; (<define: alpha> <define: beta>)
+(+ alpha beta)                            ; 3
+```
+
+An import binds where a `define` would: inside a procedure body or a `let`, the
+names are local to it. An imported name replaces an existing binding in the same
+environment, and shadows one further out, including a standard-library name. An
+imported procedure keeps the module's environment, so it can still use the
+names the module kept private.
+
+*Errors:* `unexpectedArity` for `(import)`; `unexpectedType` when a module is
+not written as a symbol, or names a value that is not a module;
+`unrecognisedSymbol` for a name that is not bound.
+
 ## Standard library reference
 
 Every environment can see the standard environment: primitives and constants
@@ -2160,6 +2311,7 @@ them.
 | `boolean?` | a boolean |
 | `list?` | a list |
 | `set?` | a set |
+| `module?` | a [module](#modules-1) |
 | `positive?` | a number greater than zero |
 | `negative?` | a number less than zero |
 | `zero?` | a number equal to zero |
@@ -2209,8 +2361,8 @@ and `infinite?` are both `false`.
 (kind (lambda (x) x))                     ; "procedure"
 ```
 
-The names are `boolean`, `double`, `hashmap`, `integer`, `list`, `nothing`,
-`record`, `record-type`, `set`, `string` and `symbol` for data, and
+The names are `boolean`, `double`, `hashmap`, `integer`, `list`, `module`,
+`nothing`, `record`, `record-type`, `set`, `string` and `symbol` for data, and
 `primitive` or `procedure` for
 anything callable. A primitive is built in or supplied by the host; a procedure
 is written in Myron with `lambda` or `define`. The [predicates](#predicates)
@@ -2937,6 +3089,42 @@ too. To work with a record's contents as a collection, convert it with
 `keys-values`, or with [`make-hashmap`](#hashmaps), which keys each field by its
 name.
 
+### Modules
+
+Modules are made with the [`module`](#module) form and used with
+[`import`](#import) and qualified names. These primitives ask about one.
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `module?` | 1 value of any type | `true` if it is a module |
+| `exports?` | a name, or a list of names, and a module | `true` if the module exports every name |
+
+```lisp
+(module geo (area circumference)
+  (define (square x) (* x x))
+  (define (area r) (* pi (square r)))
+  (define (circumference r) (* 2.0 pi r)))
+
+(module? geo)                             ; true
+(module? 'geo)                            ; false — a symbol, not a module
+(exports? 'area geo)                      ; true
+(exports? "area" geo)                     ; true
+(exports? 'square geo)                    ; false — defined, but private
+(exports? '(area circumference) geo)      ; true
+(exports? '(area square) geo)             ; false
+```
+
+A name may be a symbol or a string, and so may each name in a list, though a
+list may not hold another list. A list asks about all of its names at once, so
+the empty list is `true` of any module.
+`exports?` answers for the module's own exports, including any it re-exports
+from a module it imported, and a dotted name is never one of them.
+
+Unlike the [predicates](#predicates), `exports?` needs the right kinds of
+argument: a module that is not a module, or a name that is not a symbol or a
+string, raises `unexpectedType`. Check with `module?` first when the value might
+be something else.
+
 ### Ordering
 
 | Primitive | Arguments | Result |
@@ -3155,6 +3343,9 @@ Still to come:
 - Variadic user procedures, and default and keyword parameters.
 - Catching the interpreter's own errors with `try`. Until then, it catches only
   what `raise` raises.
+- Modules kept in files of their own, found by the host when `import` names one
+  the program cannot see. Until then, `load` the file that defines the module
+  and `import` it afterwards.
 - `sourceHandle` on errors. It is carried through tokenisation but not yet
   surfaced.
 

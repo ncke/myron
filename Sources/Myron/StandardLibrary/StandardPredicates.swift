@@ -162,8 +162,46 @@ struct StandardPredicates: StandardModule {
                 }
                 
                 return .boolean(true)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.module?",
+            representations: ["module?"],
+            signature: StandardSignature([StandardSignature.any1]),
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isModule)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.exports?",
+            representations: ["exports?"],
+            signature: StandardSignature([
+                StandardSignature.strOrSymOrList1,
+                StandardSignature.module1]),
+            body: { args, location in
+                let (fst, snd) = try args.unwrap2(location)
+
+                func unwrapName(
+                    _ value: MyronValue,
+                    allowing kinds: Set<MyronValue.Kind>
+                ) throws -> String {
+                    guard let name = value.asString ?? value.asSymbol else {
+                        let reason = MyronError.Reason.unexpectedType(value.kind, kinds)
+                        throw MyronError(reason, at: location)
+                    }
+
+                    return name
+                }
+
+                let names = try fst.asList?.map { element in
+                    try unwrapName(element, allowing: [.string, .symbol])
+                } ?? [unwrapName(fst, allowing: [.string, .symbol, .list])]
+
+                let module = try snd.unwrapModule(location)
+                return .boolean(names.allSatisfy { name in module[name] != nil })
         })
-        
+
     ]
     
 }

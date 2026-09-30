@@ -107,6 +107,26 @@ the language, and a patch release will not.
 - `Substring` conforms to `MyronValueRepresentable` and `MyronValueConvertible`,
   as a string.
 - The predicate `something?`, the negation of `nothing?`.
+- Modules. The special form `module`, written `(module name (export …) body …)`,
+  evaluates its bodies in a scope of their own inside the current one and binds
+  `name` to a module holding the exported values. Each export must be defined
+  by the module itself, by `define` or by `import`, and one that is missing is
+  reported with the module's name.
+- The special form `import`, written `(import module …)`, which binds each
+  module's exports in the current environment, where a `define` would bind
+  them, and gives back a define marker for each name bound.
+- Qualified names. A symbol that is not bound as it stands, and has dots in it,
+  is looked up as a path through modules: `geo.area` is the export `area` of the
+  module `geo`, and `outer.inner.x` walks through a nested module. A name the
+  module does not export fails with a hint naming the module. `query` from Swift
+  understands qualified names too.
+- `MyronModule`, the type of a module, with its `name`, its sorted `exports`
+  and a subscript for reading one. It is `Equatable` and `Hashable`, and
+  conforms to `MyronValueRepresentable` and `MyronValueConvertible`.
+  `MyronValue` gains `asModule` and `requireModule()`, and `kind` names a
+  module `"module"`.
+- The predicate `module?`, and `exports?`, which asks whether a module exports
+  a name, or every name in a list. Names may be symbols or strings.
 
 ### Changed
 
@@ -129,16 +149,20 @@ the language, and a patch release will not.
 - The `myron-repl` executable is now `myron`, and starts the REPL with
   `--repl`.
 - The REPL writes errors to standard error.
-- `MyronValue` gains the cases `record` and `recordType`, `MyronValue.Kind`
-  gains `record` and `recordType`, `MyronError.Reason` gains
-  `duplicateField`, `unexpectedField`, `raised` and `cannotBeEmpty`, and
-  `MyronHigherOrder` gains `foldr` and `apply`. A host that switches exhaustively over any of
-  these will need the new cases.
-- `try` is a special form, so it can no longer be bound: a host's `define`
-  rejects it with `invalidName`, and after `(define try …)` in source, `try`
-  still catches.
+- `MyronValue` gains the cases `record`, `recordType` and `module`,
+  `MyronValue.Kind` gains `record`, `recordType` and `module`,
+  `MyronError.Reason` gains `duplicateField`, `unexpectedField`, `raised` and
+  `cannotBeEmpty`, and `MyronHigherOrder` gains `foldr` and `apply`. A host
+  that switches exhaustively over any of these will need the new cases.
+- `try`, `module` and `import` are special forms, so they can no longer be
+  bound: a host's `define` rejects them with `invalidName`, and after
+  `(define try …)` in source, `try` still catches, as `module` and `import`
+  still make and import modules.
 - `invalidName` is also raised for a record type or field name that Myron
-  source could not write, and so can now come back from `eval`.
+  source could not write, and for a module or export name that has a dot in it
+  or is a special form's name, and so can now come back from `eval`.
+- `MyronSession.query` resolves a dotted name that is not bound as it stands
+  as a qualified name, so it can now find a module's export.
 
 ## [0.2.0] — 2026-09-23
 

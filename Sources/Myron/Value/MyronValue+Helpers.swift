@@ -46,7 +46,14 @@ extension MyronValue {
         }
         return l
     }
-    
+
+    func unwrapModule(_ location: MyronLocation?) throws -> MyronModule {
+        guard let m = asModule else {
+            throw MyronError(.unexpectedType(self.kind, [.module]), at: location)
+        }
+        return m
+    }
+
     func unwrapRecord(_ location: MyronLocation?) throws -> MyronRecord {
         guard let r = asRecord else {
             throw MyronError(.unexpectedType(self.kind, [.record]), at: location)
@@ -120,7 +127,12 @@ extension MyronValue {
         if case .list(let l) = self { return l }
         return nil
     }
-    
+
+    public var asModule: MyronModule? {
+        if case .module(let m) = self { return m }
+        return nil
+    }
+
     public var asRecord: MyronRecord? {
         if case .record(let record) = self { return record }
         return nil
@@ -157,6 +169,11 @@ extension MyronValue {
             guard case .double(let number) = element else { return false }
             return number.isNaN
         } == nil
+    }
+
+    var isModule: Bool {
+        if case .module = self { return true }
+        return false
     }
 
     var isNothing: Bool {
@@ -198,10 +215,31 @@ extension MyronValue {
 // MARK: - Name Validation
 
 extension MyronValue {
-    
+
+    static func validateAsModuleName(_ name: String, location: MyronLocation?) throws {
+        try validateAsName(name, location: location)
+        guard !name.contains(".") else {
+            throw MyronError(.invalidName(name), at: location)
+                .withHint(.moduleNamesCannotBeDotted(name))
+        }
+    }
+
+    static func validateAsModuleExportName(
+        _ name: String,
+        in moduleName: String,
+        location: MyronLocation?
+    ) throws {
+        try validateAsName(name, location: location)
+        guard !name.contains(".") else {
+            throw MyronError(.invalidName(name), at: location)
+                .withHint(.moduleCannotExportDottedName(moduleName, name))
+        }
+    }
+
     static func validateAsName(_ name: String, location: MyronLocation?) throws {
         if !isValidAsName(name) {
             throw MyronError(.invalidName(name), at: location)
+                .withHint(.cannotUseReservedName(name), if: Machine.specialFormNames.contains(name))
         }
     }
     

@@ -34,9 +34,42 @@ final class Environment {
         mappings[name] = value
     }
     
-    func lookup(_ name: String) -> MyronValue? {
+    func lookup(_ name: String, at location: MyronLocation?) throws -> MyronValue {
         if let match = traversingLookup(name) { return match }
-        return standard.lookup(name)
+        if let match = standard.lookup(name) { return match }
+
+        let components = name.split(separator: ".", omittingEmptySubsequences: false)
+
+        guard
+            let firstName = components.first,
+            let module = traversingLookup(String(firstName))
+        else {
+            throw MyronError(.unrecognisedSymbol, at: location)
+        }
+
+        func traverseThroughModules(
+            _ value: MyronValue,
+            names: ArraySlice<Substring>
+        ) throws -> MyronValue {
+            var traversing = value
+            var remaining = names
+            while true {
+                guard let name = remaining.first else { return traversing }
+                let module = try traversing.unwrapModule(location)
+
+                guard let next = module[String(name)] else {
+                    throw MyronError(.unrecognisedSymbol, at: location)
+                        .withHint(
+                            .moduleDoesNotExport(module.name, String(name)),
+                            if: !name.isEmpty)
+                }
+
+                traversing = next
+                remaining = remaining.dropFirst()
+            }
+        }
+
+        return try traverseThroughModules(module, names: components.dropFirst())
     }
 
     private func traversingLookup(_ name: String) -> MyronValue? {
@@ -50,6 +83,10 @@ final class Environment {
         }
         
         return nil
+    }
+
+    func localLookup(_ name: String) -> MyronValue? {
+        return mappings[name]
     }
 
     var names: Set<String> {

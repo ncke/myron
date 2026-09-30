@@ -24,12 +24,17 @@ extension MyronError {
     enum Hint: Sendable {
         case alistElementDidNotMeetRequirements
         case alistValueCannotBeNothing
+        case cannotUseReservedName(String)
         case comparisonBetweenDifferentKinds
         case comparisonMetIncomparableKind
         case conditionNotBoolean
         case evalDepthAdvice
         case instructionForInternalError
         case mixedDifferentNumericKinds
+        case moduleCannotExportDottedName(String, String)
+        case moduleDidNotDefineExports(String, [String])
+        case moduleDoesNotExport(String, String)
+        case moduleNamesCannotBeDotted(String)
         case splitSeparatorCannotBeEmptyString
         case stackDepthAdvice
     }
@@ -46,6 +51,8 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Every alist element must itself be a list with two elements"
         case .alistValueCannotBeNothing:
             return "The value of an alist element cannot be nothing"
+        case .cannotUseReservedName(let name):
+            return "Reserved name '\(name)' cannot be used"
         case .comparisonBetweenDifferentKinds:
             return "Values of different kinds cannot be compared"
         case .comparisonMetIncomparableKind:
@@ -58,6 +65,15 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Issues can be raised at 'https://github.com/ncke/myron'"
         case .mixedDifferentNumericKinds:
             return "Use `double` and `integer` to convert between numeric kinds"
+        case .moduleCannotExportDottedName(let name, let export):
+            return "Module '\(name)' cannot have a dotted export: '\(export)'"
+        case .moduleDidNotDefineExports(let name, let exports):
+            let describeNames = exports.joined(separator: ", ")
+            return "Module '\(name)' has missing exports: \(describeNames)"
+        case .moduleDoesNotExport(let name, let export):
+            return "Module '\(name)' does not export '\(export)'"
+        case .moduleNamesCannotBeDotted(let name):
+            return "Module '\(name)' cannot be dotted"
         case .splitSeparatorCannotBeEmptyString:
             return "An empty string cannot be used as a split separator"
         case .stackDepthAdvice:

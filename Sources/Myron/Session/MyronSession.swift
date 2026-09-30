@@ -282,7 +282,7 @@ extension MyronSession {
 extension MyronSession {
     
     public func query(_ name: String) -> MyronValue? {
-        return environment.lookup(name)
+        return try? environment.lookup(name, at: nil)
     }
 
     public func set(_ name: String, to value: MyronValue) {

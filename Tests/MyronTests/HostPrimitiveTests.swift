@@ -68,7 +68,8 @@ struct HostPrimitiveTests {
     // A special form is intercepted before symbol lookup, so a primitive under
     // one of these names could never be reached in head position.
     @Test("a special form name cannot be defined", arguments: [
-        "and", "begin", "cond", "define", "if", "lambda", "let", "or", "quote", "try"
+        "and", "begin", "cond", "define", "if", "import", "lambda", "let", "module", "or",
+        "quote", "try"
     ])
     func specialFormNamesRejected(_ name: String) {
         let session = MyronSession()

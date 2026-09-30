@@ -37,6 +37,7 @@ extension Machine {
         case foldring(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case handling(Expression, Environment, MyronLocation?)
         case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
+        case modularising(ArraySlice<Expression>, String, [String], Environment, Environment, MyronLocation?)
         case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case sequence(ArraySlice<Expression>, Environment, MyronLocation?)
@@ -171,9 +172,7 @@ extension Machine {
         switch expression {
 
         case .atom(.symbol(let name), let meta):
-            guard let value = environment.lookup(name) else {
-                throw MyronError(.unrecognisedSymbol, at: meta.location)
-            }
+            let value = try environment.lookup(name, at: meta.location)
             control = .value(value)
 
         case .atom(let atom, _):
@@ -213,15 +212,17 @@ extension Machine {
     private static let specialCond = "cond"
     private static let specialDefine = "define"
     private static let specialIf = "if"
+    private static let specialImport = "import"
     private static let specialLambda = "lambda"
     private static let specialLet = "let"
+    private static let specialModule = "module"
     private static let specialOr = "or"
     private static let specialQuote = "quote"
     private static let specialTry = "try"
 
     static let specialFormNames = Set([
-        specialAnd, specialBegin, specialCond, specialDefine, specialIf,
-        specialLambda, specialLet, specialOr, specialQuote, specialTry
+        specialAnd, specialBegin, specialCond, specialDefine, specialIf, specialImport,
+        specialLambda, specialLet, specialModule, specialOr, specialQuote, specialTry
     ])
     
     private func interpretSpecialForm(
@@ -287,6 +288,31 @@ extension Machine {
                 .branch(thenClause, elseClause, environment, meta.location),
                 .eval(condition, environment))
 
+        case Self.specialImport:
+            try tail.mustHaveAtLeast(1, meta.location)
+
+            var definitions = [MyronValue]()
+            for expr in tail {
+                guard let name = expr.asSymbolName() else {
+                    let reason = MyronError.Reason.unexpectedType(expr.asValueKind(), [ .symbol ])
+                    throw MyronError(reason, at: expr.location)
+                }
+
+                let value = try environment.lookup(name, at: expr.location)
+                let module = try value.unwrapModule(expr.location)
+
+                for export in module.exports {
+                    guard let definition = module[export] else {
+                        let explain = "Missing import of \(export) in \(module.name)"
+                        throw MyronError(.internal(explain), at: expr.location)
+                    }
+                    environment.insert(export, value: definition)
+                    definitions.append(.define(export))
+                }
+            }
+
+            return (nil, .value(.list(definitions)))
+
         case Self.specialLambda:
             try tail.mustHaveAtLeast(2, meta.location)
             let (head, remainder) = try tail.headtail(meta.location)
@@ -318,6 +344,34 @@ extension Machine {
             ? Frame.sequence(bodies.dropFirst(), inner, meta.location)
             : nil
             return (frame, .eval(firstBody, inner))
+
+        case Self.specialModule:
+            try tail.mustHaveAtLeast(2, meta.location)
+            let fst = try tail.unwrapFirst(meta.location)
+            let name = try fst.unwrapSymbolName()
+            try MyronValue.validateAsModuleName(name, location: fst.location)
+            let (exportExprs, _) = try tail.unwrapSecond(meta.location).unwrapList()
+            let bodies = tail.count > 2 ? tail[tail.startIndex.advanced(by: 2)...] : []
+
+            let exports = try exportExprs.map { expr in
+                guard let export = expr.asSymbolName() else {
+                    let reason = MyronError.Reason.unexpectedType(expr.asValueKind(), [ .symbol ])
+                    throw MyronError(reason, at: expr.location)
+                }
+
+                try MyronValue.validateAsModuleExportName(export, in: name, location: expr.location)
+                return export
+            }
+
+            let inner = try Environment(outer: environment, at: meta.location)
+            let others = bodies.dropFirst()
+            let frame = Frame.modularising(others, name, exports, inner, environment, meta.location)
+
+            if let firstBody = bodies.first {
+                return (frame, .eval(firstBody, inner))
+            } else {
+                return (frame, .value(.nothing))
+            }
 
         case Self.specialOr:
             let (clause, remainder) = try tail.headtail(meta.location)
@@ -472,6 +526,32 @@ extension Machine {
             }
 
             control = .value(shape.rebuild(done))
+
+        case .modularising(let remaining, let name, let exports, let inner, let environment, let location):
+            if let next = remaining.first {
+                stack.append(.modularising(remaining.dropFirst(), name, exports, inner, environment, location))
+                control = .eval(next, inner)
+                return
+            }
+
+            var undefinedNames = [String]()
+            var lookup = [String: MyronValue]()
+            for exportName in exports {
+                guard let definition = inner.localLookup(exportName) else {
+                    undefinedNames.append(exportName)
+                    continue
+                }
+                lookup[exportName] = definition
+            }
+
+            guard undefinedNames.isEmpty else {
+                throw MyronError(.unrecognisedSymbol, at: location)
+                    .withHint(.moduleDidNotDefineExports(name, undefinedNames))
+            }
+
+            let module = MyronModule(name: name, lookup: lookup)
+            environment.insert(name, value: .module(module))
+            control = .value(.define(name))
 
         case .probing(let higher, let function, let remaining, let location):
             let result = try value.unwrapBoolean(location)
