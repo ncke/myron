@@ -127,6 +127,10 @@ the language, and a patch release will not.
   module `"module"`.
 - The predicate `module?`, and `exports?`, which asks whether a module exports
   a name, or every name in a list. Names may be symbols or strings.
+- Calling a symbol, directly or through `map`, `apply` and the other
+  higher-order functions, fails with a hint when the symbol names a function
+  where the call is made, since it was most likely quoted by mistake:
+  `('f 1)` suggests dropping the quote from `'f`.
 
 ### Changed
 

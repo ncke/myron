@@ -415,7 +415,7 @@ extension Machine {
                 control = .eval(next, environment)
             } else {
                 let head = done.first!
-                try apply(head, to: done.dropFirst(), at: location)
+                try apply(head, to: done.dropFirst(), at: location, in: environment)
             }
 
         case .bind(let name, let remaining, let bodies, let environment, let location):
@@ -602,7 +602,8 @@ extension Machine {
     private func apply(
         _ value: MyronValue,
         to arguments: ArraySlice<MyronValue>,
-        at location: MyronLocation?
+        at location: MyronLocation?,
+        in environment: Environment? = nil
     ) throws {
         switch value {
 
@@ -614,7 +615,7 @@ extension Machine {
 
                 let function = try arguments.unwrapFirst(location)
                 guard function.isCallable else {
-                    throw MyronError(.expectedFunction(function.kind), at: location)
+                    throw expectedFunctionError(function, at: location, in: environment)
                 }
 
                 guard let last = arguments.last else {
@@ -629,7 +630,7 @@ extension Machine {
             case .map:
                 let (function, valueList) = try arguments.unwrap2(location)
                 guard function.isCallable else {
-                    throw MyronError(.expectedFunction(function.kind), at: location)
+                    throw expectedFunctionError(function, at: location, in: environment)
                 }
                 let values = try valueList.unwrapElements(location)
                 let shape = try Shape(valueList)
@@ -644,7 +645,7 @@ extension Machine {
             case .foldr:
                 let (function, partial, valueList) = try arguments.unwrap3(location)
                 guard function.isCallable else {
-                    throw MyronError(.expectedFunction(function.kind), at: location)
+                    throw expectedFunctionError(function, at: location, in: environment)
                 }
                 let values = try valueList.unwrapElements(location)
                 
@@ -658,7 +659,7 @@ extension Machine {
             case .filter:
                 let (function, valueList) = try arguments.unwrap2(location)
                 guard function.isCallable else {
-                    throw MyronError(.expectedFunction(function.kind), at: location)
+                    throw expectedFunctionError(function, at: location, in: environment)
                 }
                 let values = try valueList.unwrapElements(location)
                 let shape = try Shape(valueList)
@@ -674,7 +675,7 @@ extension Machine {
             case .reduce:
                 let (function, partial, valueList) = try arguments.unwrap3(location)
                 guard function.isCallable else {
-                    throw MyronError(.expectedFunction(function.kind), at: location)
+                    throw expectedFunctionError(function, at: location, in: environment)
                 }
                 let values = try valueList.unwrapElements(location)
 
@@ -689,7 +690,7 @@ extension Machine {
         case .higherProbe(let higher):
             let (function, valueList) = try arguments.unwrap2(location)
             guard function.isCallable else {
-                throw MyronError(.expectedFunction(function.kind), at: location)
+                throw expectedFunctionError(function, at: location, in: environment)
             }
             let values = try valueList.unwrapElements(location)
 
@@ -732,8 +733,31 @@ extension Machine {
             control = .eval(bodies[0], inner)
 
         default:
-            throw MyronError(.expectedFunction(value.kind), at: location)
+            throw expectedFunctionError(value, at: location, in: environment)
         }
+    }
+
+}
+
+// MARK: - Not a Function
+
+extension Machine {
+
+    private func expectedFunctionError(
+        _ value: MyronValue,
+        at location: MyronLocation?,
+        in environment: Environment?
+    ) -> MyronError {
+        let error = MyronError(.expectedFunction(value.kind), at: location)
+        guard
+            case .symbol(let name) = value,
+            let named = try? environment?.lookup(name, at: location),
+            named.isCallable
+        else {
+            return error
+        }
+
+        return error.withHint(.quotedSymbolNamesFunction(name))
     }
 
 }

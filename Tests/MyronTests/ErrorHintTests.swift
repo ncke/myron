@@ -150,6 +150,51 @@ struct ErrorHintTests {
         #expect(message.components(separatedBy: automatic.description).count == 2)
     }
 
+    // MARK: Quoted Function Names
+
+    private static func expectedFunctionHints(_ source: String) throws -> [MyronError.Hint] {
+        let error = try #require(MyronSession().eval(source).asFailure?.first)
+        #expect(error.reason == .expectedFunction(.symbol))
+        return error.hints ?? []
+    }
+
+    @Test("calling a quoted symbol that names a function hints at the quote", arguments: [
+        ("(define (f x) x) ('f 1)", "f"),
+        ("(define (f x) x) (define g 'f) (g 1)", "f"),
+        ("('+ 1 2)", "+"),
+        ("(module m (f) (define (f x) x)) ('m.f 1)", "m.f"),
+        ("(define (f x) x) (map 'f '(1 2))", "f"),
+        ("(define (f x) x) (reduce 'f 0 '(1 2))", "f"),
+        ("(define (f x) x) (any 'f '(1 2))", "f"),
+        ("(define (f x) x) (apply 'f '(1))", "f"),
+    ])
+    func quotedFunctionNameHinted(source: String, name: String) throws {
+        #expect(try Self.expectedFunctionHints(source) == [.quotedSymbolNamesFunction(name)])
+    }
+
+    @Test("a quoted function name is found from where the call is made")
+    func quotedFunctionNameFoundAtCall() throws {
+        let source = "(define (call g) (define (h) 1) (g)) (call 'h)"
+        #expect(try Self.expectedFunctionHints(source) == [.quotedSymbolNamesFunction("h")])
+    }
+
+    @Test("calling a symbol that names no function gives no hint", arguments: [
+        "('f 1)",
+        "(define f 5) ('f 1)",
+        "(map 'f '(1 2))",
+    ])
+    func unboundOrUncallableSymbolNotHinted(source: String) throws {
+        #expect(try Self.expectedFunctionHints(source).isEmpty)
+    }
+
+    @Test("the hint reaches the rendered message")
+    func quotedFunctionNameInMessage() throws {
+        let error = try #require(MyronSession().eval("(define (f) 1) ('f)").asFailure?.first)
+        let hint = MyronError.Hint.quotedSymbolNamesFunction("f")
+
+        #expect(error.message?.contains("HINT: \(hint)") == true)
+    }
+
     // MARK: Hinting a Throwing Call
 
     private struct Unrelated: Error {}
