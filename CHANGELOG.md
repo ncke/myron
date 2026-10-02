@@ -131,6 +131,16 @@ the language, and a patch release will not.
   higher-order functions, fails with a hint when the symbol names a function
   where the call is made, since it was most likely quoted by mistake:
   `('f 1)` suggests dropping the quote from `'f`.
+- Variadic parameters. A parameter written with a trailing `...`, as in
+  `(lambda (a xs...) …)` or `(define (f xs...) …)`, collects the arguments the
+  other parameters leave over into a list, bound as `xs`. It may appear once,
+  in any position, and calling with too few arguments for the rest fails with
+  `unexpectedArity` and an `.atLeast` expectation. A second variadic parameter,
+  or a bare `...`, fails with the new `unexpectedVariadicParameter`.
+- Writing a variadic parameter's dots in the body, as in `(length xs...)`, fails
+  as an unrecognised symbol with a hint to write `xs`, or to use `apply` to pass
+  its elements as separate arguments. Before, it was read as a qualified name and
+  failed with a confusing type error about modules.
 
 ### Changed
 
@@ -155,8 +165,8 @@ the language, and a patch release will not.
 - The REPL writes errors to standard error.
 - `MyronValue` gains the cases `record`, `recordType` and `module`,
   `MyronValue.Kind` gains `record`, `recordType` and `module`,
-  `MyronError.Reason` gains `duplicateField`, `unexpectedField`, `raised` and
-  `cannotBeEmpty`, and `MyronHigherOrder` gains `foldr` and `apply`. A host
+  `MyronError.Reason` gains `duplicateField`, `unexpectedField`, `raised`,
+  `cannotBeEmpty` and `unexpectedVariadicParameter`, and `MyronHigherOrder` gains `foldr` and `apply`. A host
   that switches exhaustively over any of these will need the new cases.
 - `try`, `module` and `import` are special forms, so they can no longer be
   bound: a host's `define` rejects them with `invalidName`, and after
@@ -167,6 +177,11 @@ the language, and a patch release will not.
   or is a special form's name, and so can now come back from `eval`.
 - `MyronSession.query` resolves a dotted name that is not bound as it stands
   as a qualified name, so it can now find a module's export.
+- No name can end in a dot, since a trailing `...` marks a variadic parameter.
+  `define`, `let`, procedure parameters, modules and their exports, record types
+  and fields, and a host's `define` all reject one with `invalidName`. Before,
+  `(define x. 1)` was accepted. A variadic parameter that still ends in a dot
+  once its `...` is removed, such as `x....`, is rejected the same way.
 
 ## [0.2.0] — 2026-09-23
 

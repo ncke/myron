@@ -38,6 +38,14 @@ final class Environment {
         if let match = traversingLookup(name) { return match }
         if let match = standard.lookup(name) { return match }
 
+        if name.hasSuffix("..."), name.count > 3 {
+            let stem = String(name.dropLast(3))
+            if traversingLookup(stem) != nil || standard.lookup(stem) != nil {
+                throw MyronError(.unrecognisedSymbol, at: location)
+                    .withHint(.nameWasWrittenWithEllipsis(stem))
+            }
+        }
+
         let components = name.split(separator: ".", omittingEmptySubsequences: false)
 
         guard

@@ -35,7 +35,9 @@ extension Expression {
             throw MyronError(reason, at: self.location)
         }
 
-        let name = try subexprs[subexprs.startIndex].unwrapSymbolName()
+        let nameExpr = subexprs[subexprs.startIndex]
+        let name = try nameExpr.unwrapSymbolName()
+        try MyronValue.validateNotEndingInDot(name, location: nameExpr.location)
         let expr = subexprs[subexprs.startIndex + 1]
 
         return (name, expr)

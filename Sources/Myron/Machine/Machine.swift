@@ -265,6 +265,7 @@ extension Machine {
 
             if let name = sigExpression.asSymbolName() {
                 try tail.mustHaveExactly(2, meta.location)
+                try MyronValue.validateNotEndingInDot(name, location: sigExpression.location)
                 let definition = tail[tail.startIndex + 1]
                 return (.define(name, environment), .eval(definition, environment))
             }
@@ -277,10 +278,15 @@ extension Machine {
 
             let (nameExpr, paramExprs) = try sigList.headtail(sigExpression.location)
             let name = try nameExpr.unwrapSymbolName()
+            try MyronValue.validateNotEndingInDot(name, location: nameExpr.location)
             let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(tail[(tail.startIndex + 1)...])
-            let proc = MyronProcedure(parameters: params, bodies: bodies, environment: environment)
-            return (.define(name, environment), .value(.procedure(proc)))
+            let procedure = try MyronProcedure(
+                parameters: params,
+                bodies: bodies,
+                environment: environment,
+                location: sigExpression.location)
+            return (.define(name, environment), .value(.procedure(procedure)))
 
         case Self.specialIf:
             let (condition, thenClause, elseClause) = try tail.unwrap3(meta.location)
@@ -319,8 +325,12 @@ extension Machine {
             let (paramExprs, _) = try head.unwrapList()
             let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(remainder)
-            let proc = MyronProcedure(parameters: params, bodies: bodies, environment: environment)
-            return (nil, .value(.procedure(proc)))
+            let procedure = try MyronProcedure(
+                parameters: params,
+                bodies: bodies,
+                environment: environment,
+                location: meta.location)
+            return (nil, .value(.procedure(procedure)))
 
         case Self.specialLet:
             try tail.mustHaveAtLeast(2, meta.location)
@@ -709,17 +719,8 @@ extension Machine {
             control = .value(result)
 
         case .procedure(let procedure):
-            guard procedure.parameters.count == arguments.count else {
-                let got = arguments.count
-                let expected = procedure.parameters.count
-                let reason = MyronError.Reason.unexpectedArity(got, .exactly(expected))
-                throw MyronError(reason, at: location)
-            }
-
             let inner = try Environment(outer: procedure.environment, at: location)
-            for (name, argument) in zip(procedure.parameters, arguments) {
-                inner.insert(name, value: argument)
-            }
+            try procedure.bindArguments(arguments, into: inner, at: location)
 
             let bodies = procedure.bodies
             guard bodies.count > 0 else {

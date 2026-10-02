@@ -237,12 +237,20 @@ extension MyronValue {
     }
 
     static func validateAsName(_ name: String, location: MyronLocation?) throws {
+        try validateNotEndingInDot(name, location: location)
         if !isValidAsName(name) {
             throw MyronError(.invalidName(name), at: location)
                 .withHint(.cannotUseReservedName(name), if: Machine.specialFormNames.contains(name))
         }
     }
     
+    static func validateNotEndingInDot(_ name: String, location: MyronLocation?) throws {
+        guard !name.hasSuffix(".") else {
+            throw MyronError(.invalidName(name), at: location)
+                .withHint(.nameCannotEndInDot(name))
+        }
+    }
+
     static func isValidAsName(_ name: String) -> Bool {
         let (tokens, errors) = Lexer(input: name, sourceHandle: nil).tokenize()
         guard

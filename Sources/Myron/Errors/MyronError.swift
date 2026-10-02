@@ -32,6 +32,7 @@ public struct MyronError: Error, Sendable {
         case unexpectedArity(Int, IntegerExpectation)
         case unexpectedField(String, String, [String])
         case unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)
+        case unexpectedVariadicParameter(String)
         case unimplementedFeature
         case unmatchedParenthesis
         case unrecognisedSymbol
@@ -187,6 +188,8 @@ extension MyronError.Reason: CustomStringConvertible {
             case (nil, let e): return "Unexpected type, expected \(e)"
             case (.some(let g), let e): return "Unexpected type, got \(g), expected \(e)"
             }
+        case .unexpectedVariadicParameter(let name):
+            return "Unexpected variadic parameter '\(name)'"
         case .unimplementedFeature: return "Unimplemented feature"
         case .unmatchedParenthesis: return "Unmatched parenthesis"
         case .unrecognisedSymbol: return "Unrecognised symbol"

@@ -55,7 +55,8 @@ struct RecursionDepthTests {
     @Test("tail calls do not consume depth", arguments: [
         "(loop 100000)",
         "(define (f n) (if (== n 0) 0 (let ((m (- n 1))) (f m)))) (f 100000)",
-        "(define (f n) (if (== n 0) 0 (begin (f (- n 1))))) (f 100000)"
+        "(define (f n) (if (== n 0) 0 (begin (f (- n 1))))) (f 100000)",
+        "(define (f n xs...) (if (== n 0) 0 (f (- n 1) n n))) (f 100000)"
     ])
     func tailCallsAreFree(_ source: String) {
         // A limit of 10 is far below what 100,000 non-tail calls would need.

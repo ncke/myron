@@ -195,6 +195,40 @@ struct ErrorHintTests {
         #expect(error.message?.contains("HINT: \(hint)") == true)
     }
 
+    // MARK: Names Written With an Ellipsis
+
+    private static func unrecognisedSymbolHints(_ source: String) throws -> [MyronError.Hint] {
+        let error = try #require(MyronSession().eval(source).asFailure?.first)
+        #expect(error.reason == .unrecognisedSymbol)
+        return error.hints ?? []
+    }
+
+    @Test("a bound name written with '...' hints at the name without it", arguments: [
+        ("((lambda (xs...) (length xs...)) 1 2)", "xs"),
+        ("(define (f a xs...) (+ xs...)) (f 1 2 3)", "xs"),
+        ("(define xs '(1 2)) (length xs...)", "xs"),
+        ("(map length... '((1)))", "length"),
+    ])
+    func ellipsisNameHinted(source: String, name: String) throws {
+        #expect(try Self.unrecognisedSymbolHints(source) == [.nameWasWrittenWithEllipsis(name)])
+    }
+
+    @Test("a name written with '...' gives no hint when the name without it is unbound", arguments: [
+        "(length ys...)",
+        "(length ...)",
+    ])
+    func unboundEllipsisNameNotHinted(source: String) throws {
+        #expect(try Self.unrecognisedSymbolHints(source).isEmpty)
+    }
+
+    @Test("the ellipsis hint reaches the rendered message")
+    func ellipsisNameInMessage() throws {
+        let error = try #require(MyronSession().eval("(define xs '(1)) xs...").asFailure?.first)
+        let hint = MyronError.Hint.nameWasWrittenWithEllipsis("xs")
+
+        #expect(error.message?.contains("HINT: \(hint)") == true)
+    }
+
     // MARK: Hinting a Throwing Call
 
     private struct Unrelated: Error {}

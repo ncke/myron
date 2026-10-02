@@ -65,6 +65,8 @@ looking things up later.
   without importing anything. A module is an ordinary value: it can be passed
   around, nested inside another module, and defined inside a procedure.
 - Lexically scoped closures. `and` and `or` short-circuit.
+- Variadic procedures. A parameter written `xs...` collects the arguments the
+  others leave over into a list.
 - Proper tail calls. A tail-recursive loop runs in constant stack, and the
   interpreter's continuation stack lives on the heap, so recursion depth is
   bounded by a configurable limit rather than by the host's thread stack.
@@ -571,15 +573,17 @@ session.eval("(double \"a\")")
 Myron source could actually write. Validation runs the lexer itself: the name
 must lex as exactly one symbol token equal to the name given. That rules out the
 empty string, anything containing whitespace, brackets, a `;`, a `'` or a `"`,
-and anything that would lex as something else — `42`, `3.5`, `true`. The ten
+and anything that would lex as something else — `42`, `3.5`, `true`. The twelve
 [special forms](#special-forms) are rejected too, since they are intercepted
 before symbol lookup and a primitive under one of those names could never be
-called. Everything else is fair game, including non-ASCII: if `(define café 1)`
-works in source, `define("café")` works from Swift.
+called, and so is a name ending in a dot, which source cannot bind either.
+Everything else is fair game, including non-ASCII: if `(define café 1)` works in
+source, `define("café")` works from Swift.
 
 ```swift
 try session.define("if") { _ in 1 }       // throws — Invalid name: if
 try session.define("two words") { _ in 1 }// throws — Invalid name: two words
+try session.define("x.") { _ in 1 }       // throws — Invalid name: x.
 try session.define("café") { _ in 1 }     // fine
 ```
 
@@ -801,7 +805,7 @@ also has a `description`, which is the first line of the rendered message.
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
-| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type, field, module or export name; carries the name. |
+| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type, field, module or export name, or a name ending in a dot was bound; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
@@ -811,6 +815,7 @@ also has a `description`, which is the first line of the rendered message.
 | `unexpectedField(String, String, [String])` | A record was asked for a field its type does not have; carries the field, the type's name, and the fields it does have. |
 | `unexpectedArity(Int, IntegerExpectation)` | Wrong number of arguments; carries what was given and what was wanted. |
 | `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
+| `unexpectedVariadicParameter(String)` | A parameter list had a second [variadic parameter](#lambda), or a bare `...`; carries the parameter as written. |
 | `unimplementedFeature` | Reserved for primitives that are declared but not yet implemented. Nothing raises it today. |
 | `unmatchedParenthesis` | A bracket had no partner — a `(` that was never closed, or a `)` with nothing to close. The location points at the unmatched bracket. |
 | `unrecognisedSymbol` | A symbol had no binding, a qualified name named something its module does not export, or a module left out one of its exports. |
@@ -1513,6 +1518,21 @@ Procedure arity is exact. Calling `add5` with two arguments is an error, and
 there is no automatic currying — `(adder 5)` returns a procedure because you
 wrote a `lambda`, not because of anything the language did on your behalf.
 
+The exception is a variadic parameter. Write `...` after one parameter's name,
+and it collects whatever arguments the others leave over, as a list. Inside the
+body it is just `xs`, without the dots:
+
+```lisp
+(define (tag label xs...)
+  (map (lambda (x) (list label x)) xs))
+
+(tag 'n 1 2 3)                            ; ((n 1) (n 2) (n 3))
+(tag 'n)                                  ; ()
+```
+
+`apply` goes the other way, spreading a list out into separate arguments, so
+`(apply tag 'n '(1 2))` is the same as `(tag 'n 1 2)`.
+
 ### Local bindings with `let` and `begin`
 
 `let` introduces names for the extent of its body:
@@ -1893,7 +1913,10 @@ string cannot contain a `"`. An unterminated string is an error.
 `nothing?`, `my-map`. Symbols name bindings. There is no reserved character
 set: brackets, whitespace and `;` end a symbol, and everything else is fair
 game. A dot inside a symbol, as in `geo.area`, makes it a
-[qualified name](#evaluation-model) when it is looked up.
+[qualified name](#evaluation-model) when it is looked up. A name that is being
+bound cannot end in a dot, since a trailing `...` marks a
+[variadic parameter](#lambda): `(define x. 1)` is an `invalidName` error. A
+quoted symbol is only data, so `'x.` is still fine.
 
 **The tick.** `'expr` abbreviates `(quote expr)`. It works anywhere, including
 inside a list: `(length '(1 2 3))`.
@@ -1971,11 +1994,13 @@ one needs to leave some part of itself unevaluated.
 
 Binds a name in the current environment. The value form takes exactly one
 expression; the procedure form is sugar for binding a `lambda`, and takes one
-or more body expressions, yielding the value of the last.
+or more body expressions, yielding the value of the last. Its parameters follow
+the same rules as a `lambda`'s, including a [variadic parameter](#lambda).
 
 ```lisp
 (define x 5)
 (define (add2 a b) (+ a b))
+(define (count xs...) (length xs))
 (define (hypotenuse a b)
   (define (square n) (* n n))
   (sqrt (+ (square a) (square b))))
@@ -1986,7 +2011,8 @@ value. Redefining a name in the same environment replaces the binding.
 
 *Errors:* `unexpectedArity` for `(define x 1 2)` or a procedure form with no
 body; `unexpectedType` when the signature is neither a symbol nor a list, or
-when a parameter is not a symbol.
+when a parameter is not a symbol; `invalidName` when the name or a parameter
+ends in a dot; and the parameter errors described under [`lambda`](#lambda).
 
 #### `if`
 
@@ -2032,13 +2058,41 @@ later in the form goes unreported.
 
 Creates a procedure that closes over the environment in which it was written.
 One or more body expressions are allowed; the value of the last is returned.
-Parameters must be symbols, and arity is exact at the call site.
+Parameters must be symbols, and arity is exact at the call site unless one of
+them is variadic.
 
 ```lisp
 (lambda () 42)
 (lambda (x) (* x x))
 (lambda (x) (define scaled (* x 2)) (+ scaled 1))
 ```
+
+**Variadic parameters.** One parameter may end in `...`, as in `xs...`. It
+collects the arguments left over once every other parameter has taken one, in
+order, as a list, which is empty when nothing is left over. It is bound without
+the dots, so the body refers to `xs`. It can be in any position: the parameters
+before it take arguments from the front, and those after it take them from the
+back.
+
+```lisp
+((lambda (xs...) xs) 1 2 3)               ; (1 2 3)
+((lambda (a xs...) xs) 1)                 ; ()
+((lambda (a xs... z) (list a xs z)) 1 2 3 4)
+                                          ; (1 (2 3) 4)
+((lambda (xs...) xs) '(1 2))              ; ((1 2)) — one argument, a list
+```
+
+A variadic procedure needs at least one argument for each of its other
+parameters, so arity at the call site is a minimum rather than an exact count.
+Writing the dots in the body, as in `(length xs...)`, is an
+`unrecognisedSymbol` error with a hint to drop them.
+
+*Errors:* `unexpectedVariadicParameter`, naming the parameter, for a second
+variadic parameter or a bare `...`; `invalidName` for a parameter that ends in a
+dot, including a variadic one that still does once its `...` is removed, such
+as `x....`; `unexpectedArity` at the call site, as `.exactly` for a procedure
+without a variadic parameter and `.atLeast` for one with. All but the last are
+reported when the procedure is made, not when it is called.
 
 #### `let`
 
@@ -2060,7 +2114,7 @@ bindings rather than replacing them. The last body is in tail position.
 
 *Errors:* `unexpectedType` when the binding list or a binding is not a list, or
 a bound name is not a symbol; `unexpectedArity` when a binding is not exactly a
-name and a value.
+name and a value; `invalidName` when a bound name ends in a dot.
 
 #### `begin`
 
@@ -3340,7 +3394,7 @@ Still to come:
   `make-set` and `make-hashmap`.
 - Escape sequences in string literals. Until then, a string cannot contain a
   `"`, and a newline goes in by letting the literal span source lines.
-- Variadic user procedures, and default and keyword parameters.
+- Default and keyword parameters.
 - Catching the interpreter's own errors with `try`. Until then, it catches only
   what `raise` raises.
 - Modules kept in files of their own, found by the host when `import` names one

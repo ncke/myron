@@ -24,6 +24,7 @@ extension MyronError {
     enum Hint: Sendable {
         case alistElementDidNotMeetRequirements
         case alistValueCannotBeNothing
+        case bareVariadicEncountered
         case cannotUseReservedName(String)
         case comparisonBetweenDifferentKinds
         case comparisonMetIncomparableKind
@@ -35,9 +36,12 @@ extension MyronError {
         case moduleDidNotDefineExports(String, [String])
         case moduleDoesNotExport(String, String)
         case moduleNamesCannotBeDotted(String)
+        case nameCannotEndInDot(String)
+        case nameWasWrittenWithEllipsis(String)
         case quotedSymbolNamesFunction(String)
         case splitSeparatorCannotBeEmptyString
         case stackDepthAdvice
+        case tooManyVariadics
     }
 
 }
@@ -52,6 +56,8 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Every alist element must itself be a list with two elements"
         case .alistValueCannotBeNothing:
             return "The value of an alist element cannot be nothing"
+        case .bareVariadicEncountered:
+            return "Bare variadics '...' are not allowed"
         case .cannotUseReservedName(let name):
             return "Reserved name '\(name)' cannot be used"
         case .comparisonBetweenDifferentKinds:
@@ -75,12 +81,21 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Module '\(name)' does not export '\(export)'"
         case .moduleNamesCannotBeDotted(let name):
             return "Module '\(name)' cannot be dotted"
+        case .nameCannotEndInDot(let name):
+            return "Name '\(name)' cannot end in a dot"
+        case .nameWasWrittenWithEllipsis(let name):
+            return """
+            Refer to '\(name)' without the '...', \
+            or use `apply` to pass its elements as separate arguments
+            """
         case .quotedSymbolNamesFunction(let name):
             return "Symbol '\(name)' names a function, consider removing quote"
         case .splitSeparatorCannotBeEmptyString:
             return "An empty string cannot be used as a split separator"
         case .stackDepthAdvice:
             return "Check for unbounded recursion that is not in tail position"
+        case .tooManyVariadics:
+            return "More than one variadic parameter is not allowed"
         }
     }
 
