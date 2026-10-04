@@ -11,6 +11,7 @@ struct Token {
         case string(String)
         case boolean(Bool)
         case leftBracket
+        case nothing
         case rightBracket
         case tick
     }

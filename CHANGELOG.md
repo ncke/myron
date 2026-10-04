@@ -139,8 +139,23 @@ the language, and a patch release will not.
   or a bare `...`, fails with the new `unexpectedVariadicParameter`.
 - Writing a variadic parameter's dots in the body, as in `(length xs...)`, fails
   as an unrecognised symbol with a hint to write `xs`, or to use `apply` to pass
-  its elements as separate arguments. Before, it was read as a qualified name and
-  failed with a confusing type error about modules.
+  its elements as separate arguments. Before, it was read as a qualified name
+  and failed with a confusing type error about modules.
+- Macros. The special form `defmacro`, written `(defmacro (name param …) body
+  …)`, binds a macro, with parameters that follow the rules for a procedure's.
+  When a call's head evaluates to a macro, its arguments are not evaluated but
+  passed as data, as `quote` gives them. The macro's bodies run in the
+  environment it was written in, and their result is turned back into code and
+  evaluated in place of the call, in the call's environment and in its tail
+  position. A call is expanded each time it is evaluated, and expansions are not
+  hygienic. A macro can be exported from a module and reached by a qualified
+  name, but it is not callable, so `map` and `apply` reject it.
+- `MyronMacro`, the type of a macro, which compares by identity and conforms to
+  `MyronValueConvertible`. `MyronValue` gains `asMacro`, a macro prints as
+  `<macro: name>`, and `kind` names it `"macro"`.
+- An expansion that holds a value that cannot be written as code, such as a
+  procedure or a hashmap, fails with the new `valueIsNotCode`, with a hint
+  listing what can be.
 
 ### Changed
 
@@ -163,15 +178,29 @@ the language, and a patch release will not.
 - The `myron-repl` executable is now `myron`, and starts the REPL with
   `--repl`.
 - The REPL writes errors to standard error.
-- `MyronValue` gains the cases `record`, `recordType` and `module`,
-  `MyronValue.Kind` gains `record`, `recordType` and `module`,
+- `MyronValue` gains the cases `record`, `recordType`, `module` and `macro`,
+  `MyronValue.Kind` gains `record`, `recordType`, `module` and `macro`,
   `MyronError.Reason` gains `duplicateField`, `unexpectedField`, `raised`,
-  `cannotBeEmpty` and `unexpectedVariadicParameter`, and `MyronHigherOrder` gains `foldr` and `apply`. A host
+  `cannotBeEmpty`, `unexpectedVariadicParameter`, `duplicateName` and
+  `valueIsNotCode`, and `MyronHigherOrder` gains `foldr` and `apply`. A host
   that switches exhaustively over any of these will need the new cases.
-- `try`, `module` and `import` are special forms, so they can no longer be
-  bound: a host's `define` rejects them with `invalidName`, and after
-  `(define try …)` in source, `try` still catches, as `module` and `import`
-  still make and import modules.
+- `try`, `module`, `import` and `defmacro` are special forms, and no special
+  form's name can be bound any more. A host's `define`, and `define`, `let`,
+  `defmacro` and parameter lists in source, all reject one with `invalidName`
+  and a hint. Before, source could bind one, as in `(define if 3)`, to no
+  effect: `if` still branched.
+- `nothing` is a literal, like `true` and `false`, rather than a name bound in
+  the standard environment. It can no longer be bound or rebound, so a macro's
+  expansion can rely on it. `'nothing` gives the `nothing` value rather than a
+  symbol, a host's `define` rejects the name with `invalidName`, and
+  `MyronSession.query("nothing")` no longer finds a binding.
+- A parameter list cannot name the same parameter twice, including a variadic
+  parameter once its `...` is removed, as in `(xs xs...)`. Procedures and macros
+  both reject one with the new `duplicateName` and a hint. Before, the later
+  parameter silently won.
+- `unexpectedType` messages quote the kinds they name, as in `Unexpected type,
+  got 'string', expected 'integer'`. A host that matches on the message text
+  will need updating; the `Reason` itself is unchanged.
 - `invalidName` is also raised for a record type or field name that Myron
   source could not write, and for a module or export name that has a dot in it
   or is a special form's name, and so can now come back from `eval`.

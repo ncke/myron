@@ -80,6 +80,7 @@ final private class ParsingWorker {
             case .boolean(let value): production = Expression.atom(.boolean(value), atomMeta())
             case .double(let value):  production = Expression.atom(.double(value), atomMeta())
             case .integer(let value): production = Expression.atom(.integer(value), atomMeta())
+            case .nothing: production = Expression.atom(.nothing, atomMeta())
             case .string(let value):  production = Expression.atom(.string(value), atomMeta())
             case .symbol(let value):  production = Expression.atom(.symbol(value), atomMeta())
             case .rightBracket:

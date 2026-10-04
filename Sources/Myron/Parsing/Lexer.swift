@@ -101,6 +101,7 @@ private extension Lexer {
         switch text {
         case Self.trueExpression: return .success(token(.boolean(true)))
         case Self.falseExpression: return .success(token(.boolean(false)))
+        case Self.nothingExpression: return .success(token(.nothing))
         case Self.leftBracket: return .success(token(.leftBracket))
         case Self.rightBracket: return .success(token(.rightBracket))
         case Self.tick: return .success(token(.tick))
@@ -187,6 +188,7 @@ private extension Lexer {
     private static let decimalPoint = "."
     private static let trueExpression = "true"
     private static let falseExpression = "false"
+    private static let nothingExpression = "nothing"
     private static let leftBracket = "("
     private static let rightBracket = ")"
     private static let tick = "'"

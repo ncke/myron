@@ -33,6 +33,7 @@ extension Machine {
         case conjunction(ArraySlice<Expression>, Environment, MyronLocation?)
         case define(String, Environment)
         case disjunction(ArraySlice<Expression>, Environment, MyronLocation?)
+        case expanding(Environment, MyronLocation?)
         case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
         case foldring(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case handling(Expression, Environment, MyronLocation?)
@@ -211,6 +212,7 @@ extension Machine {
     private static let specialBegin = "begin"
     private static let specialCond = "cond"
     private static let specialDefine = "define"
+    private static let specialDefmacro = "defmacro"
     private static let specialIf = "if"
     private static let specialImport = "import"
     private static let specialLambda = "lambda"
@@ -221,8 +223,9 @@ extension Machine {
     private static let specialTry = "try"
 
     static let specialFormNames = Set([
-        specialAnd, specialBegin, specialCond, specialDefine, specialIf, specialImport,
-        specialLambda, specialLet, specialModule, specialOr, specialQuote, specialTry
+        specialAnd, specialBegin, specialCond, specialDefine, specialDefmacro,
+        specialIf, specialImport, specialLambda, specialLet, specialModule,
+        specialOr, specialQuote, specialTry
     ])
     
     private func interpretSpecialForm(
@@ -265,7 +268,7 @@ extension Machine {
 
             if let name = sigExpression.asSymbolName() {
                 try tail.mustHaveExactly(2, meta.location)
-                try MyronValue.validateNotEndingInDot(name, location: sigExpression.location)
+                try MyronValue.validateAsName(name, location: sigExpression.location)
                 let definition = tail[tail.startIndex + 1]
                 return (.define(name, environment), .eval(definition, environment))
             }
@@ -278,7 +281,7 @@ extension Machine {
 
             let (nameExpr, paramExprs) = try sigList.headtail(sigExpression.location)
             let name = try nameExpr.unwrapSymbolName()
-            try MyronValue.validateNotEndingInDot(name, location: nameExpr.location)
+            try MyronValue.validateAsName(name, location: nameExpr.location)
             let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
             let bodies = Array(tail[(tail.startIndex + 1)...])
             let procedure = try MyronProcedure(
@@ -287,6 +290,22 @@ extension Machine {
                 environment: environment,
                 location: sigExpression.location)
             return (.define(name, environment), .value(.procedure(procedure)))
+
+        case Self.specialDefmacro:
+            try tail.mustHaveAtLeast(2, meta.location)
+            let (sigExpr, bodies) = try tail.headtail(meta.location)
+            let (sigList, sigMeta) = try sigExpr.unwrapList()
+            let (nameExpr, paramExprs) = try sigList.headtail(sigMeta.location)
+            let name = try nameExpr.unwrapSymbolName()
+            try MyronValue.validateAsName(name, location: nameExpr.location)
+            let params = try paramExprs.map { expr in try expr.unwrapSymbolName() }
+            let macro = try MyronMacro(
+                name: name,
+                parameters: params,
+                bodies: Array(bodies),
+                environment: environment,
+                location: sigMeta.location)
+            return (.define(name, environment), .value(.macro(macro)))
 
         case Self.specialIf:
             let (condition, thenClause, elseClause) = try tail.unwrap3(meta.location)
@@ -418,6 +437,28 @@ extension Machine {
         switch frame {
 
         case .arguments(let remaining, var done, let environment, let location):
+            if done.isEmpty, case .macro(let macro) = value {
+                stack.append(.expanding(environment, location))
+
+                let arguments = try remaining.map {
+                    expr in try MyronValue.makeValue(from: expr, at: expr.location)
+                }
+
+                let inner = try Environment(outer: macro.environment, at: location)
+                try macro.bindArguments(ArraySlice(arguments), into: inner, at: location)
+                let bodies = macro.bodies
+                guard bodies.count > 0 else {
+                    throw MyronError(.internal("`apply` encountered empty bodies"), at: location)
+                }
+
+                if bodies.count > 1 {
+                    stack.append(.sequence(bodies.dropFirst(), inner, location))
+                }
+
+                control = .eval(bodies[0], inner)
+                return
+            }
+
             done.append(value)
 
             if let next = remaining.first {
@@ -499,6 +540,10 @@ extension Machine {
             } else {
                 control = .value(.boolean(false))
             }
+
+        case .expanding(let environment, let location):
+            let expr = try value.asExpression(location)
+            control = .eval(expr, environment)
 
         case .filtering(let function, let element, let remaining, var done, let shape, let location):
             let include = try value.unwrapBoolean(location)

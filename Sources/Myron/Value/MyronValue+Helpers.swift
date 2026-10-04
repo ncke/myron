@@ -47,6 +47,13 @@ extension MyronValue {
         return l
     }
 
+    func unwrapMacro(_ location: MyronLocation?) throws -> MyronMacro {
+        guard let m = asMacro else {
+            throw MyronError(.unexpectedType(self.kind, [.macro]), at: location)
+        }
+        return m
+    }
+
     func unwrapModule(_ location: MyronLocation?) throws -> MyronModule {
         guard let m = asModule else {
             throw MyronError(.unexpectedType(self.kind, [.module]), at: location)
@@ -125,6 +132,11 @@ extension MyronValue {
     
     public var asList: [MyronValue]? {
         if case .list(let l) = self { return l }
+        return nil
+    }
+
+    public var asMacro: MyronMacro? {
+        if case .macro(let m) = self { return m }
         return nil
     }
 

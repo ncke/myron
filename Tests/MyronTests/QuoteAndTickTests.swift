@@ -42,6 +42,30 @@ struct QuoteAndTickTests {
         expectValue("(eq ''a (quote (quote a)))", "true")
     }
 
+    // `nothing` is a literal, like `true` and `false`, so quoting it gives the
+    // value rather than a symbol.
+    @Test("a literal quotes to its own value", arguments: [
+        ("'nothing", "<nothing>"),
+        ("(quote nothing)", "<nothing>"),
+        ("'true", "true"),
+        ("'(1 nothing true)", "(1 <nothing> true)"),
+        ("(eq nothing 'nothing)", "true"),
+        ("(nothing? (head '(nothing)))", "true"),
+        ("(kind 'nothing)", "\"nothing\"")
+    ] as [ValueCase])
+    func quotedLiterals(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a symbol that only starts with a literal stays a symbol", arguments: [
+        ("(kind 'nothings)", "\"symbol\""),
+        ("(kind 'nothing?)", "\"symbol\""),
+        ("(kind 'true-ish)", "\"symbol\"")
+    ] as [ValueCase])
+    func literalPrefixes(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("tick works in argument position", arguments: [
         ("(head '(1 2 3))", "1"),
         ("(tail '(1 2 3))", "(2 3)"),

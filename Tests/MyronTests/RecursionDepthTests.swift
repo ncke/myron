@@ -82,8 +82,8 @@ struct RecursionDepthTests {
 
     @Test("deeply nested expressions count towards the limit")
     func nesting() {
-        // The parser is itself recursive and unconstrained, so keep the nesting
-        // shallow enough not to overflow the test thread's stack while parsing.
+        // A hundred levels is enough to pass a limit of 50. The parser keeps its
+        // own work stack, so parsing does not bound the nesting here.
         let nested = String(repeating: "(+ 1 ", count: 100) + "1" + String(repeating: ")", count: 100)
         #expect(Self.isDepthError(Self.eval(nested, limit: 50)))
     }

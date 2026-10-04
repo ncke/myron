@@ -13,6 +13,7 @@ public struct MyronError: Error, Sendable {
         case divisionByZero
         case duplicateField(String, String)
         case duplicateKeys([Int])
+        case duplicateName(String)
         case emptyApplication
         case exceededMaximumEvalDepth(Int)
         case exceededMaximumStackDepth(Int)
@@ -36,6 +37,7 @@ public struct MyronError: Error, Sendable {
         case unimplementedFeature
         case unmatchedParenthesis
         case unrecognisedSymbol
+        case valueIsNotCode(MyronValue.Kind)
     }
 
     public let reason: Reason
@@ -146,9 +148,10 @@ extension MyronError.Reason: CustomStringConvertible {
             let dym = expectedSignatures.joined(separator: "\n")
             return "\(msg)\nDid you mean:\n\(dym)"
         case .divisionByZero: return "Division by zero"
-        case .duplicateKeys(let idxs): return "Duplicate keys at indices: \(idxs)"
         case .duplicateField(let field, let name):
             return "Record-type \(name) cannot have duplicate fields, got: \(field)"
+        case .duplicateKeys(let idxs): return "Duplicate keys at indices: \(idxs)"
+        case .duplicateName(let name): return "Duplicate name '\(name)'"
         case .emptyApplication: return "Empty application"
         case .exceededMaximumEvalDepth(let depth): return "Exceeded maximum eval depth: \(depth)"
         case .exceededMaximumStackDepth(let depth): return "Exceeded maximum stack depth: \(depth)"
@@ -179,20 +182,22 @@ extension MyronError.Reason: CustomStringConvertible {
             return "Unexpected field name for record-type \(name), got: \(got), has: \(has)"
         case .unexpectedType(let got, let expected):
             let expectedString = expected
-                .map(\MyronValue.Kind.description)
+                .map { kind in "'\(kind.description)'" }
                 .sorted()
                 .joined(separator: ", ")
             switch (got, expectedString) {
             case (nil, ""): return "Unexpected type"
-            case (.some(let g), ""): return "Unexpected type, got \(g)"
+            case (.some(let g), ""): return "Unexpected type, got '\(g)'"
             case (nil, let e): return "Unexpected type, expected \(e)"
-            case (.some(let g), let e): return "Unexpected type, got \(g), expected \(e)"
+            case (.some(let g), let e): return "Unexpected type, got '\(g)', expected \(e)"
             }
         case .unexpectedVariadicParameter(let name):
             return "Unexpected variadic parameter '\(name)'"
         case .unimplementedFeature: return "Unimplemented feature"
         case .unmatchedParenthesis: return "Unmatched parenthesis"
         case .unrecognisedSymbol: return "Unrecognised symbol"
+        case .valueIsNotCode(let kind):
+            return "Value of kind '\(kind)' cannot be used as code"
         }
     }
 

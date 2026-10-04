@@ -15,7 +15,6 @@ final class StandardEnvironment {
         // Constants.
         case "infinity": return .double(.infinity)
         case "nan": return .double(.nan)
-        case "nothing": return .nothing
         case "pi": return .double(Double.pi)
 
         // Higher-order functions.

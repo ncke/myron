@@ -14,6 +14,7 @@ extension MyronValue {
         case .higherProbe: return .higherProbe
         case .integer: return .integer
         case .list: return .list
+        case .macro: return .macro
         case .module: return .module
         case .nothing: return .nothing
         case .primitive: return .primitive
@@ -41,6 +42,7 @@ extension MyronValue {
         case higherProbe
         case integer
         case list
+        case macro
         case module
         case nothing
         case primitive
@@ -68,6 +70,7 @@ extension MyronValue.Kind: CustomStringConvertible {
         case .higherProbe: return "primitive"
         case .integer: return "integer"
         case .list: return "list"
+        case .macro: return "macro"
         case .module: return "module"
         case .nothing: return "nothing"
         case .primitive: return "primitive"

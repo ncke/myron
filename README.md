@@ -58,8 +58,11 @@ looking things up later.
 ## Features
 
 - Classic s-expression syntax, with `quote` and its `'` abbreviation.
-- Twelve special forms: `and`, `begin`, `cond`, `define`, `if`, `import`,
-  `lambda`, `let`, `module`, `or`, `quote`, and `try`.
+- Thirteen special forms: `and`, `begin`, `cond`, `define`, `defmacro`, `if`,
+  `import`, `lambda`, `let`, `module`, `or`, `quote`, and `try`.
+- Macros. `defmacro` defines a procedure that receives its arguments as
+  unevaluated code and returns new code to evaluate in their place, so a
+  program can add forms of its own.
 - Modules. `module` gathers definitions behind a list of exports, `import`
   brings them into scope, and a qualified name such as `geo.area` reaches one
   without importing anything. A module is an ordinary value: it can be passed
@@ -323,7 +326,7 @@ line and column, and `myron` exits with status 1:
 
 ```
 $ myron --load broken.my
-broken.my:4:4: ERROR: Unexpected type, got string, expected integer
+broken.my:4:4: ERROR: Unexpected type, got 'string', expected 'integer'
    (+ x "a")
    ^^^^^^^^^
 ```
@@ -564,7 +567,7 @@ standard library:
 
 ```swift
 session.eval("(double \"a\")")
-// ERROR: Unexpected type, got string, expected integer
+// ERROR: Unexpected type, got 'string', expected 'integer'
 // (double "a")
 // ^^^^^^^^^^^^
 ```
@@ -573,12 +576,12 @@ session.eval("(double \"a\")")
 Myron source could actually write. Validation runs the lexer itself: the name
 must lex as exactly one symbol token equal to the name given. That rules out the
 empty string, anything containing whitespace, brackets, a `;`, a `'` or a `"`,
-and anything that would lex as something else — `42`, `3.5`, `true`. The twelve
-[special forms](#special-forms) are rejected too, since they are intercepted
-before symbol lookup and a primitive under one of those names could never be
-called, and so is a name ending in a dot, which source cannot bind either.
-Everything else is fair game, including non-ASCII: if `(define café 1)` works in
-source, `define("café")` works from Swift.
+and anything that would lex as something else — `42`, `3.5`, `true`,
+`nothing`. The thirteen [special forms](#special-forms) are rejected too, since
+they are intercepted before symbol lookup and a primitive under one of those
+names could never be called, and so is a name ending in a dot, which source
+cannot bind either. Everything else is fair game, including non-ASCII: if
+`(define café 1)` works in source, `define("café")` works from Swift.
 
 ```swift
 try session.define("if") { _ in 1 }       // throws — Invalid name: if
@@ -669,6 +672,7 @@ public enum MyronValue {
     case module(MyronModule)
     case nothing
     case procedure(MyronProcedure)        // a lambda or a defined procedure
+    case macro(MyronMacro)                // a macro made by defmacro
     case primitive(MyronPrimitive)        // a built-in function
     case higherOrder(MyronHigherOrder)    // map, filter, reduce, foldr, apply
     case higherProbe(MyronHigherProbe)    // all, any
@@ -702,6 +706,7 @@ value.asSet                               // MyronSet?
 value.asRecord                            // MyronRecord?
 value.asRecordType                        // MyronRecordType?
 value.asModule                            // MyronModule?
+value.asMacro                             // MyronMacro?
 ```
 
 These do not coerce: `MyronValue.integer(1).asDouble` is `nil`, exactly as
@@ -711,8 +716,8 @@ no accessor — match on them if you need them.
 `MyronValue` conforms to `CustomStringConvertible`, and its `description`
 renders a value the way Myron prints it: lists in brackets, strings in quotes,
 and the absence of a value as `<nothing>`. A procedure renders as `<procedure>`,
-and a primitive names itself, qualified by the standard library module that
-registered it:
+a macro as `<macro: name>`, and a primitive names itself, qualified by the
+standard library module that registered it:
 
 ```
 +       <primitive: mathematics.add>
@@ -743,7 +748,8 @@ type and then field by field, and an integer never equals a double.
 
 Every case answers, including the callable ones. A `.primitive` compares by the
 name it registered under, so `+` equals `+`. A `.procedure` compares by
-identity, so a procedure equals itself but not a separately written twin:
+identity, so a procedure equals itself but not a separately written twin, and a
+`.macro` does the same:
 
 ```swift
 session.eval("(define (f x) x)")
@@ -796,16 +802,17 @@ also has a `description`, which is the first line of the rendered message.
 | `divisionByZero` | `/`, `mod`, or `rem` was given a zero divisor. |
 | `duplicateField(String, String)` | A record type named the same field twice; carries the field and the type's name. |
 | `duplicateKeys([Int])` | A key was found more than once in an alist; carries the indices. |
+| `duplicateName(String)` | A parameter list named the same parameter twice; carries the name. |
 | `emptyApplication` | The form `()` was evaluated. |
 | `exceededMaximumEvalDepth(Int)` | Evaluations nested through host primitives passed the configured limit; carries the depth reached. |
 | `exceededMaximumStackDepth(Int)` | Recursion passed the configured limit; carries the depth reached. |
 | `expectedExpressionAfterTick` | A `'` was not followed by an expression. |
-| `expectedFunction(MyronValue.Kind)` | The head of an application was not callable. |
+| `expectedFunction(MyronValue.Kind)` | The head of an application was not callable, or a value that is not, such as a macro, was given where a function was wanted. |
 | `expectedQuote` | A string literal was never closed. |
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
-| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type, field, module or export name, or a name ending in a dot was bound; carries the name. |
+| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type, field, module or export name, or a name ending in a dot or a special form's name was bound; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
@@ -819,6 +826,7 @@ also has a `description`, which is the first line of the rendered message.
 | `unimplementedFeature` | Reserved for primitives that are declared but not yet implemented. Nothing raises it today. |
 | `unmatchedParenthesis` | A bracket had no partner — a `(` that was never closed, or a `)` with nothing to close. The location points at the unmatched bracket. |
 | `unrecognisedSymbol` | A symbol had no binding, a qualified name named something its module does not export, or a module left out one of its exports. |
+| `valueIsNotCode(MyronValue.Kind)` | A [macro](#defmacro)'s expansion held a value that cannot be written as code, such as a procedure; carries its kind. |
 
 ### Swift interoperability
 
@@ -909,8 +917,8 @@ let held: MyronValue = try value.require()
 
 Nesting comes free, so a structure converts in one step however deep it goes.
 `Array`, `Set`, `Dictionary` and `Optional` conform where their elements do;
-`MyronValue`, `MyronHashmap`, `MyronSet`, `MyronRecord`, `MyronRecordType` and
-`MyronModule` conform as themselves. A list and a
+`MyronValue`, `MyronHashmap`, `MyronSet`, `MyronRecord`, `MyronRecordType`,
+`MyronModule` and `MyronMacro` conform as themselves. A list and a
 set each convert into either Swift collection, so the Swift type you ask for
 decides the shape — and asking for a `Set` collapses duplicates, as Swift's
 `Set` always does. `nothing` becomes `nil` for an optional and an error for
@@ -935,10 +943,10 @@ type rather than the outermost:
 
 ```swift
 let _: Int = try MyronValue.string("a").require()
-// Unexpected type, got string, expected integer
+// Unexpected type, got 'string', expected 'integer'
 
 let _: [Int] = try MyronValue.list([.integer(1), .string("x")]).require()
-// Unexpected type, got string, expected integer — the element, not the list
+// Unexpected type, got 'string', expected 'integer' — the element, not the list
 ```
 
 Conversions throw without a location, because on their own there is no source to
@@ -1384,10 +1392,11 @@ true                                      ; boolean
 "hello"                                   ; string
 'x                                        ; symbol
 '(1 2 3)                                  ; list
+nothing                                   ; nothing
 (set 1 2 3)                               ; set
 ```
 
-Only the first six can be written as literals. A hashmap is built with
+All but the last can be written as literals. A hashmap is built with
 `make-hashmap`, a set with `set` or `make-set`, and a record with
 `make-record`.
 
@@ -1402,8 +1411,8 @@ Numbers are strict about their types. An integer is an `Int` and a double is a
 `Double`, and Myron will never quietly promote one to the other:
 
 ```lisp
-(+ 1 2.0)                                 ; ERROR: Unexpected type, got double,
-                                          ; expected integer
+(+ 1 2.0)                                 ; ERROR: Unexpected type,
+                                          ; got 'double', expected 'integer'
 (+ 1 (integer 2.0))                       ; 3
 (+ (double 1) 2.0)                        ; 3.0
 ```
@@ -1418,9 +1427,10 @@ source, with the newlines becoming part of the string — though not at the
 line-based REPL.
 
 `nothing` is the absence of a value. It is what `head` gives you for an empty
-list, and it is bound to the name `nothing` so you can write one down. It is
-equal to itself and to nothing else, so `nothing?` and `eq` both work on it, and
-`something?` asks the opposite.
+list, and you write one down as `nothing`, a literal in the same way as `true`
+and `false`, so it can never be rebound. It is equal to itself and to nothing
+else, so `nothing?` and `eq` both work on it, and `something?` asks the
+opposite.
 
 ```lisp
 (head '())                                ; <nothing>
@@ -1574,7 +1584,8 @@ That means a literal list needs protecting from evaluation, which is what
 
 `'expr` is shorthand for `(quote expr)`, and it protects the whole expression,
 recursively. `'()` is the empty list, and `'x` is a symbol — the only way to
-get one.
+get one. A literal stays what it is, so `'3` is `3`, `'true` is `true` and
+`'nothing` is `nothing`.
 
 Build lists with `list`, `cons` and `integers`, take them apart with `head`
 and `tail`:
@@ -1829,6 +1840,51 @@ A module is a value like any other. It can be bound to another name, passed to
 a procedure, or exported from another module, in which case the qualified name
 walks through both: `outer.inner.x`.
 
+### Macros
+
+A procedure receives the *values* of its arguments, and sometimes that is too
+late: an `unless` written as a procedure would evaluate both branches before it
+could choose between them. A macro receives its arguments as unevaluated code
+instead — the same lists and symbols that `quote` gives you — and returns new
+code, which Myron evaluates in place of the call:
+
+```lisp
+(defmacro (unless test then else)
+  (list 'if test else then))
+
+(unless (== 1 0) "fine" (/ 1 0))          ; "fine" — the division never runs
+```
+
+Inside the macro, `test` is the list `(== 1 0)`, not `false`. The macro builds
+`(if (== 1 0) (/ 1 0) "fine")`, and that is what gets evaluated. A macro's body
+is ordinary Myron, so it can use any procedure to build its result, and a
+variadic parameter collects the remaining arguments as a list of code:
+
+```lisp
+(defmacro (when test body...)
+  (list 'if test (cons 'begin body) nothing))
+
+(when (> 3 2) "three" "is bigger")        ; "is bigger"
+(when (> 2 3) "never")                    ; <nothing>
+```
+
+The code a macro returns is evaluated where the macro was called, so it can
+bind names there:
+
+```lisp
+(defmacro (def name value)
+  (list 'define name value))
+
+(def answer 42)
+answer                                    ; 42
+```
+
+The flip side is that a name in the expansion means whatever it means at the
+call. Myron's macros are not hygienic: a macro that relies on a name can be
+misled by a local binding of the same name where it is used. There is no
+quasiquote yet either, so build the code with `list`, `cons` and `append`. A
+macro is not a procedure, so it cannot be passed to `map` or `apply`.
+
 ### Errors
 
 Myron reports errors rather than trapping. Overflow, division by zero, a
@@ -1847,7 +1903,7 @@ follows the caret:
 
 ```
 > (< 1 2.0)
-ERROR: Unexpected type, got double, expected integer
+ERROR: Unexpected type, got 'double', expected 'integer'
 (< 1 2.0)
 ^^^^^^^^^
 HINTS:
@@ -1902,7 +1958,8 @@ currently runs on.
 Doubles are IEEE 754 binary64. A malformed token such as `1.2.3` is reported as
 an invalid number.
 
-**Booleans.** `true` and `false`.
+**Booleans and nothing.** `true`, `false` and `nothing`. These are literals,
+not symbols, so none of them can be bound or rebound.
 
 **Strings.** Delimited by double quotes, and free to contain whitespace and
 brackets: `"hello (world)"`, and to run across several lines — a newline
@@ -1928,7 +1985,7 @@ Semicolons inside a string literal are ordinary characters.
 
 ### Evaluation model
 
-- **Numbers, booleans and strings** evaluate to themselves.
+- **Numbers, booleans, strings and `nothing`** evaluate to themselves.
 - **Symbols** evaluate to the value they are bound to. Lookup walks outward
   from the innermost environment and ends at the standard environment; an
   unbound symbol is an `unrecognisedSymbol` error.
@@ -1943,15 +2000,18 @@ Semicolons inside a string literal are ordinary characters.
   `(f a b)`, `f`, `a` and `b` are each evaluated, left to right, and the value
   of `f` is applied to the argument values. Applying a non-callable value is an
   `expectedFunction` error, and the empty application `()` is an
-  `emptyApplication` error.
+  `emptyApplication` error. If `f` evaluates to a [macro](#defmacro), `a` and
+  `b` are not evaluated: the macro is given them as code, and the code it
+  returns is evaluated in place of the whole list.
 
 Several top-level forms may appear in one program. They are evaluated in order
 and the value of the last is the value of the program; the first error stops
 evaluation.
 
 User bindings shadow standard-environment names, so `(define max 9)` hides the
-built-in `max`. Special form names are recognised before any lookup and so
-cannot be shadowed: after `(define if 3)`, `if` still branches.
+built-in `max`. The names of the special forms are reserved: binding one, by
+`define`, `let`, `defmacro` or as a parameter, is an `invalidName` error with a
+hint, so `if` always branches.
 
 New scopes are created by a procedure call, by `let` and by `module`. A `define`
 binds into whichever environment is current, which means a `define` inside a
@@ -1963,12 +2023,13 @@ the heap, so recursion depth is bounded by
 Calls in tail position — the last body of a procedure, `let`, `begin` or a
 `cond` clause, and the selected branch of an `if` — do not grow that stack. The
 last body of a `try` is not in tail position, since the handler has to stay in
-place until the body finishes.
+place until the body finishes. A macro call's expansion takes the call's place,
+so a macro call in tail position leaves its expansion in tail position.
 
 ### Special forms
 
-Twelve forms are evaluated specially rather than as applications, because each
-one needs to leave some part of itself unevaluated.
+Thirteen forms are evaluated specially rather than as applications, because
+each one needs to leave some part of itself unevaluated.
 
 | Form | Shape |
 |---|---|
@@ -1976,6 +2037,7 @@ one needs to leave some part of itself unevaluated.
 | [`begin`](#begin) | `(begin expr …)` |
 | [`cond`](#cond) | `(cond (test body …) …)` |
 | [`define`](#define) | `(define name value)` or `(define (name param …) body …)` |
+| [`defmacro`](#defmacro) | `(defmacro (name param …) body …)` |
 | [`if`](#if) | `(if test consequent alternative)` |
 | [`import`](#import) | `(import module …)` |
 | [`lambda`](#lambda) | `(lambda (param …) body …)` |
@@ -2011,8 +2073,53 @@ value. Redefining a name in the same environment replaces the binding.
 
 *Errors:* `unexpectedArity` for `(define x 1 2)` or a procedure form with no
 body; `unexpectedType` when the signature is neither a symbol nor a list, or
-when a parameter is not a symbol; `invalidName` when the name or a parameter
-ends in a dot; and the parameter errors described under [`lambda`](#lambda).
+when a parameter is not a symbol; `invalidName` when the name ends in a dot or
+is a special form's name; and the parameter errors described under
+[`lambda`](#lambda).
+
+#### `defmacro`
+
+```lisp ignore
+(defmacro (name param …) body …)
+```
+
+Binds `name` in the current environment to a macro. Its parameters follow the
+same rules as a [`lambda`](#lambda)'s, including a variadic parameter, and like
+a `lambda` it closes over the environment in which it was written.
+
+When a list whose head evaluates to a macro is evaluated, the arguments are not
+evaluated. Each is turned into data, exactly as `quote` would give it, and bound
+to the macro's parameters. The bodies are then evaluated, in a fresh
+environment inside the one the macro was written in, and the value of the last
+is turned back into code — the expansion — and evaluated in place of the call,
+in the environment of the call.
+
+```lisp
+(defmacro (swap-args f a b) (list f b a))
+(swap-args - 1 10)                        ; 9
+```
+
+The expansion may be anything that can be written as code: a list, a symbol, a
+number, a string, a boolean or `nothing`. It may use special forms, including
+`define`, which binds where the macro was called, and it may itself be a call
+to a macro, which is expanded in turn. A macro is looked up when the call is
+evaluated, so a procedure can use a macro defined after it. The call is expanded
+every time it is evaluated, and the expansion is in the call's tail position.
+
+Macros are not hygienic: a name in the expansion means whatever it means where
+the macro is called. A macro is a value of its own kind, `macro`, which can be
+bound, exported from a module and reached by a qualified name, but not applied:
+passing one to `map` or `apply` is an `expectedFunction` error. Like `define`,
+the form evaluates to a define marker naming the macro.
+
+*Errors:* when the macro is defined, `unexpectedArity` without a signature and
+at least one body; `unexpectedType` when the signature is not a list or the name
+or a parameter is not a symbol; `invalidName` for a name that ends in a dot or
+is a special form's name; and the parameter errors described under
+[`lambda`](#lambda). When it is called, `unexpectedArity` as for a procedure,
+and `valueIsNotCode` when the expansion holds a value that cannot be written as
+code, such as a procedure or a hashmap. An error raised by the expansion is
+located at the call.
 
 #### `if`
 
@@ -2058,8 +2165,8 @@ later in the form goes unreported.
 
 Creates a procedure that closes over the environment in which it was written.
 One or more body expressions are allowed; the value of the last is returned.
-Parameters must be symbols, and arity is exact at the call site unless one of
-them is variadic.
+Parameters must be symbols, each named once and none named after a special
+form, and arity is exact at the call site unless one of them is variadic.
 
 ```lisp
 (lambda () 42)
@@ -2088,7 +2195,9 @@ Writing the dots in the body, as in `(length xs...)`, is an
 `unrecognisedSymbol` error with a hint to drop them.
 
 *Errors:* `unexpectedVariadicParameter`, naming the parameter, for a second
-variadic parameter or a bare `...`; `invalidName` for a parameter that ends in a
+variadic parameter or a bare `...`; `duplicateName` when two parameters share a
+name, including a variadic one once its `...` is removed, as in `(xs xs...)`;
+`invalidName` for a parameter named after a special form, or one that ends in a
 dot, including a variadic one that still does once its `...` is removed, such
 as `x....`; `unexpectedArity` at the call site, as `.exactly` for a procedure
 without a variadic parameter and `.atLeast` for one with. All but the last are
@@ -2114,7 +2223,8 @@ bindings rather than replacing them. The last body is in tail position.
 
 *Errors:* `unexpectedType` when the binding list or a binding is not a list, or
 a bound name is not a symbol; `unexpectedArity` when a binding is not exactly a
-name and a value; `invalidName` when a bound name ends in a dot.
+name and a value; `invalidName` when a bound name ends in a dot or is a special
+form's name.
 
 #### `begin`
 
@@ -2416,13 +2526,13 @@ and `infinite?` are both `false`.
 ```
 
 The names are `boolean`, `double`, `hashmap`, `integer`, `list`, `module`,
-`nothing`, `record`, `record-type`, `set`, `string` and `symbol` for data, and
-`primitive` or `procedure` for
-anything callable. A primitive is built in or supplied by the host; a procedure
-is written in Myron with `lambda` or `define`. The [predicates](#predicates)
-are usually the better test — `(integer? x)` rather than
-`(eq (kind x) "integer")` — and `kind` is there for when the type itself is the
-answer, such as in a message.
+`nothing`, `record`, `record-type`, `set`, `string` and `symbol` for data,
+`primitive` or `procedure` for anything callable, and `macro` for a macro made
+with [`defmacro`](#defmacro). A primitive is built in or supplied by the host; a
+procedure is written in Myron with `lambda` or `define`. The
+[predicates](#predicates) are usually the better test — `(integer? x)` rather
+than `(eq (kind x) "integer")` — and `kind` is there for when the type itself is
+the answer, such as in a message.
 
 ### Logic
 
@@ -3260,12 +3370,12 @@ string literal may span several lines of source, so `lines` has something to
 work on — but with no escape sequence there is no way to put a newline into a
 literal written on one line, and the line-based REPL cannot enter one.
 
-`split-all` keeps empty fields: a separator at either end, or two in a row, gives
-an empty string. Nothing is lost, so `(implode sep (split-all sep s))` gives
-back `s`, and `(filter (lambda (f) (not (empty? f))) fields)` drops the empties
-when they are not wanted. The separator can be any non-empty string, and matches
-are taken from the left without overlapping: `(split-all "aa" "aaab")` is
-`("" "ab")`.
+`split-all` keeps empty fields: a separator at either end, or two in a row,
+gives an empty string. Nothing is lost, so `(implode sep (split-all sep s))`
+gives back `s`, and `(filter (lambda (f) (not (empty? f))) fields)` drops the
+empties when they are not wanted. The separator can be any non-empty string,
+and matches are taken from the left without overlapping:
+`(split-all "aa" "aaab")` is `("" "ab")`.
 
 `split-once` gives two parts when it finds the separator and the whole string
 alone when it does not, so its length says which happened:
@@ -3395,6 +3505,9 @@ Still to come:
 - Escape sequences in string literals. Until then, a string cannot contain a
   `"`, and a newline goes in by letting the literal span source lines.
 - Default and keyword parameters.
+- Quasiquote, so a macro can write its expansion as a template rather than
+  building it with `list` and `cons`, and hygienic macros, whose expansions
+  cannot be misled by the names in scope where they are used.
 - Catching the interpreter's own errors with `try`. Until then, it catches only
   what `raise` raises.
 - Modules kept in files of their own, found by the host when `import` names one

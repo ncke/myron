@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import Myron
 
@@ -85,4 +86,43 @@ func expectArityFailure(
             "\(source) got nothing (expected an arity error)",
             sourceLocation: sourceLocation)
     }
+}
+
+// MARK: - Host Stack Helpers
+
+// Some tests reach deep into the host thread's own stack: evaluations nested
+// through host primitives, and the runtime's recursive teardown of a deeply
+// nested value. How deep they can go depends on frame sizes, which change with
+// the build and the code, and on a stack size no test host promises. An
+// overflow is a crash rather than a failure, so these tests run on a thread
+// with a stack of a known size, and report a wrong answer as a warning rather
+// than a failure.
+
+let knownStackSize = 16 << 20
+
+func onKnownStack<T: Sendable>(_ body: @escaping @Sendable () -> T) -> T {
+    let box = KnownStackResult<T>()
+    let done = DispatchSemaphore(value: 0)
+    let thread = Thread {
+        box.value = body()
+        done.signal()
+    }
+    thread.stackSize = knownStackSize
+    thread.start()
+    done.wait()
+    return box.value!
+}
+
+func warnUnless(
+    _ condition: Bool,
+    _ comment: Comment,
+    sourceLocation: SourceLocation = #_sourceLocation
+) {
+    guard !condition else { return }
+    Issue.record(comment, severity: .warning, sourceLocation: sourceLocation)
+}
+
+// Written once by the thread before it signals, and read once after the wait.
+private final class KnownStackResult<T>: @unchecked Sendable {
+    var value: T?
 }

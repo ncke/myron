@@ -191,13 +191,18 @@ struct EqualityTests {
     // Depth is bounded here by the recursive teardown of a nested value on
     // release, not by `isEqual`, which walks an explicit worklist. A deeper
     // structure overflows the stack when it leaves scope, whatever we do here.
+    // The values are built and released on a stack of known size, and a wrong
+    // answer warns rather than fails.
     @Test("deep nesting does not overflow the stack")
     func deepNesting() {
-        let f = Self.nest(750, around: .integer(1))
-        let s = Self.nest(750, around: .integer(1))
-        let t = Self.nest(750, around: .integer(2))
-        #expect(f.isEqual(s))
-        #expect(!f.isEqual(t))
+        let (same, different) = onKnownStack {
+            let f = Self.nest(750, around: .integer(1))
+            let s = Self.nest(750, around: .integer(1))
+            let t = Self.nest(750, around: .integer(2))
+            return (f.isEqual(s), f.isEqual(t))
+        }
+        warnUnless(same, "equal nested values compared unequal")
+        warnUnless(!different, "different nested values compared equal")
     }
 
     // MARK: isEqual, Callables

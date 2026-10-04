@@ -3,11 +3,12 @@ import Foundation
 // MARK: - Atom
 
 enum Atom {
-    case symbol(String)
     case boolean(Bool)
-    case integer(Int)
     case double(Double)
+    case integer(Int)
+    case nothing
     case string(String)
+    case symbol(String)
 }
 
 // MARK: - Helpers
@@ -24,8 +25,9 @@ extension Atom {
     func asValueKind() -> MyronValue.Kind {
         switch self {
         case .boolean: return .boolean
-        case .integer: return .integer
         case .double: return .double
+        case .integer: return .integer
+        case .nothing: return .nothing
         case .string: return .string
         case .symbol: return .symbol
         }
@@ -43,11 +45,12 @@ extension Atom: CustomStringConvertible {
 
     var description: String {
         switch self {
-        case let .symbol(symbol): return symbol
         case let .boolean(boolean): return boolean.description
-        case let .integer(integer): return integer.description
         case let .double(double): return double.description
+        case let .integer(integer): return integer.description
+        case .nothing: return "nothing"
         case let .string(string): return string
+        case let .symbol(symbol): return symbol
         }
     }
 

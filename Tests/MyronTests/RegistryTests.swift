@@ -62,7 +62,7 @@ struct StandardRegistryTests {
     }
 
     private static let intrinsics: Set<String> = [
-        "nothing", "pi", "nan", "infinity", "map", "filter", "reduce", "all", "any"
+        "pi", "nan", "infinity", "map", "filter", "reduce", "all", "any"
     ]
 
     @Test("the intrinsic names resolve and are not also registered")

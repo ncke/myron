@@ -202,15 +202,19 @@ struct RecordTests {
     }
 
     // See the note in `EqualityTests`: depth here is bounded by teardown, not
-    // by `isEqual`, which must walk records on its worklist like lists.
+    // by `isEqual`, which must walk records on its worklist like lists. As
+    // there, it runs on a stack of known size and warns rather than fails.
     @Test("deep nesting does not overflow the stack")
     func deepNesting() throws {
         let box = try MyronRecordType(name: "box", fields: ["inner"])
-        let f = Self.nest(750, in: box, around: .integer(1))
-        let s = Self.nest(750, in: box, around: .integer(1))
-        let t = Self.nest(750, in: box, around: .integer(2))
-        #expect(f.isEqual(s))
-        #expect(!f.isEqual(t))
+        let (same, different) = onKnownStack {
+            let f = Self.nest(750, in: box, around: .integer(1))
+            let s = Self.nest(750, in: box, around: .integer(1))
+            let t = Self.nest(750, in: box, around: .integer(2))
+            return (f.isEqual(s), f.isEqual(t))
+        }
+        warnUnless(same, "equal nested records compared unequal")
+        warnUnless(!different, "different nested records compared equal")
     }
 
     // MARK: Hashing

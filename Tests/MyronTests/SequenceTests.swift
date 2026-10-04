@@ -114,8 +114,10 @@ struct StandardSequenceTests {
                 Issue.record("(length 5) did not fail")
                 return
             }
-            #expect(errors.first?.message?.hasPrefix(
-                "ERROR: Unexpected type, got integer, expected hashmap, list, set, string") == true)
+            #expect(errors.first?.message?.hasPrefix("""
+                ERROR: Unexpected type, got 'integer', \
+                expected 'hashmap', 'list', 'set', 'string'
+                """ ) == true)
         }
     }
 

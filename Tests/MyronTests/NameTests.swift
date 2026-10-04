@@ -75,4 +75,59 @@ struct NameTests {
         #expect(error.message?.contains("HINT: \(hint)") == true)
     }
 
+    // MARK: Reserved Names
+
+    // `nothing` is a literal, like `true` and `false`, so it is not a symbol and
+    // cannot be bound anywhere a name is expected.
+    @Test("nothing cannot be bound", arguments: [
+        ("(define nothing 5)", .unexpectedType(.nothing, [.list, .symbol])),
+        ("(define (nothing) 5)", .unexpectedType(.nothing, [.symbol])),
+        ("(define (f nothing) 5)", .unexpectedType(.nothing, [.symbol])),
+        ("(lambda (nothing) 1)", .unexpectedType(.nothing, [.symbol])),
+        ("(let ((nothing 5)) 1)", .unexpectedType(.nothing, [.symbol])),
+        ("(defmacro (nothing) 1)", .unexpectedType(.nothing, [.symbol])),
+        ("(module nothing ())", .unexpectedType(.nothing, [.symbol])),
+        ("(make-record-type 'nothing '(x))", .unexpectedType(.nothing, [.symbol]))
+    ] as [FailureCase])
+    func nothingCannotBeBound(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
+    @Test("a host cannot define nothing")
+    func hostCannotDefineNothing() {
+        let session = MyronSession()
+        let error = #expect(throws: MyronError.self) {
+            try session.define("nothing") { _ in 1 }
+        }
+
+        #expect(error?.reason == .invalidName("nothing"))
+        #expect(session.eval("nothing").asSuccess == .nothing)
+    }
+
+    @Test("a special form's name cannot be bound in source", arguments: [
+        ("(define if 3)", "if"),
+        ("(define (try) 3)", "try"),
+        ("(let ((quote 1)) 1)", "quote"),
+        ("(let ((x 1) (lambda 2)) x)", "lambda"),
+        ("(defmacro (module x) x)", "module"),
+        ("(lambda (if) 1)", "if"),
+        ("(define (f a cond) a)", "cond"),
+        ("(defmacro (m quote) 1)", "quote"),
+        ("(lambda (a define...) a)", "define")
+    ])
+    func specialFormNameCannotBeBound(source: String, name: String) throws {
+        let error = try Self.firstError(source)
+        #expect(error.reason == .invalidName(name))
+        #expect(error.hints == [.cannotUseReservedName(name)])
+    }
+
+    @Test("a name that only contains a reserved word can be bound", arguments: [
+        ("(define nothings 1) nothings", "1"),
+        ("(define if-not 2) if-not", "2"),
+        ("(let ((try-again 3)) try-again)", "3")
+    ] as [ValueCase])
+    func reservedWordInsideName(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
 }

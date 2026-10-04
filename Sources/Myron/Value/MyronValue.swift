@@ -11,6 +11,7 @@ public enum MyronValue {
     case higherProbe(MyronHigherProbe)
     case integer(Int)
     case list([MyronValue])
+    case macro(MyronMacro)
     case module(MyronModule)
     case nothing
     case primitive(MyronPrimitive)
@@ -82,6 +83,7 @@ extension MyronValue {
         case .boolean(let boolean): .boolean(boolean)
         case .double(let double): .double(double)
         case .integer(let integer): .integer(integer)
+        case .nothing: .nothing
         case .string(let string): .string(string)
         case .symbol(let symbol): .symbol(symbol)
         }
@@ -104,6 +106,7 @@ extension MyronValue: CustomStringConvertible {
         case .integer(let integer): "\(integer)"
         case .list(let list):
             "(" + list.map(\.description).joined(separator: " ") + ")"
+        case .macro(let macro): "<macro: \(macro.name)>"
         case .module(let module): "\(module)"
         case .nothing: "<nothing>"
         case .primitive(let primitive): "\(primitive.description)"

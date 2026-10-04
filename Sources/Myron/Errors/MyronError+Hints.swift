@@ -38,6 +38,8 @@ extension MyronError {
         case moduleNamesCannotBeDotted(String)
         case nameCannotEndInDot(String)
         case nameWasWrittenWithEllipsis(String)
+        case onlyAtomsAndListsAreCode
+        case parameterNamesMustBeUnique
         case quotedSymbolNamesFunction(String)
         case splitSeparatorCannotBeEmptyString
         case stackDepthAdvice
@@ -88,6 +90,13 @@ extension MyronError.Hint: CustomStringConvertible {
             Refer to '\(name)' without the '...', \
             or use `apply` to pass its elements as separate arguments
             """
+        case .onlyAtomsAndListsAreCode:
+            return """
+            Only lists, symbols, numbers, strings, booleans and nothing \
+            can be used as code
+            """
+        case .parameterNamesMustBeUnique:
+            return "Names in a parameter list cannot be repeated"
         case .quotedSymbolNamesFunction(let name):
             return "Symbol '\(name)' names a function, consider removing quote"
         case .splitSeparatorCannotBeEmptyString:
