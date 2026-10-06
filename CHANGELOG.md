@@ -172,6 +172,11 @@ the language, and a patch release will not.
   comma evaluated outside a template, or a `,@` with no list around it to
   splice into, fails with the new `unexpectedUnquoting` and a hint. Splicing
   anything but a list is an `unexpectedType` error.
+- `make-symbol`, which turns a string into the symbol with that name, so a
+  macro can build the names it defines, and the predicate `symbol?`. The name
+  must be one source could write as a symbol, such as `point-x` or `if`, and
+  any other, such as `"two words"` or `"42"`, is an `invalidName` error.
+  Whether the symbol can be bound is checked when it is bound.
 
 ### Changed
 

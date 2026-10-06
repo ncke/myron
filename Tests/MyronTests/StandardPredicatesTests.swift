@@ -92,6 +92,17 @@ struct StandardPredicatesTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("symbol?", arguments: [
+        ("(symbol? 'a)", "true"),
+        ("(symbol? (make-symbol \"a\"))", "true"),
+        ("(symbol? \"a\")", "false"),
+        ("(symbol? 'true)", "false"),
+        ("(symbol? nothing)", "false")
+    ] as [ValueCase])
+    func isSymbol(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
     @Test("boolean?", arguments: [
         ("(boolean? true)", "true"),
         ("(boolean? false)", "true"),

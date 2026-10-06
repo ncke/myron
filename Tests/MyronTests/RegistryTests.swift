@@ -27,7 +27,7 @@ struct StandardRegistryTests {
         "is-subset?", "is-superset?", "key-index", "keys", "keys-values", "kind",
         "last", "length", "lines", "list", "list?", "ln",
         "log", "lowercase", "lt", "lte", "make-hashmap", "make-record", "make-record-type",
-        "make-set", "max", "min", "mod", "module?", "mul", "nan?", "neg",
+        "make-set", "make-symbol", "max", "min", "mod", "module?", "mul", "nan?", "neg",
         "negative?", "neq", "not", "nothing?", "nth", "number?",
         "positive?", "pow", "powerset", "put", "rads-to-degs", "raise", "range", "range-len",
         "record-isa?", "record-type",
@@ -35,7 +35,7 @@ struct StandardRegistryTests {
         "reverse", "round", "set", "set?", "sin",
         "something?", "sort", "sort-descending", "sortable?",
         "split-all", "split-once", "sqrt",
-        "string", "string?", "sub", "symmetric-difference", "tail", "take", "take-last",
+        "string", "string?", "sub", "symbol?", "symmetric-difference", "tail", "take", "take-last",
         "tan", "trim", "union", "uppercase", "values", "words",
         "zero?", "zip", "zip-all"
     ]

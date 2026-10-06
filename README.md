@@ -817,7 +817,7 @@ also has a `description`, which is the first line of the rendered message.
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
-| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, or as a record type, field, module or export name, or a name ending in a dot or a special form's name was bound; carries the name. |
+| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, to `make-symbol`, or as a record type, field, module or export name, or a name ending in a dot or a special form's name was bound; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
@@ -1589,8 +1589,9 @@ That means a literal list needs protecting from evaluation, which is what
 ```
 
 `'expr` is shorthand for `(quote expr)`, and it protects the whole expression,
-recursively. `'()` is the empty list, and `'x` is a symbol — the only way to
-get one. A literal stays what it is, so `'3` is `3`, `'true` is `true` and
+recursively. `'()` is the empty list, and `'x` is a symbol — the usual way to
+get one, though [`make-symbol`](#kinds) builds one from a string. A literal
+stays what it is, so `'3` is `3`, `'true` is `true` and
 `'nothing` is `nothing`.
 
 A backtick makes a template instead: a quote with holes in it. A comma marks a
@@ -1900,6 +1901,20 @@ bind names there:
 
 (def answer 42)
 answer                                    ; 42
+```
+
+A macro can also make up the names it defines. `make-symbol` turns a string
+into a symbol, and `string` turns a symbol back into a string, so a macro can
+build one name from others:
+
+```lisp
+(defmacro (def-getter type field)
+  `(define (,(make-symbol (append (string type) "-" (string field))) record)
+     (get ',field record)))
+
+(define point (make-record-type 'point '(x y)))
+(def-getter point x)                      ; defines point-x
+(point-x (make-record point 3 4))         ; 3
 ```
 
 The flip side is that a name in the expansion means whatever it means at the
@@ -2569,6 +2584,7 @@ them.
 | `integer?` | an integer |
 | `double?` | a double |
 | `string?` | a string |
+| `symbol?` | a symbol |
 | `boolean?` | a boolean |
 | `list?` | a list |
 | `set?` | a set |
@@ -2612,6 +2628,7 @@ and `infinite?` are both `false`.
 | Primitive | Arguments | Result |
 |---|---|---|
 | `kind` | 1 value of any type | the name of its type, as a string |
+| `make-symbol` | 1 string, a name source could write as a symbol | the symbol with that name |
 
 ```lisp
 (kind 1)                                  ; "integer"
@@ -2630,6 +2647,25 @@ procedure is written in Myron with `lambda` or `define`. The
 [predicates](#predicates) are usually the better test — `(integer? x)` rather
 than `(eq (kind x) "integer")` — and `kind` is there for when the type itself is
 the answer, such as in a message.
+
+`make-symbol` is the way to a symbol that is not written in the source, most
+often a name a [macro](#defmacro) builds for something it defines.
+`(make-symbol "abc")` is the same symbol as `'abc`, and `string` turns a symbol
+back into its name. The name must be one that source could write as a symbol,
+so `(make-symbol s)` always gives the same symbol as writing `'` followed by
+`s`. A name that would not read back as that one symbol — `""`,
+`"two words"`, `"42"`, `"true"`, `"nothing"`, `",x"` — is an `invalidName`
+error. Anything else is accepted, including `"if"` and `"x."`, which are
+symbols in the same way as `'if` and `'x.`. Whether a symbol can be bound is
+checked when it is bound, so a macro that puts `(make-symbol "if")` into a
+`define` gets the same reserved-name error as source that writes
+`(define if …)`.
+
+```lisp
+(make-symbol "abc")                       ; abc
+(eq (make-symbol "abc") 'abc)             ; true
+(make-symbol (append "point" "-" "x"))    ; point-x
+```
 
 ### Logic
 

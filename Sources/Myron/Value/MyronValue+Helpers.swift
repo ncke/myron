@@ -248,6 +248,15 @@ extension MyronValue {
         }
     }
 
+    static func validateAsSymbolName(
+        _ name: String,
+        location: MyronLocation?
+    ) throws {
+        guard isValidAsSymbolName(name) else {
+            throw MyronError(.invalidName(name), at: location)
+        }
+    }
+
     static func validateAsName(_ name: String, location: MyronLocation?) throws {
         try validateNotEndingInDot(name, location: location)
         if !isValidAsName(name) {
@@ -263,13 +272,23 @@ extension MyronValue {
         }
     }
 
-    static func isValidAsName(_ name: String) -> Bool {
+    static func isValidAsSymbolName(_ name: String) -> Bool {
         let (tokens, errors) = Lexer(input: name, sourceHandle: nil).tokenize()
         guard
             errors.isEmpty,
             tokens.count == 1,
             case .symbol(let symbol) = tokens[0].kind,
-            symbol == name,
+            symbol == name
+        else {
+            return false
+        }
+
+        return true
+    }
+
+    static func isValidAsName(_ name: String) -> Bool {
+        guard
+            isValidAsSymbolName(name),
             !Machine.specialFormNames.contains(name)
         else {
             return false
