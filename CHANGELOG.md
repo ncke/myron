@@ -156,6 +156,22 @@ the language, and a patch release will not.
 - An expansion that holds a value that cannot be written as code, such as a
   procedure or a hashmap, fails with the new `valueIsNotCode`, with a hint
   listing what can be.
+- Templates. The special form `quasiquote`, written with a backtick, quotes an
+  expression except for its holes: inside it, `,expr` (`(unquote expr)`) is
+  evaluated and its value put in its place, and `,@expr`
+  (`(unquote-splicing expr)`) is evaluated and the elements of the list it gives
+  spliced in, so `` `(a ,x ,@ys) `` builds a list from values. A plain quote
+  inside a template is filled in with it, so `` `(a ',x) `` gives
+  `(a (quote 5))` when `x` is `5`, which is how a macro puts a value into its
+  expansion as quoted data. A template inside a template keeps its own commas
+  for when it is evaluated, so a macro can write a macro whose expansion is a
+  template. A macro can now write its expansion as a template:
+  ``(defmacro (unless test then else) `(if ,test ,else ,then))``.
+- A backtick or comma with no expression after it fails to parse with the new
+  `expectedExpressionAfterQuasiquote` or `expectedExpressionAfterUnquoting`. A
+  comma evaluated outside a template, or a `,@` with no list around it to
+  splice into, fails with the new `unexpectedUnquoting` and a hint. Splicing
+  anything but a list is an `unexpectedType` error.
 
 ### Changed
 
@@ -181,14 +197,23 @@ the language, and a patch release will not.
 - `MyronValue` gains the cases `record`, `recordType`, `module` and `macro`,
   `MyronValue.Kind` gains `record`, `recordType`, `module` and `macro`,
   `MyronError.Reason` gains `duplicateField`, `unexpectedField`, `raised`,
-  `cannotBeEmpty`, `unexpectedVariadicParameter`, `duplicateName` and
-  `valueIsNotCode`, and `MyronHigherOrder` gains `foldr` and `apply`. A host
-  that switches exhaustively over any of these will need the new cases.
-- `try`, `module`, `import` and `defmacro` are special forms, and no special
-  form's name can be bound any more. A host's `define`, and `define`, `let`,
-  `defmacro` and parameter lists in source, all reject one with `invalidName`
-  and a hint. Before, source could bind one, as in `(define if 3)`, to no
-  effect: `if` still branched.
+  `cannotBeEmpty`, `unexpectedVariadicParameter`, `duplicateName`,
+  `valueIsNotCode`, `expectedExpressionAfterQuasiquote`,
+  `expectedExpressionAfterUnquoting` and `unexpectedUnquoting`, and
+  `MyronHigherOrder` gains `foldr` and `apply`. A host that switches
+  exhaustively over any of these will need the new cases.
+- `try`, `module`, `import`, `defmacro` and `quasiquote` are special forms, and
+  no special form's name can be bound any more. A host's `define`, and
+  `define`, `let`, `defmacro` and parameter lists in source, all reject one with
+  `invalidName` and a hint. Before, source could bind one, as in
+  `(define if 3)`, to no effect: `if` still branched.
+- A backtick or comma at the start of a token is read as a template or an
+  unquote, so a symbol can no longer start with either. One later in a symbol,
+  as in `a,b`, is unchanged. `unquote` and `unquote-splicing` are reserved
+  names, like the special forms. A plain quote still never evaluates anything,
+  so `'(a ,b)` is the list `(a (unquote b))`.
+- A template is filled in on the interpreter's own stack, so each level of it
+  counts towards `maximumStackDepth` while an unquote inside it is evaluated.
 - `nothing` is a literal, like `true` and `false`, rather than a name bound in
   the standard environment. It can no longer be bound or rebound, so a macro's
   expansion can rely on it. `'nothing` gives the `nothing` value rather than a

@@ -46,6 +46,23 @@ extension Lexer {
                 continue
             }
 
+            if character.isComma {
+                let next = input.index(after: cursor)
+                let progress = next < input.endIndex && input[next].isAt
+                ? input.index(after: next)
+                : next
+                emit(start: cursor, finish: progress)
+                cursor = progress
+                continue
+            }
+
+            if character.isQuasiquote {
+                let progress = input.index(after: cursor)
+                emit(start: cursor, finish: progress)
+                cursor = progress
+                continue
+            }
+
             let isBracket = character.isBracket
             let isSigning = character.isSign && !isPeekDigit()
             let isTick = character.isTick
@@ -105,6 +122,10 @@ private extension Lexer {
         case Self.leftBracket: return .success(token(.leftBracket))
         case Self.rightBracket: return .success(token(.rightBracket))
         case Self.tick: return .success(token(.tick))
+        case Self.comma: return .success(token(.comma))
+        case Self.commaAt: return .success(token(.commaAt))
+        case Self.quasiquote: return .success(token(.quasiquote))
+
         default: break
         }
 
@@ -185,6 +206,9 @@ private extension Lexer {
 // MARK: - Lexing Constants
 
 private extension Lexer {
+    private static let comma = ","
+    private static let commaAt = ",@"
+    private static let quasiquote = "`"
     private static let decimalPoint = "."
     private static let trueExpression = "true"
     private static let falseExpression = "false"
@@ -197,7 +221,10 @@ private extension Lexer {
 // MARK: - Character Helper
 
 fileprivate extension Character {
+    var isAt: Bool { self == "@" }
     var isBracket: Bool { self == "(" || self == ")" }
+    var isComma: Bool { self == "," }
+    var isQuasiquote: Bool { self == "`" }
     var isDigit: Bool { ("0"..."9").contains(self) }
     var isQuotation: Bool { self == "\"" }
     var isSemicolon: Bool { self == ";" }

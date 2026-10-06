@@ -10,8 +10,11 @@ struct Token {
         case double(Double)
         case string(String)
         case boolean(Bool)
+        case comma
+        case commaAt
         case leftBracket
         case nothing
+        case quasiquote
         case rightBracket
         case tick
     }

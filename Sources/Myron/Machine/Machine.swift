@@ -40,8 +40,10 @@ extension Machine {
         case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
         case modularising(ArraySlice<Expression>, String, [String], Environment, Environment, MyronLocation?)
         case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
+        case quasiquotingList([MyronValue], ArraySlice<Expression>, Int, Environment, MyronLocation?)
         case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case sequence(ArraySlice<Expression>, Environment, MyronLocation?)
+        case quasiSplicing([MyronValue], ArraySlice<Expression>, Int, Environment, MyronLocation?)
     }
 
     enum Control {
@@ -219,13 +221,17 @@ extension Machine {
     private static let specialLet = "let"
     private static let specialModule = "module"
     private static let specialOr = "or"
+    private static let specialQuasiquote = "quasiquote"
     private static let specialQuote = "quote"
     private static let specialTry = "try"
+    private static let specialUnquote = "unquote"
+    private static let specialUnquoteSplicing = "unquote-splicing"
 
     static let specialFormNames = Set([
         specialAnd, specialBegin, specialCond, specialDefine, specialDefmacro,
         specialIf, specialImport, specialLambda, specialLet, specialModule,
-        specialOr, specialQuote, specialTry
+        specialOr, specialQuasiquote, specialQuote, specialTry, specialUnquote,
+        specialUnquoteSplicing
     ])
     
     private func interpretSpecialForm(
@@ -406,6 +412,37 @@ extension Machine {
             let (clause, remainder) = try tail.headtail(meta.location)
             return (.disjunction(remainder, environment, meta.location), .eval(clause, environment))
 
+        case Self.specialQuasiquote:
+            let expression = try tail.unwrap1(meta.location)
+
+            switch expression {
+
+            case .atom(let atom, _):
+                let quoted = MyronValue.makeValue(from: atom)
+                return (nil, .value(quoted))
+
+            case .list(let elements, let listMeta):
+                switch elements.first?.asSymbolName() {
+                case Self.specialUnquote:
+                    let unquoted = try Self.unquoted(elements, at: listMeta.location)
+                    return (nil, .eval(unquoted, environment))
+
+                case Self.specialUnquoteSplicing:
+                    throw MyronError(.unexpectedUnquoting, at: listMeta.location)
+                        .withHint(.unquoteSplicingOnlyInsideList)
+
+                default:
+                    let depth = elements.first?.asSymbolName() == Self.specialQuasiquote ? 2 : 1
+                    try continueQuasiquoting(
+                        [],
+                        ArraySlice(elements),
+                        depth,
+                        environment,
+                        listMeta.location)
+                    return (nil, control)
+                }
+            }
+
         case Self.specialQuote:
             let quotation = try tail.unwrap1(meta.location)
             let value = try MyronValue.makeValue(from: quotation, at: meta.location)
@@ -422,6 +459,10 @@ extension Machine {
             ? Frame.sequence(tryingExprs.dropFirst(), environment, tryingMeta.location)
             : nil
             return (frame, .eval(firstTry, environment))
+
+        case Self.specialUnquote, Self.specialUnquoteSplicing:
+            throw MyronError(.unexpectedUnquoting, at: meta.location)
+                .withHint(.unquoteOnlyInsideTemplate)
 
         default: return nil
         }
@@ -627,6 +668,10 @@ extension Machine {
             case .any: control = .value(.boolean(false))
             }
 
+        case .quasiquotingList(var done, let remaining, let depth, let environment, let location):
+            done.append(value)
+            try continueQuasiquoting(done, remaining, depth, environment, location)
+
         case .reducing(let function, let remaining, let location):
             if let next = remaining.first {
                 stack.append(.reducing(function, remaining.dropFirst(), location))
@@ -645,6 +690,14 @@ extension Machine {
             } else {
                 control = .value(value)
             }
+
+        case .quasiSplicing(var done, let remaining, let depth, let environment, let location):
+            guard case .list(let elements) = value else {
+                throw MyronError(.unexpectedType(value.kind, [.list]), at: location)
+            }
+            done.append(contentsOf: elements)
+            try continueQuasiquoting(done, remaining, depth, environment, location)
+
         }
     }
 
@@ -804,6 +857,87 @@ extension Machine {
         }
 
         return error.withHint(.quotedSymbolNamesFunction(name))
+    }
+
+}
+
+// MARK: - Quasiquoting Walker
+
+extension Machine {
+
+    private func continueQuasiquoting(
+        _ done: [MyronValue],
+        _ remaining: ArraySlice<Expression>,
+        _ depth: Int,
+        _ environment: Environment,
+        _ location: MyronLocation?
+    ) throws {
+        var (done, remaining, depth) = (done, remaining, depth)
+
+        while true {
+            guard let expression = remaining.first else {
+                control = .value(.list(done))
+                return
+            }
+
+            remaining = remaining.dropFirst()
+
+            switch expression {
+            case .atom(let atom, _):
+                done.append(MyronValue.makeValue(from: atom))
+
+            case .list(let elements, let listMeta):
+                let head = elements.first?.asSymbolName()
+                let isUnquote = head == Self.specialUnquote || head == Self.specialUnquoteSplicing
+
+                func makeListFrame() -> Frame {
+                    .quasiquotingList(done, remaining, depth, environment, listMeta.location)
+                }
+
+                func makeSplicingFrame() -> Frame {
+                    .quasiSplicing(done, remaining, depth, environment, listMeta.location)
+                }
+
+                if isUnquote, depth == 1 {
+                    switch head {
+
+                    case Self.specialUnquote:
+                        let operand = try Self.unquoted(elements, at: listMeta.location)
+                        stack.append(makeListFrame())
+                        control = .eval(operand, environment)
+                        return
+
+                    case Self.specialUnquoteSplicing:
+                        let operand = try Self.unquoted(elements, at: listMeta.location)
+                        stack.append(makeSplicingFrame())
+                        control = .eval(operand, environment)
+                        return
+
+                    default:
+                        let explain = "continue quasiquote did handle the unquoting symbol"
+                        throw MyronError(.internal(explain), at: listMeta.location)
+                    }
+                }
+
+                stack.append(makeListFrame())
+                (done, remaining) = ([], ArraySlice(elements))
+                if isUnquote { depth -= 1 }
+                if head == Self.specialQuasiquote { depth += 1 }
+            }
+        }
+    }
+
+    private static func unquoted(
+        _ operands: [Expression],
+        at location: MyronLocation?
+    ) throws -> Expression {
+        guard operands.count == 2, let expression = operands.last else {
+            let got = operands.count - 1
+            let reason = MyronError.Reason.unexpectedArity(got, .exactly(1))
+            throw MyronError(reason, at: location)
+        }
+
+        return expression
     }
 
 }

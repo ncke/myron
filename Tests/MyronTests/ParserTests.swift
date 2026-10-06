@@ -64,6 +64,54 @@ struct ParserTests {
             "\(c.source) gave \(Self.rendered(c.source)) (expected \(c.expected))")
     }
 
+    @Test("a comma is expanded in place, around the whole expression after it", arguments: [
+        (",a", "(unquote a)"),
+        (",@a", "(unquote-splicing a)"),
+        (",(f x)", "(unquote (f x))"),
+        (",@(f x)", "(unquote-splicing (f x))"),
+        (",42", "(unquote 42)"),
+        (",true", "(unquote true)"),
+        (", a", "(unquote a)"),
+        (",@ a", "(unquote-splicing a)"),
+        ("'(a ,b ,@c)", "(quote (a (unquote b) (unquote-splicing c)))"),
+        ("',a", "(quote (unquote a))"),
+        (",'a", "(unquote (quote a))"),
+        (",,a", "(unquote (unquote a))"),
+        ("(a ',b)", "(a (quote (unquote b)))"),
+        (",a ,@b", "(unquote a) (unquote-splicing b)")
+    ] as [ValueCase])
+    func unquotationShape(_ c: ValueCase) {
+        #expect(
+            Self.rendered(c.source) == c.expected,
+            "\(c.source) gave \(Self.rendered(c.source)) (expected \(c.expected))")
+    }
+
+    @Test("a backtick is expanded in place", arguments: [
+        ("`a", "(quasiquote a)"),
+        ("`(a ,b ,@c)", "(quasiquote (a (unquote b) (unquote-splicing c)))"),
+        ("``a", "(quasiquote (quasiquote a))"),
+        ("`'a", "(quasiquote (quote a))"),
+        ("'`a", "(quote (quasiquote a))"),
+        ("(a `b c)", "(a (quasiquote b) c)"),
+        ("`a `b", "(quasiquote a) (quasiquote b)")
+    ] as [ValueCase])
+    func quasiquotationShape(_ c: ValueCase) {
+        #expect(
+            Self.rendered(c.source) == c.expected,
+            "\(c.source) gave \(Self.rendered(c.source)) (expected \(c.expected))")
+    }
+
+    // Like the tick, a comma or backtick is only a prefix at the start of a token.
+    @Test("a comma or backtick inside a symbol is part of the symbol", arguments: [
+        ("a,b", "a,b"),
+        ("(a,b c)", "(a,b c)"),
+        ("a,@b", "a,@b"),
+        ("a`b", "a`b")
+    ] as [ValueCase])
+    func commaInsideSymbol(_ c: ValueCase) {
+        #expect(Self.rendered(c.source) == c.expected)
+    }
+
     // MARK: Locations
 
     @Test("a list spans from its own bracket to its close", arguments: [
@@ -85,6 +133,16 @@ struct ParserTests {
         #expect(
             Self.span(quotation) == "0..<\(source.count)",
             "\(source) spans \(Self.span(quotation)) (expected 0..<\(source.count))")
+    }
+
+    @Test("an unquotation spans the comma and its expression", arguments: [
+        ",a", ",@a", ",(a b)", ",@(a b)", ", a", "',a", ",'a", "`a", "`(a ,b)", "``a"
+    ])
+    func unquotationSpansItself(_ source: String) {
+        let unquotation = Self.forms(source).first
+        #expect(
+            Self.span(unquotation) == "0..<\(source.count)",
+            "\(source) spans \(Self.span(unquotation)) (expected 0..<\(source.count))")
     }
 
     @Test("an inner form keeps its own span")
@@ -136,8 +194,43 @@ struct ParserTests {
             "\(source) gave \(errors.map(\.reason))")
     }
 
+    @Test("a comma with nothing to unquote is a single error at the comma", arguments: [
+        (source: ",", location: 0..<1),
+        (source: ",@", location: 0..<2),
+        (source: "',", location: 1..<2),
+        (source: "(,)", location: 2..<3),
+        (source: "(a ,)", location: 4..<5),
+        (source: "(a ,@)", location: 5..<6),
+        (source: "(1 2 ,", location: 5..<6)
+    ])
+    func danglingComma(_ c: (source: String, location: MyronLocation)) {
+        let (_, errors) = Self.parse(c.source)
+        #expect(
+            errors.map(\.reason) == [.expectedExpressionAfterUnquoting],
+            "\(c.source) gave \(errors.map(\.reason))")
+        #expect(
+            errors.first?.location == c.location,
+            "\(c.source) reported at \(String(describing: errors.first?.location))")
+    }
+
+    @Test("a backtick with nothing to quote is a single error at the backtick", arguments: [
+        (source: "`", location: 0..<1),
+        (source: "(`)", location: 2..<3),
+        (source: "(a `)", location: 4..<5),
+        (source: "'`", location: 1..<2)
+    ])
+    func danglingBacktick(_ c: (source: String, location: MyronLocation)) {
+        let (_, errors) = Self.parse(c.source)
+        #expect(
+            errors.map(\.reason) == [.expectedExpressionAfterQuasiquote],
+            "\(c.source) gave \(errors.map(\.reason))")
+        #expect(
+            errors.first?.location == c.location,
+            "\(c.source) reported at \(String(describing: errors.first?.location))")
+    }
+
     @Test("a malformed source yields no forms to evaluate", arguments: [
-        "(1 2", "((1)", ")", "'", "(' )", "'')"
+        "(1 2", "((1)", ")", "'", "(' )", "'')", ",", "(a ,)", "'(a ,@", "`", "(a `)"
     ])
     func noPartialForms(_ source: String) {
         let (forms, errors) = Self.parse(source)

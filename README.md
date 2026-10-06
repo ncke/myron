@@ -57,9 +57,11 @@ looking things up later.
 
 ## Features
 
-- Classic s-expression syntax, with `quote` and its `'` abbreviation.
-- Thirteen special forms: `and`, `begin`, `cond`, `define`, `defmacro`, `if`,
-  `import`, `lambda`, `let`, `module`, `or`, `quote`, and `try`.
+- Classic s-expression syntax, with `quote` and its `'` abbreviation, and
+  templates written with a backtick: `,x` inside one puts in the value of `x`,
+  and `,@xs` splices in the elements of `xs`.
+- Fourteen special forms: `and`, `begin`, `cond`, `define`, `defmacro`, `if`,
+  `import`, `lambda`, `let`, `module`, `or`, `quasiquote`, `quote`, and `try`.
 - Macros. `defmacro` defines a procedure that receives its arguments as
   unevaluated code and returns new code to evaluate in their place, so a
   program can add forms of its own.
@@ -577,11 +579,12 @@ Myron source could actually write. Validation runs the lexer itself: the name
 must lex as exactly one symbol token equal to the name given. That rules out the
 empty string, anything containing whitespace, brackets, a `;`, a `'` or a `"`,
 and anything that would lex as something else — `42`, `3.5`, `true`,
-`nothing`. The thirteen [special forms](#special-forms) are rejected too, since
-they are intercepted before symbol lookup and a primitive under one of those
-names could never be called, and so is a name ending in a dot, which source
-cannot bind either. Everything else is fair game, including non-ASCII: if
-`(define café 1)` works in source, `define("café")` works from Swift.
+`nothing`, `,x`. The fourteen [special forms](#special-forms), and `unquote`
+and `unquote-splicing`, are rejected too, since they are intercepted before
+symbol lookup and a primitive under one of those names could never be called,
+and so is a name ending in a dot, which source cannot bind either. Everything
+else is fair game, including non-ASCII: if `(define café 1)` works in source,
+`define("café")` works from Swift.
 
 ```swift
 try session.define("if") { _ in 1 }       // throws — Invalid name: if
@@ -806,7 +809,9 @@ also has a `description`, which is the first line of the rendered message.
 | `emptyApplication` | The form `()` was evaluated. |
 | `exceededMaximumEvalDepth(Int)` | Evaluations nested through host primitives passed the configured limit; carries the depth reached. |
 | `exceededMaximumStackDepth(Int)` | Recursion passed the configured limit; carries the depth reached. |
+| `expectedExpressionAfterQuasiquote` | A `` ` `` was not followed by an expression. |
 | `expectedExpressionAfterTick` | A `'` was not followed by an expression. |
+| `expectedExpressionAfterUnquoting` | A `,` or `,@` was not followed by an expression. |
 | `expectedFunction(MyronValue.Kind)` | The head of an application was not callable, or a value that is not, such as a macro, was given where a function was wanted. |
 | `expectedQuote` | A string literal was never closed. |
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
@@ -822,6 +827,7 @@ also has a `description`, which is the first line of the rendered message.
 | `unexpectedField(String, String, [String])` | A record was asked for a field its type does not have; carries the field, the type's name, and the fields it does have. |
 | `unexpectedArity(Int, IntegerExpectation)` | Wrong number of arguments; carries what was given and what was wanted. |
 | `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
+| `unexpectedUnquoting` | A `,` or `,@` was evaluated outside a [template](#quasiquote), or a `,@` had no list around it to splice into. |
 | `unexpectedVariadicParameter(String)` | A parameter list had a second [variadic parameter](#lambda), or a bare `...`; carries the parameter as written. |
 | `unimplementedFeature` | Reserved for primitives that are declared but not yet implemented. Nothing raises it today. |
 | `unmatchedParenthesis` | A bracket had no partner — a `(` that was never closed, or a `)` with nothing to close. The location points at the unmatched bracket. |
@@ -1587,6 +1593,22 @@ recursively. `'()` is the empty list, and `'x` is a symbol — the only way to
 get one. A literal stays what it is, so `'3` is `3`, `'true` is `true` and
 `'nothing` is `nothing`.
 
+A backtick makes a template instead: a quote with holes in it. A comma marks a
+hole: `,expr` is evaluated and its value put in its place, and `,@expr` is
+evaluated and the elements of the list it gives spliced in:
+
+```lisp
+(define x 5)
+(define ys '(1 2 3))
+
+`(a ,x b)                                 ; (a 5 b)
+`(a ,ys b)                                ; (a (1 2 3) b)
+`(a ,@ys b)                               ; (a 1 2 3 b)
+`(sum ,(+ x 1))                           ; (sum 6)
+'(a ,x b)                                 ; (a (unquote x) b) — a quote never
+                                          ; evaluates anything
+```
+
 Build lists with `list`, `cons` and `integers`, take them apart with `head`
 and `tail`:
 
@@ -1850,19 +1872,20 @@ code, which Myron evaluates in place of the call:
 
 ```lisp
 (defmacro (unless test then else)
-  (list 'if test else then))
+  `(if ,test ,else ,then))
 
 (unless (== 1 0) "fine" (/ 1 0))          ; "fine" — the division never runs
 ```
 
-Inside the macro, `test` is the list `(== 1 0)`, not `false`. The macro builds
-`(if (== 1 0) (/ 1 0) "fine")`, and that is what gets evaluated. A macro's body
-is ordinary Myron, so it can use any procedure to build its result, and a
-variadic parameter collects the remaining arguments as a list of code:
+Inside the macro, `test` is the list `(== 1 0)`, not `false`. The template
+builds `(if (== 1 0) (/ 1 0) "fine")`, and that is what gets evaluated. A
+macro's body is ordinary Myron, so it can build its result with any procedure
+as well as with a template, and a variadic parameter collects the remaining
+arguments as a list of code, ready to splice:
 
 ```lisp
 (defmacro (when test body...)
-  (list 'if test (cons 'begin body) nothing))
+  `(if ,test (begin ,@body) nothing))
 
 (when (> 3 2) "three" "is bigger")        ; "is bigger"
 (when (> 2 3) "never")                    ; <nothing>
@@ -1873,7 +1896,7 @@ bind names there:
 
 ```lisp
 (defmacro (def name value)
-  (list 'define name value))
+  `(define ,name ,value))
 
 (def answer 42)
 answer                                    ; 42
@@ -1881,9 +1904,8 @@ answer                                    ; 42
 
 The flip side is that a name in the expansion means whatever it means at the
 call. Myron's macros are not hygienic: a macro that relies on a name can be
-misled by a local binding of the same name where it is used. There is no
-quasiquote yet either, so build the code with `list`, `cons` and `append`. A
-macro is not a procedure, so it cannot be passed to `map` or `apply`.
+misled by a local binding of the same name where it is used. A macro is not a
+procedure, so it cannot be passed to `map` or `apply`.
 
 ### Errors
 
@@ -1978,6 +2000,14 @@ quoted symbol is only data, so `'x.` is still fine.
 **The tick.** `'expr` abbreviates `(quote expr)`. It works anywhere, including
 inside a list: `(length '(1 2 3))`.
 
+**The backtick and the comma.** `` `expr `` abbreviates `(quasiquote expr)`,
+`,expr` abbreviates `(unquote expr)`, and `,@expr` abbreviates
+`(unquote-splicing expr)`. Like the tick, each is only read this way at the
+start of a token, so `a,b` is a symbol, but no symbol can start with a backtick
+or a comma. A backtick with no expression after it is an
+`expectedExpressionAfterQuasiquote` error, and a comma with none is an
+`expectedExpressionAfterUnquoting` error.
+
 **Comments.** `;` begins a comment that runs to the end of the line.
 Semicolons inside a string literal are ordinary characters.
 
@@ -2028,7 +2058,7 @@ so a macro call in tail position leaves its expansion in tail position.
 
 ### Special forms
 
-Thirteen forms are evaluated specially rather than as applications, because
+Fourteen forms are evaluated specially rather than as applications, because
 each one needs to leave some part of itself unevaluated.
 
 | Form | Shape |
@@ -2044,8 +2074,13 @@ each one needs to leave some part of itself unevaluated.
 | [`let`](#let) | `(let ((name value) …) body …)` |
 | [`module`](#module) | `(module name (export …) body …)` |
 | [`or`](#and-and-or) | `(or test …)` |
+| [`quasiquote`](#quasiquote) | `(quasiquote expr)`, abbreviated `` `expr `` |
 | [`quote`](#quote) | `(quote expr)`, abbreviated `'expr` |
 | [`try`](#try) | `(try handler (body …))` |
+
+`unquote` and `unquote-splicing`, written `,expr` and `,@expr`, are reserved in
+the same way, but only mean something inside a [template](#quasiquote).
+Evaluated anywhere else, they are an `unexpectedUnquoting` error.
 
 #### `define`
 
@@ -2252,6 +2287,63 @@ tests left to right and stops at the first `false`; `or` stops at the first
 Every test that *is* reached must evaluate to a boolean. At least one test is
 required. `(and t)` and `(or t)` are just `t`, checked for booleanness.
 
+#### `quasiquote`
+
+```lisp ignore
+(quasiquote expr)
+`expr
+```
+
+Returns the expression as data, like [`quote`](#quote), except for its holes.
+Inside it, `,expr` is evaluated, in the environment where the template is
+evaluated, and its value takes its place. `,@expr` is evaluated too, must give
+a list, and its elements take its place. Unquotes are evaluated from left to
+right, and a value put in this way is used as it is, not searched for further
+commas. A template with no holes is the same as a quote.
+
+```lisp
+(define x 5)
+`(a ,x (b ,(* x 2)))                      ; (a 5 (b 10))
+`(a ,@(list 1 2) b)                       ; (a 1 2 b)
+`(a ,@'() b)                              ; (a b)
+`,x                                       ; 5 — the template is only a hole
+```
+
+A plain quote inside a template is data like any other, so a comma inside it is
+still filled in. That is how a [macro](#defmacro) puts a value into its
+expansion as quoted data:
+
+```lisp
+`(a ',x)                                  ; (a (quote 5))
+`(a '(b ,x))                              ; (a (quote (b 5)))
+```
+
+A template inside a template opens a level of its own, and a comma belongs to
+the innermost backtick around it, so only the outer template's own commas are
+filled in. The inner template is left as it was written, ready to be filled in
+when it is evaluated in turn. `,,x` is filled in by the outer template, inside
+the inner template's comma. This is what lets a macro write a macro whose
+expansion is itself a template:
+
+```lisp
+`(a `(b ,x))                              ; (a (quasiquote (b (unquote x))))
+`(a `(b ,,x))                             ; (a (quasiquote (b (unquote 5))))
+
+(defmacro (def-twice name)
+  `(defmacro (,name e) `(list ,e ,e)))
+(def-twice twice)
+(twice (+ 1 2))                           ; (3 3)
+```
+
+Only a list can be spliced, so `,@` of a set is an error. While an unquote is
+being evaluated, each level of the template around it counts towards
+[`maximumStackDepth`](#configuration).
+
+*Errors:* `unexpectedArity` unless `quasiquote` has exactly one expression, or
+an unquote exactly one; `unexpectedType` when `,@` gives something other than a
+list; `unexpectedUnquoting` for `,@` directly under the backtick, with no list
+around it to splice into. Each is located at the form at fault.
+
 #### `quote`
 
 ```lisp
@@ -2268,6 +2360,11 @@ stay lists, recursively:
 '()                                       ; the empty list
 'x                                        ; the symbol x
 ```
+
+Nothing inside a quote is ever evaluated, commas included: `'(a ,b)` is the
+list `(a (unquote b))`, and `` '`(a ,b) `` is a template kept as data. A macro's
+arguments reach it in the same way, so a comma in one is data, and stays data
+when the macro quotes it.
 
 Exactly one expression may be quoted.
 
@@ -3505,9 +3602,8 @@ Still to come:
 - Escape sequences in string literals. Until then, a string cannot contain a
   `"`, and a newline goes in by letting the literal span source lines.
 - Default and keyword parameters.
-- Quasiquote, so a macro can write its expansion as a template rather than
-  building it with `list` and `cons`, and hygienic macros, whose expansions
-  cannot be misled by the names in scope where they are used.
+- Hygienic macros, whose expansions cannot be misled by the names in scope
+  where they are used.
 - Catching the interpreter's own errors with `try`. Until then, it catches only
   what `raise` raises.
 - Modules kept in files of their own, found by the host when `import` names one

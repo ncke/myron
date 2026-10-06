@@ -107,6 +107,7 @@ func onKnownStack<T: Sendable>(_ body: @escaping @Sendable () -> T) -> T {
         box.value = body()
         done.signal()
     }
+    thread.qualityOfService = .userInitiated
     thread.stackSize = knownStackSize
     thread.start()
     done.wait()

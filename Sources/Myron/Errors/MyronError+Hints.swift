@@ -44,6 +44,8 @@ extension MyronError {
         case splitSeparatorCannotBeEmptyString
         case stackDepthAdvice
         case tooManyVariadics
+        case unquoteSplicingOnlyInsideList
+        case unquoteOnlyInsideTemplate
     }
 
 }
@@ -105,6 +107,10 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Check for unbounded recursion that is not in tail position"
         case .tooManyVariadics:
             return "More than one variadic parameter is not allowed"
+        case .unquoteSplicingOnlyInsideList:
+            return "Unquote splicing ',@' can only be used inside a list"
+        case .unquoteOnlyInsideTemplate:
+            return "Unquoting can only be used inside a template"
         }
     }
 

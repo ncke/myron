@@ -104,8 +104,7 @@ extension MyronValue: CustomStringConvertible {
         case .higherOrder(let higher): "\(higher)"
         case .higherProbe(let higher): "\(higher)"
         case .integer(let integer): "\(integer)"
-        case .list(let list):
-            "(" + list.map(\.description).joined(separator: " ") + ")"
+        case .list(let list): "(" + list.map(\.description).joined(separator: " ") + ")"
         case .macro(let macro): "<macro: \(macro.name)>"
         case .module(let module): "\(module)"
         case .nothing: "<nothing>"

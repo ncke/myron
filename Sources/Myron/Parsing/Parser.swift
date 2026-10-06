@@ -27,10 +27,22 @@ final private class ParsingWorker {
     }
     
     enum ParsingShape {
-        case expression, list, tick
-        var isExpression: Bool { if self == .expression { return true } else { return false } }
-        var isList: Bool { if self == .list { return true } else { return false } }
-        var isTick: Bool { if self == .tick { return true } else { return false } }
+        case expression, list, tick, quasiquote, unquote, unquoteSplicing
+
+        var prefix: String? {
+            switch self {
+            case .tick: return "quote"
+            case .quasiquote: return "quasiquote"
+            case .unquote: return "unquote"
+            case .unquoteSplicing: return "unquote-splicing"
+            default: return nil
+            }
+        }
+
+        var isPrefix: Bool { prefix != nil }
+        var isExpression: Bool { self == .expression }
+        var isList: Bool { self == .list }
+        var isTick: Bool { self == .tick }
     }
     
     typealias ParsingWork = (ParsingShape, MyronLocation, [Expression])
@@ -48,7 +60,16 @@ final private class ParsingWorker {
             let error = MyronError(reason, at: resolved)
             errors.append(error)
         }
-        
+
+        func prefixError(for shape: ParsingShape, _ location: MyronLocation? = nil) {
+            switch shape {
+            case .quasiquote: error(.expectedExpressionAfterQuasiquote, location)
+            case .tick: error(.expectedExpressionAfterTick, location)
+            case .unquote, .unquoteSplicing: error(.expectedExpressionAfterUnquoting, location)
+            default: error(.internal("not a prefix error when parsing expr"), location)
+            }
+        }
+
         while cursor < tokens.count {
             let token = tokens[cursor]
             defer { cursor += 1 }
@@ -77,6 +98,9 @@ final private class ParsingWorker {
             switch token.kind {
             case .leftBracket: pushWork(nextShape: .list); continue
             case .tick: pushWork(nextShape: .tick); continue
+            case .quasiquote: pushWork(nextShape: .quasiquote); continue
+            case .comma: pushWork(nextShape: .unquote); continue
+            case .commaAt: pushWork(nextShape: .unquoteSplicing); continue
             case .boolean(let value): production = Expression.atom(.boolean(value), atomMeta())
             case .double(let value):  production = Expression.atom(.double(value), atomMeta())
             case .integer(let value): production = Expression.atom(.integer(value), atomMeta())
@@ -84,7 +108,7 @@ final private class ParsingWorker {
             case .string(let value):  production = Expression.atom(.string(value), atomMeta())
             case .symbol(let value):  production = Expression.atom(.symbol(value), atomMeta())
             case .rightBracket:
-                guard !shape.isTick else { error(.expectedExpressionAfterTick); return nil }
+                guard !shape.isPrefix else { prefixError(for: shape); return nil }
                 production = .list(build, listMeta(from: start))
                 guard popWork() else { error(.unmatchedParenthesis, start); return nil }
             }
@@ -92,13 +116,14 @@ final private class ParsingWorker {
             switch shape {
             case .expression: return production
             case .list: build.append(production)
-            case .tick:
-                while shape.isTick {
-                    let quote = Expression.atom(.symbol("quote"), atomMeta(start))
-                    production = Expression.list([quote, production], listMeta(from: start))
-                    guard popWork() else { error(.internal("empty stack after tick")); return nil }
+            case .tick, .quasiquote, .unquote, .unquoteSplicing:
+                while let head = shape.prefix {
+                    let symbol = Expression.atom(.symbol(head), atomMeta(start))
+                    production = Expression.list([symbol, production], listMeta(from: start))
+                    guard popWork() else {
+                        error(.internal("empty stack after prefix")); return nil
+                    }
                 }
-                
                 if shape.isExpression { return production }
                 build.append(production)
             }
@@ -107,10 +132,10 @@ final private class ParsingWorker {
         switch shape {
         case .expression: error(.internal("parser did not return an expression"))
         case .list: error(.unmatchedParenthesis, start)
-        case .tick: error(.expectedExpressionAfterTick)
+        case .tick, .quasiquote, .unquote, .unquoteSplicing: prefixError(for: shape)
         }
         
         return nil
     }
-    
+
 }
