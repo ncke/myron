@@ -102,7 +102,8 @@ looking things up later.
 - A session's environment is open to its host: names can be read, written and
   listed from Swift without going through source text.
 - Primitives can be written in Swift and called from Myron. A host supplies a
-  closure of up to six arguments, or one that takes them all as an array, and
+  closure of up to six arguments, or one that takes them all as an array, with
+  an optional [signature](#signatures) such as `({integer} {string}[...])`, and
   gets arity checking, namespacing and error
   reporting for free — a failure inside the closure arrives as an ordinary
   Myron diagnostic, complete with a source location and caret.
@@ -607,6 +608,85 @@ try session.define("wrong") { _ in session.names.count }
 Read what a body needs before defining it, or hold the state in a `Sendable`
 type of your own.
 
+#### Signatures
+
+`define` takes an optional signature, a string naming the kinds of argument the
+primitive expects:
+
+```swift
+try session.define("repeat", "({integer} {string})") { count, text in
+    String(repeating: try text.requireString(), count: try count.requireInteger())
+}
+
+try session.define("join", "({string}[1...])", arity: .atLeast(1)) { values in
+    try values.map { value in try value.requireString() }.joined()
+}
+
+session.eval("(join \"a\" \"b\" \"c\")")  // .success(.string("abc"))
+```
+
+A signature is a list of terms in parentheses, one term for each argument or
+run of arguments. A term is a set of [kind names](#kinds) in braces, or
+`{any}`, followed by an optional count:
+
+| Term | Matches |
+|---|---|
+| `{string}` | one string, the same as `{string}[1]` |
+| `{string}[2]` | exactly two strings |
+| `{string}[2...]` | two or more |
+| `{string}[2...3]` | two or three |
+| `{string}[...2]` | at most two, the same as `{string}[0...2]` |
+| `{string}[...]` | any number, including none |
+| `{integer double}` | one integer or one double |
+| `{integer double}[2...]` | two or more, each an integer or a double |
+| `{integer double}*[2...]` | two or more integers, or two or more doubles |
+
+Each argument satisfies its term on its own, so `{integer double}[2...]` admits
+a mix of the two. A `*` before the count makes the term uniform: its arguments
+must all be the same kind. At most one term may have a count that isn't fixed,
+and it can sit anywhere — `({integer} {any}[...] {string})` is an integer, then
+any number of arguments, then a string. Spaces are optional, and `()` is the
+signature of a primitive that takes no arguments.
+
+The signature must accept exactly the arguments the body does. A closure with a
+fixed number of parameters needs a signature whose counts are all fixed and add
+up to that number, so a two-parameter closure can take `({string}[2])` or
+`({integer} {string})` but not `({string}[1...])`. With `arity:`, the signature
+must allow the same counts: `.atLeast(1)` matches `({string}[1...])`,
+`.atMost(2)` matches `({string}[...2])`, and `.unspecified` matches
+`({any}[...])`. A signature that can't be parsed, or that disagrees with the
+body, makes `define` throw `malformedSignature` and leaves the environment as
+it was:
+
+```swift
+try session.define("pair", "({string})") { a, b in [a, b] }
+// throws — Malformed signature ({string}): signature arity doesn't match the
+//          body arity '2'
+
+try session.define("f", "({strng})") { a in a }
+// throws — Malformed signature ({strng}): unknown kind 'strng'
+```
+
+For now, the kinds a signature names are not checked when the primitive is
+called. The body still reads its arguments with the
+[conversions](#converting-into-swift-types), and they report a mismatch as
+usual:
+
+```swift
+session.eval("(repeat \"ab\" 3)")
+// .failure — Unexpected type, got 'integer', expected 'string'
+```
+
+The same syntax is the public `MyronSignature` type. `try MyronSignature("…")`
+parses a signature, throwing `malformedSignature` if it can't. `description`
+gives the signature back in a standard spelling, with kinds sorted and
+redundant counts dropped, so `({integer double}*[1])` comes back as
+`({double integer})`. `arity` gives the fewest and most arguments the signature
+accepts, with `nil` for no upper limit. The standard library declares its own
+primitives with signatures in this syntax, and uses them to choose between
+primitives that share a name, such as `length`, which has one primitive each
+for lists, strings, sets and hashmaps.
+
 ### `MyronResult`
 
 `eval` returns a `MyronResult`, a three-case enum:
@@ -820,6 +900,7 @@ also has a `description`, which is the first line of the rendered message.
 | `invalidName(String)` | A name Myron source could not write was given to a host's `define`, to `make-symbol`, or as a record type, field, module or export name, or a name ending in a dot or a special form's name was bound; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
+| `malformedSignature(String, String)` | A [signature](#signatures) could not be parsed, or disagreed with the arity of the body given to a host's `define`; carries the signature and what is wrong with it. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
 | `raised(String)` | A program called [`raise`](#errors-1) and no [`try`](#try) caught it; carries the message. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |

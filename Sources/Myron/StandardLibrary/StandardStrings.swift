@@ -11,7 +11,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.head",
             representations: ["head"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 guard let head = str.first else { return .nothing }
@@ -21,7 +21,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.tail",
             representations: ["tail"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let tail = String(str.dropFirst())
@@ -31,7 +31,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.initial",
             representations: ["init"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let result = String(str.dropLast())
@@ -41,7 +41,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.last",
             representations: ["last"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 guard let last = str.last else { return .nothing }
@@ -51,7 +51,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.take",
             representations: ["take"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.str1]),
+            signature: "({integer} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -65,7 +65,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.drop",
             representations: ["drop"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.str1]),
+            signature: "({integer} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -79,7 +79,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.take-last",
             representations: ["take-last"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.str1]),
+            signature: "({integer} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -93,7 +93,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.drop-last",
             representations: ["drop-last"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.str1]),
+            signature: "({integer} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -108,7 +108,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.length",
             representations: ["length"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .integer(str.count)
@@ -117,7 +117,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.empty?",
             representations: ["empty?"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .boolean(str.count == 0)
@@ -126,7 +126,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.append",
             representations: ["append"],
-            signature: StandardSignature([StandardSignature.str1], allowsVariadic: .homogenous),
+            signature: "({string}[1...])",
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = ""
@@ -140,7 +140,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.reverse",
             representations: ["reverse"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .string(String(str.reversed()))
@@ -149,7 +149,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.nth",
             representations: ["nth"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.str1]),
+            signature: "({integer} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let index = try fst.unwrapInteger(location)
@@ -166,7 +166,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.contains?",
             representations: ["contains?"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.str1]),
+            signature: "({any} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let target = try fst.unwrapString(location)
@@ -178,10 +178,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.range",
             representations: ["range"],
-            signature: StandardSignature([
-                StandardSignature.int1,
-                StandardSignature.int1,
-                StandardSignature.str1]),
+            signature: "({integer} {integer} {string})",
             body: { args, location in
                 let (fst, snd, thd) = try args.unwrap3(location)
                 let n1 = try fst.unwrapInteger(location)
@@ -206,10 +203,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.range-len",
             representations: ["range-len"],
-            signature: StandardSignature([
-                StandardSignature.int1,
-                StandardSignature.int1,
-                StandardSignature.str1]),
+            signature: "({integer} {integer} {string})",
             body: { args, location in
                 let (fst, snd, thd) = try args.unwrap3(location)
                 let n1 = try fst.unwrapInteger(location)
@@ -239,7 +233,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.explode",
             representations: ["explode"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let pieces = str.map { ch in MyronValue.string(String(ch)) }
@@ -249,7 +243,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.implode",
             representations: ["implode"],
-            signature: StandardSignature([StandardSignature.any1], allowsVariadic: .heterogenous),
+            signature: "({any}[1...])",
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 let sep: String
@@ -282,7 +276,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.string",
             representations: ["string"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let src = try args.unwrap1(location)
                 if src.kind == .string { return src }
@@ -292,7 +286,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.lowercase",
             representations: ["lowercase"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .string(str.lowercased())
@@ -301,7 +295,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.uppercase",
             representations: ["uppercase"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .string(str.uppercased())
@@ -310,7 +304,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.trim",
             representations: ["trim"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 return .string(str.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -319,7 +313,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.lines",
             representations: ["lines"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let lines = str
@@ -332,7 +326,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.words",
             representations: ["words"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let str = try args.unwrap1(location).unwrapString(location)
                 let words = str
@@ -345,7 +339,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.split-all",
             representations: ["split-all"],
-            signature: StandardSignature([StandardSignature.str1, StandardSignature.str1]),
+            signature: "({string} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let target = try fst.unwrapString(location)
@@ -373,7 +367,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.split-once",
             representations: ["split-once"],
-            signature: StandardSignature([StandardSignature.str1, StandardSignature.str1]),
+            signature: "({string} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let target = try fst.unwrapString(location)
@@ -394,7 +388,7 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.find-first",
             representations: ["find-first"],
-            signature: StandardSignature([StandardSignature.str1, StandardSignature.str1]),
+            signature: "({string} {string})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let target = try fst.unwrapString(location)

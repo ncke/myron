@@ -7,12 +7,12 @@ import Testing
 
 struct StandardResolverTests {
 
-    private typealias Signature = StandardSignature
-    private typealias Constraint = StandardSignature.Constraint
+    private typealias Signature = MyronSignature
+    private typealias Constraint = MyronSignature.Term.Constraint
 
     private static func primitive(
         _ name: String,
-        _ signature: StandardSignature,
+        _ signature: String,
         yielding result: String
     ) -> MyronPrimitive {
         return MyronPrimitive(
@@ -34,8 +34,8 @@ struct StandardResolverTests {
 
     @Test("a narrower signature wins over a wider one, whichever registers first")
     func narrowerWins() throws {
-        let narrow = Self.primitive("a.r", Signature([Signature.list1]), yielding: "narrow")
-        let wide = Self.primitive("b.r", Signature([Signature.any1]), yielding: "wide")
+        let narrow = Self.primitive("a.r", "({list})", yielding: "narrow")
+        let wide = Self.primitive("b.r", "({any})", yielding: "wide")
 
         for order in [[narrow, wide], [wide, narrow]] {
             #expect(try Self.resolve(order, [.list([])]).description == "\"narrow\"")
@@ -72,8 +72,8 @@ struct StandardResolverTests {
 
     @Test("identical signatures are ambiguous, whichever registers first")
     func identicalSignaturesAreAmbiguous() throws {
-        let first = Self.primitive("a.r", Signature([Signature.list1]), yielding: "first")
-        let second = Self.primitive("b.r", Signature([Signature.list1]), yielding: "second")
+        let first = Self.primitive("a.r", "({list})", yielding: "first")
+        let second = Self.primitive("b.r", "({list})", yielding: "second")
 
         for order in [[first, second], [second, first]] {
             #expect(throws: MyronError.self) { try Self.resolve(order, [.list([])]) }
@@ -84,11 +84,11 @@ struct StandardResolverTests {
     func crossSpecificSignaturesAreAmbiguous() throws {
         let leftNarrow = Self.primitive(
             "a.r",
-            Signature([(.exactly(1), .subset([.list])), Signature.any1]),
+            "({list} {any})",
             yielding: "left")
         let rightNarrow = Self.primitive(
             "b.r",
-            Signature([Signature.any1, (.exactly(1), .subset([.string]))]),
+            "({any} {string})",
             yielding: "right")
 
         for order in [[leftNarrow, rightNarrow], [rightNarrow, leftNarrow]] {
@@ -100,9 +100,9 @@ struct StandardResolverTests {
 
     @Test("an ambiguity names only the contenders that tie")
     func ambiguityNamesContenders() throws {
-        let first = Self.primitive("a.r", Signature([Signature.list1]), yielding: "first")
-        let second = Self.primitive("b.r", Signature([Signature.list1]), yielding: "second")
-        let dominated = Self.primitive("c.r", Signature([Signature.any1]), yielding: "wide")
+        let first = Self.primitive("a.r", "({list})", yielding: "first")
+        let second = Self.primitive("b.r", "({list})", yielding: "second")
+        let dominated = Self.primitive("c.r", "({any})", yielding: "wide")
 
         do {
             _ = try Self.resolve([dominated, first, second], [.list([])])
@@ -122,7 +122,7 @@ struct StandardResolverTests {
 
     @Test("a fixed signature reports the arity it wants")
     func fixedArity() throws {
-        let fixed = Self.primitive("a.r", Signature([Signature.list1]), yielding: "fixed")
+        let fixed = Self.primitive("a.r", "({list})", yielding: "fixed")
 
         for args in [[], [MyronValue.list([]), .list([])]] {
             do {
@@ -139,7 +139,7 @@ struct StandardResolverTests {
     func variadicArity() throws {
         let variadic = Self.primitive(
             "a.r",
-            Signature([Signature.str1], allowsVariadic: .homogenous),
+            "({string}[1...])",
             yielding: "variadic")
 
         do {
@@ -155,7 +155,7 @@ struct StandardResolverTests {
     func variadicSurplus() throws {
         let variadic = Self.primitive(
             "a.r",
-            Signature([Signature.str1], allowsVariadic: .homogenous),
+            "({string}[1...])",
             yielding: "variadic")
 
         let strings: [MyronValue] = [.string("a"), .string("b"), .string("c")]
@@ -174,7 +174,7 @@ struct StandardResolverTests {
     func heterogenousSurplus() throws {
         let variadic = Self.primitive(
             "a.r",
-            Signature([Signature.str1], allowsVariadic: .heterogenous),
+            "({string} {any}[...])",
             yielding: "variadic")
 
         for args: [MyronValue] in [
@@ -190,7 +190,7 @@ struct StandardResolverTests {
     func heterogenousFixedTerms() throws {
         let variadic = Self.primitive(
             "a.r",
-            Signature([Signature.str1], allowsVariadic: .heterogenous),
+            "({string} {any}[...])",
             yielding: "variadic")
 
         do {
@@ -214,9 +214,9 @@ struct StandardResolverTests {
     func heterogenousAgainstFixed() throws {
         let variadic = Self.primitive(
             "a.r",
-            Signature([Signature.str1], allowsVariadic: .heterogenous),
+            "({string} {any}[...])",
             yielding: "variadic")
-        let fixed = Self.primitive("b.r", Signature([Signature.list1]), yielding: "fixed")
+        let fixed = Self.primitive("b.r", "({list})", yielding: "fixed")
 
         for order in [[variadic, fixed], [fixed, variadic]] {
             #expect(try Self.resolve(order, [.string("a"), .integer(1)]).description
@@ -225,38 +225,52 @@ struct StandardResolverTests {
         }
     }
 
+    // MARK: Malformed Signatures
+
+    @Test("a malformed signature is reported when resolving, not when declared")
+    func malformedSignatureSurfacesOnResolution() throws {
+        let malformed = Self.primitive("a.r", "({strng})", yielding: "malformed")
+        let wellFormed = Self.primitive("b.r", "({list})", yielding: "well-formed")
+
+        do {
+            _ = try Self.resolve([wellFormed, malformed], [.list([])])
+            Issue.record("expected the malformed signature to be reported")
+
+        } catch let error as MyronError {
+            #expect(error.reason == .malformedSignature("({strng})", "unknown kind 'strng'"))
+        }
+    }
+
     // MARK: Described Forms
 
     @Test("a form is described for every combination of kinds")
     func describedForms() throws {
-        let twoByTwo = Signature([
-            (.exactly(1), .subset([.list, .string])),
-            (.exactly(1), .subset([.integer, .double]))])
+        let twoByTwo = try Signature("({list string} {integer double})")
 
-        #expect(try twoByTwo.describeForms(representation: "f") == [
+        #expect(twoByTwo.describeForms(representation: "f") == [
             "f list integer", "f list double", "f string integer", "f string double"
         ])
 
-        let withAny = Signature([Signature.any1, (.exactly(1), .subset([.list, .string]))])
-        #expect(try withAny.describeForms(representation: "f") == ["f any list", "f any string"])
+        let withAny = try Signature("({any} {list string})")
+        #expect(withAny.describeForms(representation: "f") == ["f any list", "f any string"])
     }
 
     @Test("a repeated term repeats its kind within the form")
     func describedMultiples() throws {
-        let pair = Signature([(.exactly(2), .subset([.list, .string]))])
-        #expect(try pair.describeForms(representation: "f") == ["f list list", "f string string"])
+        let pair = try Signature("({list string}[2])")
+        #expect(pair.describeForms(representation: "f") == ["f list list", "f string string"])
     }
 
     @Test("a variadic form marks its surplus")
     func describedVariadic() throws {
-        let variadic = Signature([Signature.list1], allowsVariadic: .homogenous)
-        #expect(try variadic.describeForms(representation: "append") == ["append list ..."])
+        let variadic = try Signature("({list}[1...])")
+        #expect(variadic.describeForms(representation: "append") == ["append list ..."])
 
-        let heterogenous = Signature([Signature.list1], allowsVariadic: .heterogenous)
-        #expect(try heterogenous.describeForms(representation: "f") == ["f list ..."])
+        let heterogenous = try Signature("({list} {any}[...])")
+        #expect(heterogenous.describeForms(representation: "f") == ["f list ..."])
 
-        let fixed = Signature([Signature.list1])
-        #expect(try fixed.describeForms(representation: "head") == ["head list"])
+        let fixed = try Signature("({list})")
+        #expect(fixed.describeForms(representation: "head") == ["head list"])
     }
 
 }

@@ -11,7 +11,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.head",
             representations: ["head"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapList(location)
                 guard let head = elements.first else { return .nothing }
@@ -21,7 +21,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.tail",
             representations: ["tail"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapList(location)
                 let tail = Array(elements.dropFirst())
@@ -31,7 +31,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.initial",
             representations: ["init"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapList(location)
                 let result = Array(elements.dropLast())
@@ -41,7 +41,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.last",
             representations: ["last"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapList(location)
                 guard let last = elements.last else { return .nothing }
@@ -51,7 +51,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.take",
             representations: ["take"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.list1]),
+            signature: "({integer} {list})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -65,7 +65,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.drop",
             representations: ["drop"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.list1]),
+            signature: "({integer} {list})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -79,7 +79,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.take-last",
             representations: ["take-last"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.list1]),
+            signature: "({integer} {list})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -93,7 +93,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.drop-last",
             representations: ["drop-last"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.list1]),
+            signature: "({integer} {list})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let count = try fst.unwrapInteger(location)
@@ -108,7 +108,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.length",
             representations: ["length"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapList(location)
                 return .integer(elements.count)
@@ -117,7 +117,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.empty?",
             representations: ["empty?"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapList(location)
                 return .boolean(elements.count == 0)
@@ -126,7 +126,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.append",
             representations: ["append"],
-            signature: StandardSignature([StandardSignature.list1], allowsVariadic: .homogenous),
+            signature: "({list}[1...])",
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = [MyronValue]()
@@ -140,7 +140,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.reverse",
             representations: ["reverse"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let list = try args.unwrap1(location).unwrapList(location)
                 let reversed = Array(list.reversed())
@@ -150,7 +150,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.nth",
             representations: ["nth"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.list1]),
+            signature: "({integer} {list})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let index = try fst.unwrapInteger(location)
@@ -166,7 +166,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.contains?",
             representations: ["contains?"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.list1]),
+            signature: "({any} {list})",
             body: { args, location in
                 let (element, snd) = try args.unwrap2(location)
                 let list = try snd.unwrapList(location)
@@ -180,10 +180,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.range",
             representations: ["range"],
-            signature: StandardSignature([
-                StandardSignature.int1,
-                StandardSignature.int1,
-                StandardSignature.list1]),
+            signature: "({integer} {integer} {list})",
             body: { args, location in
                 let (fst, snd, thd) = try args.unwrap3(location)
                 let start = try fst.unwrapInteger(location)
@@ -203,10 +200,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.range-len",
             representations: ["range-len"],
-            signature: StandardSignature([
-                StandardSignature.int1,
-                StandardSignature.int1,
-                StandardSignature.list1]),
+            signature: "({integer} {integer} {list})",
             body: { args, location in
                 let (fst, snd, thd) = try args.unwrap3(location)
                 let start = try fst.unwrapInteger(location)
@@ -248,7 +242,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.zip",
             representations: ["zip"],
-            signature: StandardSignature([StandardSignature.list1, StandardSignature.list1]),
+            signature: "({list} {list})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let (list1, list2) = (try fst.unwrapList(location), try snd.unwrapList(location))
@@ -267,7 +261,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.zip-all",
             representations: ["zip-all"],
-            signature: StandardSignature([StandardSignature.list1, StandardSignature.list1]),
+            signature: "({list} {list})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let (list1, list2) = (try fst.unwrapList(location), try snd.unwrapList(location))
@@ -287,7 +281,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.flatten",
             representations: ["flatten"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 var result = [MyronValue]()
                 var stack = [(Int, [MyronValue])]()
@@ -325,7 +319,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.integers",
             representations: ["integers"],
-            signature: StandardSignature([StandardSignature.int1]),
+            signature: "({integer})",
             body: { args, location in
                 let limit = try args.unwrap1(location).unwrapInteger(location)
                 guard limit >= 1 else { return .list([]) }
@@ -343,7 +337,7 @@ struct StandardLists: StandardModule {
         MyronPrimitive(
             primitiveName: "list.integers-between",
             representations: ["integers-between"],
-            signature: StandardSignature([StandardSignature.int1, StandardSignature.int1]),
+            signature: "({integer} {integer})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let start = try fst.unwrapInteger(location)

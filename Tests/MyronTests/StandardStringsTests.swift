@@ -510,8 +510,8 @@ struct StandardStringsTests {
     ] as [(String, [MyronValue.Kind])])
     func nativeSignatures(_ name: String, _ kinds: [MyronValue.Kind]) throws {
         let primitive = StandardStrings.primitiveDefinitions.first { p in p.primitiveName == name }
-        let signature = try #require(primitive?.signature, "\(name) has no signature")
-        guard case .match = try signature.matchesKinds(kinds) else {
+        let signature = try #require(primitive?.signature, "\(name) has no signature").get()
+        guard case .match = signature.matchesKinds(kinds) else {
             Issue.record("\(name) signature refuses \(kinds)")
             return
         }

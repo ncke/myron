@@ -39,6 +39,20 @@ the language, and a patch release will not.
   another.
 - `MyronSession.define(_:arity:body:)`, which defines a host primitive that
   takes its arguments as an array, checked against the given arity.
+- Every `MyronSession.define` takes an optional signature, such as
+  `"({integer} {string}[...])"`, naming the kinds of argument a host primitive
+  expects. A term is a set of kinds in braces, or `{any}`, with an optional
+  count — `[2]`, `[2...]`, `[2...3]`, `[...2]` or `[...]` — and a `*` before
+  the count requires its arguments to share a kind. The signature must accept
+  exactly the arguments the body does, and `define` throws if it can't be
+  parsed or disagrees. The kinds are not yet checked when the primitive is
+  called.
+- `MyronSignature`, the public form of a signature. It parses the string
+  syntax, gives it back in a standard spelling as its `description`, and gives
+  the fewest and most arguments it accepts as its `arity`.
+- `MyronError.Reason.malformedSignature`, for a signature that can't be parsed
+  or that disagrees with the arity of a host primitive's body.
+- `MyronValue.Kind` conforms to `CaseIterable`.
 - `sort` and `sort-descending`, which put the elements of a list or set in
   order and give back a list.
 - `sortable?`, which says whether `sort` would succeed, and `comparable?`,

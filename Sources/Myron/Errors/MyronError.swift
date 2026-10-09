@@ -28,6 +28,7 @@ public struct MyronError: Error, Sendable {
         case invalidName(String)
         case invalidNumber
         case malformedAlist(Int)
+        case malformedSignature(String, String)
         case overflow
         case raised(String)
         case subscriptOutOfBounds(Int, Int)
@@ -169,6 +170,9 @@ extension MyronError.Reason: CustomStringConvertible {
         case .invalidName(let name): return "Invalid name: \(name)"
         case .invalidNumber: return "Invalid number"
         case .malformedAlist(let idx): return "Malformed alist at index: \(idx)"
+        case .malformedSignature(let signature, let explain):
+            if signature.isEmpty { return "Malformed signature: \(explain)" }
+            return "Malformed signature \(signature): \(explain)"
         case .overflow: return "Overflow"
         case .raised(let message): return "Raised: \(message)"
         case .subscriptOutOfBounds(let got, let length):

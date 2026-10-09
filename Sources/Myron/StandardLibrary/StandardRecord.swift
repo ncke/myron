@@ -9,7 +9,7 @@ struct StandardRecord: StandardModule {
         MyronPrimitive(
             primitiveName: "record.get",
             representations: ["get"],
-            signature: StandardSignature([StandardSignature.sym1, StandardSignature.rec1]),
+            signature: "({symbol} {record})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let field = try fst.unwrapSymbol(location)
@@ -20,10 +20,7 @@ struct StandardRecord: StandardModule {
         MyronPrimitive(
             primitiveName: "record.put",
             representations: ["put"],
-            signature: StandardSignature([
-                StandardSignature.sym1,
-                StandardSignature.any1,
-                StandardSignature.rec1]),
+            signature: "({symbol} {any} {record})",
             body: { args, location in
                 let (fst, value, thd) = try args.unwrap3(location)
                 let field = try fst.unwrapSymbol(location)
@@ -35,7 +32,7 @@ struct StandardRecord: StandardModule {
         MyronPrimitive(
             primitiveName: "record.keys-values",
             representations: ["keys-values"],
-            signature: StandardSignature([StandardSignature.rec1]),
+            signature: "({record})",
             body: { args, location in
                 let record = try args.unwrap1(location).unwrapRecord(location)
                 let result = record.keysValues().map { (k, v) in MyronValue.list([k, v]) }
@@ -45,7 +42,7 @@ struct StandardRecord: StandardModule {
         MyronPrimitive(
             primitiveName: "record.record-type",
             representations: ["record-type"],
-            signature: StandardSignature([StandardSignature.rec1]),
+            signature: "({record})",
             body: { args, location in
                 let record = try args.unwrap1(location).unwrapRecord(location)
                 return .recordType(record.type)
@@ -54,7 +51,7 @@ struct StandardRecord: StandardModule {
         MyronPrimitive(
             primitiveName: "record.record-isa?",
             representations: ["record-isa?"],
-            signature: StandardSignature([StandardSignature.rectype1, StandardSignature.any1]),
+            signature: "({record-type} {any})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let rectype = try fst.unwrapRecordType(location)
@@ -65,9 +62,7 @@ struct StandardRecord: StandardModule {
         MyronPrimitive(
             primitiveName: "record.make-record",
             representations: ["make-record"],
-            signature: StandardSignature(
-                [StandardSignature.rectype1],
-                allowsVariadic: .heterogenous),
+            signature: "({record-type} {any}[...])",
             body: { args, location in
                 let rectype = try args.unwrapFirst(location).unwrapRecordType(location)
                 let values = Array(args.dropFirst())

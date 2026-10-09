@@ -7,27 +7,43 @@ public struct MyronPrimitive: Sendable {
     let id: Int?
     let primitiveName: String
     let representations: [String]
-    let signature: StandardSignature?
+    let signature: Result<MyronSignature, MyronError>?
     private let body: Body
-    
+
     init(
         id: Int? = nil,
         primitiveName: String,
         representations: [String],
-        signature: StandardSignature? = nil,
+        signature: String? = nil,
         body: @escaping Body
     ) {
         self.id = id
         self.primitiveName = primitiveName
         self.representations = representations
-        self.signature = signature
+        self.signature = signature.map(Self.parseSignature)
         self.body = body
     }
-    
+
     func call(_ arguments: [MyronValue], at location: MyronLocation?) throws -> MyronValue {
         return try body(arguments, location)
     }
-    
+
+}
+
+// MARK: - Signature
+
+extension MyronPrimitive {
+
+    private static func parseSignature(_ string: String) -> Result<MyronSignature, MyronError> {
+        do {
+            return .success(try MyronSignature(string))
+        } catch let error as MyronError {
+            return .failure(error)
+        } catch {
+            return .failure(MyronError(.internal("unexpected error parsing signature: \(error)")))
+        }
+    }
+
 }
 
 // MARK: - Equatable & Hashable

@@ -11,7 +11,7 @@ struct StandardOrdering: StandardModule {
         MyronPrimitive(
             primitiveName: "ordering.sort",
             representations: ["sort"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapElements(location)
                 let comparator = makeComparator(
@@ -24,7 +24,7 @@ struct StandardOrdering: StandardModule {
         MyronPrimitive(
             primitiveName: "ordering.sort-descending",
             representations: ["sort-descending"],
-            signature: StandardSignature([StandardSignature.list1]),
+            signature: "({list})",
             body: { args, location in
                 let elements = try args.unwrap1(location).unwrapElements(location)
                 let comparator = makeComparator(

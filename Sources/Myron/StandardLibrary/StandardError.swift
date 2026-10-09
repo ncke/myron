@@ -9,7 +9,7 @@ struct StandardError: StandardModule {
         MyronPrimitive(
             primitiveName: "error.raise",
             representations: ["raise"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let message = try args.unwrap1(location).unwrapString(location)
                 throw MyronError(.raised(message), at: location)

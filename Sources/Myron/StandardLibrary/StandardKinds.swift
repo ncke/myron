@@ -11,7 +11,7 @@ struct StandardKinds: StandardModule {
         MyronPrimitive(
             primitiveName: "kinds.kind",
             representations: ["kind"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
                 let kind = value.kind
@@ -23,7 +23,7 @@ struct StandardKinds: StandardModule {
         MyronPrimitive(
             primitiveName: "kinds.make-symbol",
             representations: ["make-symbol"],
-            signature: StandardSignature([StandardSignature.str1]),
+            signature: "({string})",
             body: { args, location in
                 let name = try args.unwrap1(location).unwrapString(location)
                 try MyronValue.validateAsSymbolName(name, location: location)

@@ -117,6 +117,7 @@ extension MyronSession {
     
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         body: @escaping @Sendable () throws -> MyronValueRepresentable
     ) throws {
         let wrapped: MyronPrimitive.Body = {
@@ -124,12 +125,19 @@ extension MyronSession {
             let result = try body()
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: .exactly(0), wrapped: wrapped)
+
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: .exactly(0),
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
     
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         body: @escaping @Sendable (MyronValue) throws -> MyronValueRepresentable
     ) throws {
         let wrapped: MyronPrimitive.Body = {
@@ -137,12 +145,19 @@ extension MyronSession {
             let result = try body(args[0])
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: .exactly(1), wrapped: wrapped)
+
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: .exactly(1),
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
     
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         body: @escaping @Sendable (MyronValue, MyronValue) throws -> MyronValueRepresentable
     ) throws {
         let wrapped: MyronPrimitive.Body = {
@@ -150,12 +165,19 @@ extension MyronSession {
             let result = try body(args[0], args[1])
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: .exactly(2), wrapped: wrapped)
+
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: .exactly(2),
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
     
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         body: @escaping @Sendable (MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
     ) throws {
         let wrapped: MyronPrimitive.Body = {
@@ -163,12 +185,19 @@ extension MyronSession {
             let result = try body(args[0], args[1], args[2])
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: .exactly(3), wrapped: wrapped)
+
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: .exactly(3),
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
     
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
     ) throws {
         let wrapped: MyronPrimitive.Body = {
@@ -176,12 +205,18 @@ extension MyronSession {
             let result = try body(args[0], args[1], args[2], args[3])
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: .exactly(4), wrapped: wrapped)
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: .exactly(4),
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
     
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
     ) throws {
         let wrapped: MyronPrimitive.Body = {
@@ -189,12 +224,18 @@ extension MyronSession {
             let result = try body(args[0], args[1], args[2], args[3], args[4])
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: .exactly(5), wrapped: wrapped)
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: .exactly(5),
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
     
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
     ) throws {
         let wrapped: MyronPrimitive.Body = {
@@ -202,12 +243,18 @@ extension MyronSession {
             let result = try body(args[0], args[1], args[2], args[3], args[4], args[5])
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: .exactly(6), wrapped: wrapped)
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: .exactly(6),
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
 
     public func define(
         _ name: String,
+        _ signature: String? = nil,
         arity: MyronError.IntegerExpectation,
         body: @escaping @Sendable ([MyronValue]) throws -> MyronValueRepresentable
     ) throws {
@@ -216,17 +263,23 @@ extension MyronSession {
             let result = try body(args)
             return result.myronValue
         }
-        let primitive = try primitivise(name: name, arity: arity, wrapped: wrapped)
+        let primitive = try primitivise(
+            name: name,
+            signature: signature,
+            arity: arity,
+            wrapped: wrapped)
+
         environment.insert(name, value: .primitive(primitive))
     }
 
     private func primitivise(
         name: String,
+        signature: String?,
         arity: MyronError.IntegerExpectation,
         wrapped: @escaping MyronPrimitive.Body
     ) throws -> MyronPrimitive {
         try Self.validatePrimitiveName(name)
-        
+
         let checked: MyronPrimitive.Body = { args, location in
             try Self.validatePrimitiveArity(args.count, expected: arity, at: location)
             
@@ -244,12 +297,34 @@ extension MyronSession {
                 throw MyronError(.hostError(description), at: location)
             }
         }
-        
+
         let primitive = MyronPrimitive(
             id: Counter.next(),
             primitiveName: Self.hostNamespace + name,
             representations: [name],
+            signature: signature,
             body: checked)
+
+        switch primitive.signature {
+        case .none: break
+        case .success(let parsedSignature):
+            if let signature {
+                let expected: (minimum: Int, maximum: Int?)
+                switch arity {
+                case .exactly(let count): expected = (count, count)
+                case .atLeast(let count): expected = (count, nil)
+                case .atMost(let count): expected = (0, count)
+                case .unspecified: expected = (0, nil)
+                }
+
+                guard parsedSignature.arity == expected else {
+                    let explain = "signature arity doesn't match the body arity '\(arity)'"
+                    let reason = MyronError.Reason.malformedSignature(signature, explain)
+                    throw MyronError(reason)
+                }
+            }
+        case .failure(let error): throw error
+        }
 
         return primitive
     }

@@ -9,7 +9,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.insert",
             representations: ["insert"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.set1]),
+            signature: "({any} {set})",
             body: { args, location in
                 let (element, snd) = try args.unwrap2(location)
                 let set = try snd.unwrapSet(location)
@@ -20,7 +20,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.remove",
             representations: ["remove"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.set1]),
+            signature: "({any} {set})",
             body: { args, location in
                 let (element, snd) = try args.unwrap2(location)
                 let set = try snd.unwrapSet(location)
@@ -31,7 +31,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.contains?",
             representations: ["contains?"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.set1]),
+            signature: "({any} {set})",
             body: { args, location in
                 let (element, snd) = try args.unwrap2(location)
                 let set = try snd.unwrapSet(location)
@@ -42,7 +42,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.length",
             representations: ["length"],
-            signature: StandardSignature([StandardSignature.set1]),
+            signature: "({set})",
             body: { args, location in
                 let set = try args.unwrap1(location).unwrapSet(location)
                 let result = set.length()
@@ -52,7 +52,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.empty?",
             representations: ["empty?"],
-            signature: StandardSignature([StandardSignature.set1]),
+            signature: "({set})",
             body: { args, location in
                 let set = try args.unwrap1(location).unwrapSet(location)
                 let result = set.isEmpty
@@ -62,7 +62,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.set",
             representations: ["set"],
-            signature: StandardSignature([StandardSignature.any1], allowsVariadic: .homogenous),
+            signature: "({any}[1...])",
             body: { args, location in
                 guard args.count > 0 else { return .set(MyronSet()) }
                 let result = MyronSet(array: args)
@@ -72,7 +72,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.values",
             representations: ["values"],
-            signature: StandardSignature([StandardSignature.set1]),
+            signature: "({set})",
             body: { args, location in
                 let set = try args.unwrap1(location).unwrapSet(location)
                 return .list(Array(set.contents))
@@ -81,7 +81,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.make-set",
             representations: ["make-set"],
-            signature: StandardSignature([StandardSignature.listOrMap1]),
+            signature: "({hashmap list})",
             body: { args, location in
                 try args.mustHaveAtMost(1, location)
                 guard let collection = args.first else {
@@ -106,9 +106,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.union",
             representations: ["union"],
-            signature: StandardSignature(
-                [StandardSignature.set1],
-                allowsVariadic: .homogenous),
+            signature: "({set}[1...])",
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = try args.unwrapFirst(location).unwrapSet(location)
@@ -125,9 +123,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.intersection",
             representations: ["intersection"],
-            signature: StandardSignature(
-                [StandardSignature.set1],
-                allowsVariadic: .homogenous),
+            signature: "({set}[1...])",
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = try args.unwrapFirst(location).unwrapSet(location)
@@ -144,9 +140,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.difference",
             representations: ["difference"],
-            signature: StandardSignature(
-                [StandardSignature.set1],
-                allowsVariadic: .homogenous),
+            signature: "({set}[1...])",
             body: { args, location in
                 try args.mustHaveAtLeast(1, location)
                 var result = try args.unwrapFirst(location).unwrapSet(location)
@@ -163,7 +157,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.symmetric-difference",
             representations: ["symmetric-difference"],
-            signature: StandardSignature([StandardSignature.set1, StandardSignature.set1]),
+            signature: "({set} {set})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let lhs = try fst.unwrapSet(location)
@@ -175,7 +169,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.is-subset?",
             representations: ["is-subset?"],
-            signature: StandardSignature([StandardSignature.set1, StandardSignature.set1]),
+            signature: "({set} {set})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let lhs = try fst.unwrapSet(location)
@@ -187,7 +181,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.is-strict-subset?",
             representations: ["is-strict-subset?"],
-            signature: StandardSignature([StandardSignature.set1, StandardSignature.set1]),
+            signature: "({set} {set})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let lhs = try fst.unwrapSet(location)
@@ -199,7 +193,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.is-superset?",
             representations: ["is-superset?"],
-            signature: StandardSignature([StandardSignature.set1, StandardSignature.set1]),
+            signature: "({set} {set})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let lhs = try fst.unwrapSet(location)
@@ -211,7 +205,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.is-strict-superset?",
             representations: ["is-strict-superset?"],
-            signature: StandardSignature([StandardSignature.set1, StandardSignature.set1]),
+            signature: "({set} {set})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let lhs = try fst.unwrapSet(location)
@@ -223,7 +217,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.is-disjoint?",
             representations: ["is-disjoint?"],
-            signature: StandardSignature([StandardSignature.set1, StandardSignature.set1]),
+            signature: "({set} {set})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 let lhs = try fst.unwrapSet(location)
@@ -235,7 +229,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.powerset",
             representations: ["powerset"],
-            signature: StandardSignature([StandardSignature.set1]),
+            signature: "({set})",
             body: { args, location in
                 let set = try args.unwrap1(location).unwrapSet(location)
                 let result = set.powerset()
@@ -245,9 +239,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.cartesian-product",
             representations: ["cartesian-product"],
-            signature: StandardSignature(
-                [StandardSignature.set1, StandardSignature.set1],
-                allowsVariadic: .homogenous),
+            signature: "({set} {set}[1...])",
             body: { args, location in
                 try args.mustHaveAtLeast(2, location)
                 let set = try args.unwrapFirst(location).unwrapSet(location)
@@ -259,7 +251,7 @@ struct StandardSet: StandardModule {
         MyronPrimitive(
             primitiveName: "set.flatten",
             representations: ["flatten"],
-            signature: StandardSignature([StandardSignature.set1]),
+            signature: "({set})",
             body: { args, location in
                 var work = Array(try args.unwrap1(location).unwrapSet(location).contents)
                 var members = [MyronValue]()

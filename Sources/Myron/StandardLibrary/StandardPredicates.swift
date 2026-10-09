@@ -9,7 +9,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.nothing?",
             representations: ["nothing?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).isNothing)
         }),
@@ -17,7 +17,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.something?",
             representations: ["something?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try !args.unwrap1(location).isNothing)
         }),
@@ -25,7 +25,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.number?",
             representations: ["number?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
                 if value.asInteger != nil { return .boolean(true) }
@@ -36,7 +36,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.integer?",
             representations: ["integer?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asInteger != nil)
         }),
@@ -44,7 +44,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.double?",
             representations: ["double?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asDouble != nil)
         }),
@@ -52,7 +52,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.set?",
             representations: ["set?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asSet != nil)
         }),
@@ -60,7 +60,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.string?",
             representations: ["string?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asString != nil)
         }),
@@ -68,7 +68,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.symbol?",
             representations: ["symbol?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asSymbol != nil)
         }),
@@ -76,7 +76,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.boolean?",
             representations: ["boolean?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asBoolean != nil)
         }),
@@ -84,7 +84,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.list?",
             representations: ["list?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 return .boolean(try args.unwrap1(location).asList != nil)
         }),
@@ -92,7 +92,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.positive?",
             representations: ["positive?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let number = try args.unwrap1(location)
                 if let i = number.asInteger { return .boolean(i > 0) }
@@ -103,7 +103,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.negative?",
             representations: ["negative?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let number = try args.unwrap1(location)
                 if let i = number.asInteger { return .boolean(i < 0) }
@@ -114,7 +114,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.zero?",
             representations: ["zero?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let number = try args.unwrap1(location)
                 if let i = number.asInteger { return .boolean(i == Int.zero) }
@@ -125,7 +125,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.finite?",
             representations: ["finite?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let number = try args.unwrap1(location)
                 if let d = number.asDouble { return .boolean(d.isFinite) }
@@ -136,7 +136,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.infinite?",
             representations: ["infinite?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let number = try args.unwrap1(location)
                 if let d = number.asDouble { return .boolean(d.isInfinite) }
@@ -146,7 +146,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.nan?",
             representations: ["nan?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let number = try args.unwrap1(location)
                 if let d = number.asDouble { return .boolean(d.isNaN) }
@@ -156,7 +156,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.callable?",
             representations: ["callable?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
                 return .boolean(value.isCallable)
@@ -165,7 +165,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.comparable?",
             representations: ["comparable?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
                 return .boolean(isComparable(value.kind))
@@ -174,7 +174,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.sortable?",
             representations: ["sortable?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
                 guard let elements = try? value.unwrapElements(location) else {
@@ -193,7 +193,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.module?",
             representations: ["module?"],
-            signature: StandardSignature([StandardSignature.any1]),
+            signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
                 return .boolean(value.isModule)
@@ -202,9 +202,7 @@ struct StandardPredicates: StandardModule {
         MyronPrimitive(
             primitiveName: "predicate.exports?",
             representations: ["exports?"],
-            signature: StandardSignature([
-                StandardSignature.strOrSymOrList1,
-                StandardSignature.module1]),
+            signature: "({list string symbol} {module})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
 

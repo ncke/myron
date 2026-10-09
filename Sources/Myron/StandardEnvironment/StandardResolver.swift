@@ -14,18 +14,24 @@ struct StandardResolver {
             
             let argKinds = args.map { arg in arg.kind }
             var matchedIdxs = [Int]()
-            var matchedConstraints = [[StandardSignature.Constraint]]()
+            var matchedConstraints = [[MyronSignature.Term.Constraint]]()
             var unmetArities = [MyronError.IntegerExpectation]()
             var deepestPosition: Int?
             var allowedAtDeepest = Set<MyronValue.Kind>()
 
             for (idx, primitive) in primitives.enumerated() {
-                guard let signature = primitive.signature else {
+                let signature: MyronSignature
+                switch primitive.signature {
+                case .success(let parsed):
+                    signature = parsed
+                case .failure(let error):
+                    throw error.withLocation(location)
+                case nil:
                     let explain = "cannot resolve against a nil signature, in: \(contenders)"
                     throw MyronError(.internal(explain), at: location)
                 }
 
-                let result = try signature.matchesKinds(argKinds)
+                let result = signature.matchesKinds(argKinds)
 
                 switch result {
 
@@ -60,8 +66,8 @@ struct StandardResolver {
 
                 var expected = Set<String>()
                 for primitive in primitives {
-                    guard let signature = primitive.signature else { continue }
-                    expected.formUnion(try signature.describeForms(representation: representation))
+                    guard case .success(let signature) = primitive.signature else { continue }
+                    expected.formUnion(signature.describeForms(representation: representation))
                 }
                 
                 let got = args.map { arg in "\(arg.kind)" }.joined(separator: " ")
@@ -75,7 +81,7 @@ struct StandardResolver {
                 var isDominated = false
 
                 for rival in matchedIdxs.indices where rival != candidate {
-                    let comparison = try StandardSignature.compareSpecificity(
+                    let comparison = try MyronSignature.compareSpecificity(
                         matchedConstraints[rival],
                         to: matchedConstraints[candidate])
 

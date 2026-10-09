@@ -63,6 +63,101 @@ struct HostPrimitiveTests {
             == .unexpectedArity(3, .exactly(2)))
     }
 
+    // MARK: Signatures
+
+    // A signature must admit exactly the arguments the body takes, so a body's
+    // closure type and its signature can't disagree about how many there are.
+    @Test("a signature agreeing with a fixed body's arity is accepted")
+    func fixedSignatureAccepted() throws {
+        let session = MyronSession()
+        try session.define("none", "()") { 42 }
+        try session.define("one", "({string})") { a in a }
+        try session.define("pair", "({string}[2])") { a, b in [a, b] }
+        try session.define("mixed", "({integer} {string}[2])") { a, b, c in [a, b, c] }
+
+        #expect(session.eval("(none)").asSuccess?.asInteger == 42)
+        #expect(session.eval("(pair \"a\" \"b\")").asSuccess?.description == "(\"a\" \"b\")")
+        #expect(session.eval("(mixed 1 \"a\" \"b\")").asSuccess?.description
+            == "(1 \"a\" \"b\")")
+    }
+
+    @Test("a signature disagreeing with a fixed body's arity is rejected", arguments: [
+        ("({string}[2])", 1),
+        ("({string})", 2),
+        ("({string} {string})", 1),
+        ("()", 1),
+        ("({string}[1...])", 1),
+        ("({string}[...1])", 1)
+    ])
+    func fixedSignatureRejected(_ signature: String, _ arity: Int) {
+        let session = MyronSession()
+        let error = #expect(throws: MyronError.self) {
+            switch arity {
+            case 1: try session.define("f", signature) { a in a }
+            default: try session.define("f", signature) { a, b in [a, b] }
+            }
+        }
+
+        let explain = "the signature's arity doesn't match the body's arity of \(arity)"
+        #expect(error?.reason == .malformedSignature(signature, explain))
+    }
+
+    @Test("a signature agreeing with a declared arity is accepted", arguments: [
+        ("({string}[1...])", MyronError.IntegerExpectation.atLeast(1)),
+        ("({integer} {string}[...])", .atLeast(1)),
+        ("({string}[...2])", .atMost(2)),
+        ("({any}[...])", .unspecified),
+        ("({any} {any})", .exactly(2))
+    ])
+    func declaredAritySignatureAccepted(
+        _ signature: String,
+        _ arity: MyronError.IntegerExpectation
+    ) throws {
+        let session = MyronSession()
+        try session.define("v", signature, arity: arity) { args in args }
+    }
+
+    @Test("a signature disagreeing with a declared arity is rejected", arguments: [
+        ("({string}[2...])", MyronError.IntegerExpectation.atLeast(1)),
+        ("({string})", .atLeast(1)),
+        ("({string}[1...2])", .atMost(2)),
+        ("({any}[1...])", .unspecified),
+        ("({any}[...])", .exactly(2))
+    ])
+    func declaredAritySignatureRejected(
+        _ signature: String,
+        _ arity: MyronError.IntegerExpectation
+    ) {
+        let session = MyronSession()
+        let error = #expect(throws: MyronError.self) {
+            try session.define("v", signature, arity: arity) { args in args }
+        }
+
+        let explain = "the signature's arity doesn't match the body's arity of \(arity)"
+        #expect(error?.reason == .malformedSignature(signature, explain))
+    }
+
+    @Test("a malformed signature is rejected when the primitive is defined")
+    func malformedSignatureRejected() {
+        let session = MyronSession()
+        let error = #expect(throws: MyronError.self) {
+            try session.define("f", "({strng})") { a in a }
+        }
+
+        #expect(error?.reason == .malformedSignature("({strng})", "unknown kind 'strng'"))
+    }
+
+    @Test("a rejected signature leaves the environment untouched")
+    func rejectedSignatureLeavesEnvironment() throws {
+        let session = MyronSession()
+        try session.define("f") { a in a }
+        #expect(throws: MyronError.self) {
+            try session.define("f", "({string}[2])") { a in [a, a] }
+        }
+
+        #expect(session.eval("(f 1)").asSuccess?.asInteger == 1)
+    }
+
     // MARK: Reserved Names
 
     // A special form is intercepted before symbol lookup, so a primitive under

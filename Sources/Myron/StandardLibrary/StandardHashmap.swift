@@ -11,7 +11,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.get",
             representations: ["get"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.map1]),
+            signature: "({any} {hashmap})",
             body: { args, location in
                 let (key, snd) = try args.unwrap2(location)
                 let hashmap = try snd.unwrapHashmap(location)
@@ -23,10 +23,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.get-or",
             representations: ["get-or"],
-            signature: StandardSignature([
-                StandardSignature.any1,
-                StandardSignature.any1,
-                StandardSignature.map1]),
+            signature: "({any} {any} {hashmap})",
             body: { args, location in
                 let (def, key, snd) = try args.unwrap3(location)
                 let hashmap = try snd.unwrapHashmap(location)
@@ -38,10 +35,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.put",
             representations: ["put"],
-            signature: StandardSignature([
-                StandardSignature.any1,
-                StandardSignature.any1,
-                StandardSignature.map1]),
+            signature: "({any} {any} {hashmap})",
             body: { args, location in
                 let (key, value, thd) = try args.unwrap3(location)
                 if case .nothing = value {
@@ -55,7 +49,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.remove",
             representations: ["remove"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.map1]),
+            signature: "({any} {hashmap})",
             body: { args, location in
                 let (fst, snd) = try args.unwrap2(location)
                 return try removingKey(fst, from: snd, at: location)
@@ -64,7 +58,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.has-key?",
             representations: ["has-key?"],
-            signature: StandardSignature([StandardSignature.any1, StandardSignature.map1]),
+            signature: "({any} {hashmap})",
             body: { args, location in
                 let (key, snd) = try args.unwrap2(location)
                 let hashmap = try snd.unwrapHashmap(location)
@@ -75,7 +69,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.keys",
             representations: ["keys"],
-            signature: StandardSignature([StandardSignature.map1]),
+            signature: "({hashmap})",
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
                 return .list(hashmap.keys)
@@ -84,7 +78,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.values",
             representations: ["values"],
-            signature: StandardSignature([StandardSignature.map1]),
+            signature: "({hashmap})",
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
                 return .list(hashmap.values)
@@ -95,7 +89,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.length",
             representations: ["length"],
-            signature: StandardSignature([StandardSignature.map1]),
+            signature: "({hashmap})",
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
                 return .integer(hashmap.length())
@@ -104,7 +98,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.empty?",
             representations: ["empty?"],
-            signature: StandardSignature([StandardSignature.map1]),
+            signature: "({hashmap})",
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
                 return .boolean(hashmap.empty())
@@ -115,7 +109,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.make-hashmap",
             representations: ["make-hashmap"],
-            signature: StandardSignature([StandardSignature.listOrRec1]),
+            signature: "({list record})",
             body: { args, location in
                 try args.mustHaveAtMost(1, location)
                 
@@ -164,7 +158,7 @@ struct StandardHashmap: StandardModule {
         MyronPrimitive(
             primitiveName: "hashmap.keys-values",
             representations: ["keys-values"],
-            signature: StandardSignature([StandardSignature.map1]),
+            signature: "({hashmap})",
             body: { args, location in
                 let hashmap = try args.unwrap1(location).unwrapHashmap(location)
                 let kvs = hashmap.keysValues()

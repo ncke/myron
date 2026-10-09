@@ -33,7 +33,7 @@ extension MyronValue {
 
 extension MyronValue {
 
-    public enum Kind: Equatable, Hashable, Sendable {
+    public enum Kind: Equatable, Hashable, Sendable, CaseIterable {
         case boolean
         case define
         case double
