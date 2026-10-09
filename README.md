@@ -53,6 +53,7 @@ looking things up later.
   [Higher-order functions](#higher-order-functions) · [Errors](#errors-1)
 - [Status](#status)
 - [Changelog](#changelog)
+- [The name](#the-name)
 - [Licence](#licence)
 
 ## Features
@@ -3743,6 +3744,14 @@ Every release is recorded in [CHANGELOG.md](CHANGELOG.md), most recent first,
 including any breaking changes to the language or the public Swift interface.
 The latest release is `0.2.0`, which adds association lists, hashmaps, sets,
 Swift interoperability and primitives written in Swift.
+
+## The name
+
+Myron was a Greek sculptor of the fifth century BC. His work marks the turn
+from the stiff, upright figures of the late Archaic period to the fluid,
+moving bodies of the early Classical. The language takes his name for that
+move from the static to the dynamic, and for the idea that what has always
+been held in place need not stay there.
 
 ## Licence
 
