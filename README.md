@@ -3545,7 +3545,7 @@ These are string-specific; the sequence primitives above also work on strings.
 
 | Primitive | Arguments | Result |
 |---|---|---|
-| `string` | 1 value | its printed form as a string |
+| `string` | any number of values | their printed forms, joined into one string |
 | `explode` | 1 string | a list of one-character strings |
 | `implode` | 1 list, or a separator string and a list | a string |
 | `lowercase` | 1 string | string |
@@ -3560,6 +3560,7 @@ These are string-specific; the sequence primitives above also work on strings.
 ```lisp
 (string 42)                               ; "42"
 (string '(1 2))                           ; "(1 2)"
+(string "x = " 42 ", y = " 1.5)           ; "x = 42, y = 1.5"
 (explode "abc")                           ; ("a" "b" "c")
 (implode '("a" "b" "c"))                  ; "abc"
 (implode "-" '("a" "b" "c"))              ; "a-b-c"
@@ -3574,7 +3575,9 @@ These are string-specific; the sequence primitives above also work on strings.
 ```
 
 `string` is the identity on a string and otherwise gives the value's printed
-form, which makes it the way to get a number into a message. `implode` is the
+form. Given several values it joins them, which makes it Myron's string
+interpolation: `(string "Hello, " name "! You are " age ".")`. With no values it
+gives `""`, so `(apply string parts)` works on an empty list. `implode` is the
 inverse of `explode`, and with a separator it undoes `words` and `lines`. It
 renders non-string elements the way `string` would, so `(implode "-" '(1 true))`
 is `"1-true"`.

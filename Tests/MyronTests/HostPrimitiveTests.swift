@@ -98,7 +98,7 @@ struct HostPrimitiveTests {
             }
         }
 
-        let explain = "the signature's arity doesn't match the body's arity of \(arity)"
+        let explain = "signature arity doesn't match the body arity '\(arity)'"
         #expect(error?.reason == .malformedSignature(signature, explain))
     }
 
@@ -133,7 +133,7 @@ struct HostPrimitiveTests {
             try session.define("v", signature, arity: arity) { args in args }
         }
 
-        let explain = "the signature's arity doesn't match the body's arity of \(arity)"
+        let explain = "signature arity doesn't match the body arity '\(arity)'"
         #expect(error?.reason == .malformedSignature(signature, explain))
     }
 

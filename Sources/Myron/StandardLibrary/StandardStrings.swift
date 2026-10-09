@@ -276,11 +276,18 @@ struct StandardStrings: StandardModule {
         MyronPrimitive(
             primitiveName: "string.string",
             representations: ["string"],
-            signature: "({any})",
+            signature: "({any}[...])",
             body: { args, location in
-                let src = try args.unwrap1(location)
-                if src.kind == .string { return src }
-                return .string(src.description)
+                let concatenation = args
+                    .map { arg in
+                        switch arg {
+                        case .string(let str): return str
+                        default: return arg.description
+                        }
+                    }
+                    .joined()
+
+                return .string(concatenation)
             }),
         
         MyronPrimitive(

@@ -276,6 +276,28 @@ struct StandardStringsTests {
         expectValue("(string '(1 \"a\"))", "\"(1 \"a\")\"")
     }
 
+    @Test("string concatenates the printed forms of its arguments", arguments: [
+        ("(string)", "\"\""),
+        ("(string \"a\" \"b\")", "\"ab\""),
+        ("(string \"x = \" 42)", "\"x = 42\""),
+        ("(string 1 2 3)", "\"123\""),
+        ("(string \"n: \" 1.5 \", ok: \" true)", "\"n: 1.5, ok: true\""),
+        ("(string \"sym: \" 'a \" list: \" '(1 \"b\"))", "\"sym: a list: (1 \"b\")\""),
+        ("(string \"\" \"\")", "\"\"")
+    ] as [ValueCase])
+    func stringVariadic(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("string interpolates bound values")
+    func stringInterpolates() {
+        expectValue(
+            "(let ((name \"Ada\") (age 36)) (string \"Hello, \" name \"! You are \" age \".\"))",
+            "\"Hello, Ada! You are 36.\"")
+        expectValue("(apply string '(\"a\" 1 \"b\"))", "\"a1b\"")
+        expectValue("(apply string '())", "\"\"")
+    }
+
     @Test("lowercase and uppercase", arguments: [
         ("(lowercase \"ABC\")", "\"abc\""),
         ("(lowercase \"aBc\")", "\"abc\""),
@@ -459,8 +481,6 @@ struct StandardStringsTests {
         ("(implode 5)", .unexpectedType(.integer, [.list])),
         ("(implode \",\" 5)", .unexpectedType(.integer, [.list])),
         ("(implode \",\" \"a\")", .unexpectedType(.string, [.list])),
-        ("(string)", .unexpectedArity(0, .exactly(1))),
-        ("(string 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(lowercase 5)", .unexpectedType(.integer, [.string])),
         ("(uppercase 5)", .unexpectedType(.integer, [.string])),
         ("(trim 5)", .unexpectedType(.integer, [.string])),

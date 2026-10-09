@@ -194,6 +194,9 @@ the language, and a patch release will not.
 
 ### Changed
 
+- `string` takes any number of values and joins their printed forms, so
+  `(string "x = " 42)` is `"x = 42"`. With one value it behaves as before, and
+  with none it gives `""`.
 - A host primitive can call `eval` on its own session. The caller's pending
   work is set aside and picks up where it left off once the nested evaluation
   returns. Before, the nested evaluation discarded it, so the outer program
