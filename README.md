@@ -144,7 +144,7 @@ swift run myron --repl
 *  ██ ████ ██    ▀███▀    ██  ·  ██  ██     ██  ██▀█▄ ·██    **     **  .  **
    ██  ██  ██     ██      █████████  ██  ·  ██  ██  ▀█▄██     **  .  **     **
  · ██      ██     ██      ██ · ████  █████████  ██   ▀███    **     **     **
-.    ·     .        *      .      ·         version 0.2.1   *   .  *      *
+.    ·     .        *      .      ·         version 0.3.0   *   .  *      *
          ·       .       ·      .     *      .      ·          ·      .      ·
 
 Ready.
@@ -377,7 +377,7 @@ import Myron
 let session = MyronSession()
 let result = session.eval("(+ 1 2)")      // .success(.integer(3))
 
-print(MyronLanguage.version)              // 0.2.1
+print(MyronLanguage.version)              // 0.3.0
 ```
 
 ### `MyronSession`

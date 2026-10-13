@@ -232,7 +232,8 @@ now throws. Hosts written against `0.2.0` may need updating — see
   `MyronError.Reason` gains `duplicateField`, `unexpectedField`, `raised`,
   `cannotBeEmpty`, `unexpectedVariadicParameter`, `duplicateName`,
   `valueIsNotCode`, `expectedExpressionAfterQuasiquote`,
-  `expectedExpressionAfterUnquoting` and `unexpectedUnquoting`, and
+  `expectedExpressionAfterUnquoting`, `unexpectedUnquoting`,
+  `malformedSignature` and `exceededMaximumEvalDepth`, and
   `MyronHigherOrder` gains `foldr` and `apply`. A host that switches
   exhaustively over any of these will need the new cases.
 - `try`, `module`, `import`, `defmacro` and `quasiquote` are special forms, and
