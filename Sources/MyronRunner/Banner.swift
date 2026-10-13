@@ -214,10 +214,13 @@ enum Banner {
     }
 
     private static var terminalWidth: Int {
+        // WASI has no way to ask a terminal for its size.
+        #if !os(WASI)
         var window = winsize()
         if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &window) == 0, window.ws_col > 0 {
             return Int(window.ws_col)
         }
+        #endif
         if let columns = ProcessInfo.processInfo.environment["COLUMNS"],
            let width = Int(columns) {
             return width

@@ -1,0 +1,16 @@
+version: 1
+builder:
+  configs:
+    # Build only the library on platforms built with Xcode. Before Xcode 27, the
+    # `myron` executable and the `Myron` library share a build directory on a
+    # case-insensitive disk, and a command-line runner means nothing on iOS.
+    - platform: ios
+      scheme: Myron
+    - platform: macos-xcodebuild
+      scheme: Myron
+    - platform: tvos
+      scheme: Myron
+    - platform: visionos
+      scheme: Myron
+    - platform: watchos
+      scheme: Myron

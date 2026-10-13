@@ -274,6 +274,13 @@ now throws. Hosts written against `0.2.0` may need updating — see
   `(define x. 1)` was accepted. A variadic parameter that still ends in a dot
   once its `...` is removed, such as `x....`, is rejected the same way.
 
+### Fixed
+
+- The executable builds for Wasm again. The REPL banner asked the terminal for
+  its width in a way WASI does not support, so since `0.2.0` only the library
+  could be built there. On WASI, the banner now takes its width from `COLUMNS`,
+  or uses 80 columns.
+
 ## [0.2.0] — 2026-09-23
 
 Three new data types, a two-way bridge to Swift, and primitives written in

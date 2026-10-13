@@ -1,6 +1,14 @@
 import Foundation
 import Myron
 
+// The Linux C library declares `stdin` as a mutable global, which Swift 6
+// rejects as shared mutable state.
+#if canImport(Glibc)
+@preconcurrency import Glibc
+#elseif canImport(Musl)
+@preconcurrency import Musl
+#endif
+
 // MARK: - Console
 
 enum Console {
