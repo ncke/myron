@@ -200,6 +200,8 @@ now throws. Hosts written against `0.2.0` may need updating — see
   must be one source could write as a symbol, such as `point-x` or `if`, and
   any other, such as `"two words"` or `"42"`, is an `invalidName` error.
   Whether the symbol can be bound is checked when it is bound.
+- `$`, a shorter name for `string`, as `+` is for `add`: `($ "x = " 42)` is
+  `"x = 42"`.
 
 ### Changed
 

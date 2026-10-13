@@ -60,7 +60,7 @@ extension StandardEnvironment {
         StandardRecord.self,
         StandardRecordType.self,
         StandardSet.self,
-        StandardStrings.self
+        StandardString.self
     ]
     
     private func loadPrimitives() {

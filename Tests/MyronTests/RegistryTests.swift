@@ -13,7 +13,7 @@ struct StandardRegistryTests {
     // MARK: Registration Invariants
 
     private static let roster: Set<String> = [
-        "!=", "%", "*", "+", "-", "/",
+        "!=", "$", "%", "*", "+", "-", "/",
         "<", "<=", "==", ">", ">=", "abs",
         "acos", "add", "append", "asin", "atan", "atan2",
         "boolean?", "callable?", "cartesian-product", "ceil", "comparable?", "cons",

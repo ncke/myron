@@ -1,8 +1,8 @@
 import Foundation
 
-// MARK: - StandardStrings
+// MARK: - StandardString
 
-struct StandardStrings: StandardModule {
+struct StandardString: StandardModule {
     
     static let primitiveDefinitions = [
         
@@ -275,7 +275,7 @@ struct StandardStrings: StandardModule {
         
         MyronPrimitive(
             primitiveName: "string.string",
-            representations: ["string"],
+            representations: ["string", "$"],
             signature: "({any}[...])",
             body: { args, location in
                 let concatenation = args
@@ -413,7 +413,7 @@ struct StandardStrings: StandardModule {
 
 // MARK: - Helpers
 
-extension StandardStrings {
+extension StandardString {
 
     private static func splitOnce(_ target: String, in str: Substring) -> (Substring, Substring)? {
         guard let posn = find(target, in: str) else { return nil }

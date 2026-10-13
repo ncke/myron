@@ -3,9 +3,9 @@ import Testing
 
 // MARK: - Strings
 
-@Suite("Standard Strings")
+@Suite("Standard String")
 
-struct StandardStringsTests {
+struct StandardStringTests {
 
     // MARK: Sequence primitives over strings
 
@@ -298,6 +298,55 @@ struct StandardStringsTests {
         expectValue("(apply string '())", "\"\"")
     }
 
+    // MARK: $
+
+    @Test("$ is string", arguments: [
+        ("($)", "\"\""),
+        ("($ \"abc\")", "\"abc\""),
+        ("($ 42)", "\"42\""),
+        ("($ 'sym)", "\"sym\""),
+        ("($ '(1 \"a\"))", "\"(1 \"a\")\""),
+        ("($ \"a\" \"b\")", "\"ab\""),
+        ("($ \"x = \" 42)", "\"x = 42\""),
+        ("($ \"n: \" 1.5 \", ok: \" true)", "\"n: 1.5, ok: true\"")
+    ] as [ValueCase])
+    func dollar(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("$ is the same primitive as string")
+    func dollarIsString() {
+        expectValue("(eq $ string)", "true")
+        expectValue("$", "<primitive: string.string>")
+        expectValue("(kind $)", "\"primitive\"")
+    }
+
+    @Test("$ can be passed to higher-order functions", arguments: [
+        ("(map $ '(1 2.5 true))", "(\"1\" \"2.5\" \"true\")"),
+        ("(apply $ '(\"a\" 1 \"b\"))", "\"a1b\""),
+        ("(apply $ \"x\" '(1 2))", "\"x12\""),
+        ("(reduce $ \"\" '(\"a\" \"b\" \"c\"))", "\"abc\"")
+    ] as [ValueCase])
+    func dollarHigherOrder(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a name containing $ is still an ordinary name", arguments: [
+        ("(define $x 1) $x", "1"),
+        ("(define total$ 2) total$", "2"),
+        ("(define $$ 3) $$", "3"),
+        ("(let ((a$b 4)) a$b)", "4")
+    ] as [ValueCase])
+    func dollarInsideName(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("$ can be shadowed like any standard name")
+    func dollarShadowed() {
+        expectValue("(define $ 5) $", "5")
+        expectValue("(let (($ +)) ($ 1 2))", "3")
+    }
+
     @Test("lowercase and uppercase", arguments: [
         ("(lowercase \"ABC\")", "\"abc\""),
         ("(lowercase \"aBc\")", "\"abc\""),
@@ -529,7 +578,7 @@ struct StandardStringsTests {
         ("string.find-first", [.string, .string])
     ] as [(String, [MyronValue.Kind])])
     func nativeSignatures(_ name: String, _ kinds: [MyronValue.Kind]) throws {
-        let primitive = StandardStrings.primitiveDefinitions.first { p in p.primitiveName == name }
+        let primitive = StandardString.primitiveDefinitions.first { p in p.primitiveName == name }
         let signature = try #require(primitive?.signature, "\(name) has no signature").get()
         guard case .match = signature.matchesKinds(kinds) else {
             Issue.record("\(name) signature refuses \(kinds)")

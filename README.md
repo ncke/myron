@@ -3551,24 +3551,25 @@ predictable order. There is not yet a way to sort by a comparison of your own.
 
 These are string-specific; the sequence primitives above also work on strings.
 
-| Primitive | Arguments | Result |
-|---|---|---|
-| `string` | any number of values | their printed forms, joined into one string |
-| `explode` | 1 string | a list of one-character strings |
-| `implode` | 1 list, or a separator string and a list | a string |
-| `lowercase` | 1 string | string |
-| `uppercase` | 1 string | string |
-| `trim` | 1 string | string without leading or trailing whitespace |
-| `lines` | 1 string | a list of strings, split on newlines |
-| `words` | 1 string | a list of strings, split on whitespace |
-| `split-all` | separator string, string | a list of strings, split at every separator |
-| `split-once` | separator string, string | a list of the parts before and after the first separator |
-| `find-first` | string to find, string | the index of the first match, or `nothing` |
+| Primitive | Alias | Arguments | Result |
+|---|---|---|---|
+| `string` | `$` | any number of values | their printed forms, joined into one string |
+| `explode` | | 1 string | a list of one-character strings |
+| `implode` | | 1 list, or a separator string and a list | a string |
+| `lowercase` | | 1 string | string |
+| `uppercase` | | 1 string | string |
+| `trim` | | 1 string | string without leading or trailing whitespace |
+| `lines` | | 1 string | a list of strings, split on newlines |
+| `words` | | 1 string | a list of strings, split on whitespace |
+| `split-all` | | separator string, string | a list of strings, split at every separator |
+| `split-once` | | separator string, string | a list of the parts before and after the first separator |
+| `find-first` | | string to find, string | the index of the first match, or `nothing` |
 
 ```lisp
 (string 42)                               ; "42"
 (string '(1 2))                           ; "(1 2)"
 (string "x = " 42 ", y = " 1.5)           ; "x = 42, y = 1.5"
+($ "x = " 42)                             ; "x = 42"
 (explode "abc")                           ; ("a" "b" "c")
 (implode '("a" "b" "c"))                  ; "abc"
 (implode "-" '("a" "b" "c"))              ; "a-b-c"
@@ -3585,7 +3586,10 @@ These are string-specific; the sequence primitives above also work on strings.
 `string` is the identity on a string and otherwise gives the value's printed
 form. Given several values it joins them, which makes it Myron's string
 interpolation: `(string "Hello, " name "! You are " age ".")`. With no values it
-gives `""`, so `(apply string parts)` works on an empty list. `implode` is the
+gives `""`, so `(apply string parts)` works on an empty list. `$` is the same
+function under a shorter name, as `+` is `add`, so the same greeting can be
+written `($ "Hello, " name "! You are " age ".")`. Only `$` on its own is
+`string`: a name such as `$x` or `total$` is an ordinary name. `implode` is the
 inverse of `explode`, and with a separator it undoes `words` and `lines`. It
 renders non-string elements the way `string` would, so `(implode "-" '(1 true))`
 is `"1-true"`.
