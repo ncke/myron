@@ -132,7 +132,7 @@ extension MyronSession {
             arity: .exactly(0),
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -152,7 +152,7 @@ extension MyronSession {
             arity: .exactly(1),
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -172,7 +172,7 @@ extension MyronSession {
             arity: .exactly(2),
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -192,7 +192,7 @@ extension MyronSession {
             arity: .exactly(3),
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -211,7 +211,7 @@ extension MyronSession {
             arity: .exactly(4),
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -230,7 +230,7 @@ extension MyronSession {
             arity: .exactly(5),
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -249,7 +249,7 @@ extension MyronSession {
             arity: .exactly(6),
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
 
     public func define(
@@ -269,7 +269,7 @@ extension MyronSession {
             arity: arity,
             wrapped: wrapped)
 
-        environment.insert(name, value: .primitive(primitive))
+        try environment.insert(name, value: .primitive(primitive), location: nil)
     }
 
     private func primitivise(
@@ -360,8 +360,8 @@ extension MyronSession {
         return try? environment.lookup(name, at: nil)
     }
 
-    public func set(_ name: String, to value: MyronValue) {
-        environment.insert(name, value: value)
+    public func set(_ name: String, to value: MyronValue) throws {
+        try environment.insert(name, value: value, location: nil)
     }
 
     public var names: Set<String> {

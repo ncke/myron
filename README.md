@@ -353,7 +353,7 @@ depend on the `Myron` library product:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/ncke/myron.git", from: "0.2.0")
+    .package(url: "https://github.com/ncke/myron.git", from: "0.3.0")
 ],
 targets: [
     .target(
@@ -443,7 +443,7 @@ A session's top-level environment is open to the host. `query` resolves a name
 the way Myron would, `set` binds one, and `names` lists what is bound:
 
 ```swift
-session.set("limit", to: 10)
+try session.set("limit", to: 10)
 session.eval("(< 3 limit)")               // .success(.boolean(true))
 
 session.query("limit")                    // .integer(10)
@@ -455,9 +455,12 @@ session.names                             // Set<String>
 
 `set` takes a `MyronValue`, so data a host has built — a number, a string, a
 list, a hashmap — can be handed to Myron without going through source text. It
-never fails, and it overwrites whatever was there before, whether the host or a
-`define` put it there. Myron's own `define` overwrites it in turn: the two
-write to the same place.
+overwrites whatever was there before, whether the host or a `define` put it
+there. Myron's own `define` overwrites it in turn: the two write to the same
+place. The name must be one Myron could bind, by the same rules as a host's
+[`define`](#defining-primitives), so `set` throws `invalidName` for a name such
+as `"if"` or `"two words"` rather than binding something no program could
+reach.
 
 `query` resolves a name exactly as evaluation would, so it reaches the
 [standard environment](#standard-library-reference) as well as what has been
@@ -465,7 +468,7 @@ bound in the session. A `nil` result means the name is unbound, which is
 distinct from a name bound to `nothing`:
 
 ```swift
-session.set("n", to: nil)                 // bound to nothing
+try session.set("n", to: nil)             // bound to nothing
 session.query("n")                        // .some(.nothing)
 session.query("m")                        // nil — never bound
 ```
@@ -577,14 +580,14 @@ session.eval("(double \"a\")")
 ```
 
 **Naming.** `define` throws rather than returning, because a name has to be one
-Myron source could actually write. Validation runs the lexer itself: the name
-must lex as exactly one symbol token equal to the name given. That rules out the
-empty string, anything containing whitespace, brackets, a `;`, a `'` or a `"`,
-and anything that would lex as something else — `42`, `3.5`, `true`,
-`nothing`, `,x`. The fourteen [special forms](#special-forms), and `unquote`
-and `unquote-splicing`, are rejected too, since they are intercepted before
-symbol lookup and a primitive under one of those names could never be called,
-and so is a name ending in a dot, which source cannot bind either. Everything
+Myron source could actually write: one that reads back as that one symbol.
+That rules out the empty string, anything containing whitespace, brackets, a
+`;` or a `"`, and anything that would read as something else — `42`, `3.5`,
+`-x`, `true`, `nothing`, `,x`, `'x`. The fourteen
+[special forms](#special-forms), and `unquote` and `unquote-splicing`, are
+rejected too, since they are intercepted before symbol lookup and a primitive
+under one of those names could never be called, and so is a name ending in a
+dot, which source cannot bind either. Everything
 else is fair game, including non-ASCII: if `(define café 1)` works in source,
 `define("café")` works from Swift.
 
@@ -898,7 +901,7 @@ also has a `description`, which is the first line of the rendered message.
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
-| `invalidName(String)` | A name Myron source could not write was given to a host's `define`, to `make-symbol`, or as a record type, field, module or export name, or a name ending in a dot or a special form's name was bound; carries the name. |
+| `invalidName(String)` | A name Myron source could not write was given to a host's `define` or `set`, to `make-symbol`, or as a record type, field, module or export name, or a name ending in a dot or a special form's name was bound; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `malformedSignature(String, String)` | A [signature](#signatures) could not be parsed, or disagreed with the arity of the body given to a host's `define`; carries the signature and what is wrong with it. |
@@ -1287,7 +1290,7 @@ let b = MyronSession()
 a.eval("(define point (make-record-type 'point '(x y)))")
 b.eval("(define point (make-record-type 'point '(x y)))")
 
-b.set("p", to: a.eval("(make-record point 1 2)").asSuccess!)
+try b.set("p", to: a.eval("(make-record point 1 2)").asSuccess!)
 b.eval("(record-isa? point p)")           // .success(true)
 ```
 
@@ -1301,7 +1304,7 @@ is `Sendable`, so a [host primitive](#defining-primitives) can capture it:
 
 ```swift
 let point = try MyronRecordType(name: "point", fields: "x", "y")
-session.set("point", to: point.myronValue)
+try session.set("point", to: point.myronValue)
 
 try session.define("norm") { value in
     let p = try value.requireRecord()
@@ -2088,7 +2091,11 @@ string cannot contain a `"`. An unterminated string is an error.
 **Symbols.** Any token that is none of the above: `x`, `factorial`, `+`, `<=`,
 `nothing?`, `my-map`. Symbols name bindings. There is no reserved character
 set: brackets, whitespace and `;` end a symbol, and everything else is fair
-game. A dot inside a symbol, as in `geo.area`, makes it a
+game. At the start of a token, `'`, `` ` `` and `,` begin a quote, a template
+and an unquote rather than a symbol, but later in a symbol, as in `a,b`, each is
+an ordinary character. A `+` or `-` that is not followed by a digit is a symbol
+of its own, so `->` is two symbols. A name that is being bound cannot contain a
+`"`. A dot inside a symbol, as in `geo.area`, makes it a
 [qualified name](#evaluation-model) when it is looked up. A name that is being
 bound cannot end in a dot, since a trailing `...` marks a
 [variadic parameter](#lambda): `(define x. 1)` is an `invalidName` error. A
@@ -3704,7 +3711,7 @@ must be a string; use `string` or `implode` to build one from other values.
 
 ## Status
 
-Myron is a young language, and version `0.2.0` should be read as an invitation
+Myron is a young language, and version `0.3.0` should be read as an invitation
 rather than a promise: the public Swift interface may still change.
 
 Myron is purely functional. Values are immutable, and there is no `set!`: a
@@ -3742,8 +3749,9 @@ are following.
 
 Every release is recorded in [CHANGELOG.md](CHANGELOG.md), most recent first,
 including any breaking changes to the language or the public Swift interface.
-The latest release is `0.2.0`, which adds association lists, hashmaps, sets,
-Swift interoperability and primitives written in Swift.
+The latest release is `0.3.0`, which adds macros and templates, modules,
+records, error handling with `try` and `raise`, variadic parameters, and an
+executable that runs scripts and literate markdown files.
 
 ## The name
 

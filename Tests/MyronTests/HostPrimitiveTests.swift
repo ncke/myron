@@ -465,7 +465,7 @@ struct HostPrimitiveTests {
         #expect(hashmap[primitive]?.asString == "found")
 
         // Reached back out of a list, it is still callable.
-        session.set("held", to: .list([primitive]))
+        try session.set("held", to: .list([primitive]))
         #expect(session.eval("((head held) 0)").asSuccess?.asInteger == 1)
     }
 

@@ -8,6 +8,15 @@ the language, and a patch release will not.
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-13
+
+Macros and templates, modules, records, error handling with `try` and `raise`,
+and variadic parameters. The executable is now `myron`, and runs scripts and
+literate markdown files as well as the REPL. Some of the public Swift interface
+has changed: new cases on `MyronValue` and its companions, and `set(_:to:)`
+now throws. Hosts written against `0.2.0` may need updating — see
+[Changed](#changed).
+
 ### Added
 
 - The executable runs files: `myron --load one.my --load two.my` evaluates each
@@ -251,6 +260,12 @@ the language, and a patch release will not.
 - `invalidName` is also raised for a record type or field name that Myron
   source could not write, and for a module or export name that has a dot in it
   or is a special form's name, and so can now come back from `eval`.
+- `MyronSession.set(_:to:)` throws, and rejects with `invalidName` any name that
+  a host's `define` would reject. Before, it bound any string, so a host could
+  bind a name such as `"if"`, `"nothing"` or `"two words"` that no program
+  could reach. A call to `set` now needs `try`.
+- A name being bound cannot contain a `"`. Before, `(define a"b" 1)` was
+  accepted, since the lexer reads `a"b"` as one symbol.
 - `MyronSession.query` resolves a dotted name that is not bound as it stands
   as a qualified name, so it can now find a module's export.
 - No name can end in a dot, since a trailing `...` marks a variadic parameter.
@@ -263,7 +278,7 @@ the language, and a patch release will not.
 
 Three new data types, a two-way bridge to Swift, and primitives written in
 Swift. The public Swift interface has been renamed throughout, so hosts written
-against `0.1.0` will need updating — see [Changed](#changed) and
+against `0.1.0` will need updating — see [Changed](#changed-1) and
 [Removed](#removed).
 
 ### Added
@@ -357,6 +372,7 @@ The first release: a small Lisp that can be embedded in a Swift application.
   for hosting the interpreter.
 - The `myron-repl` executable.
 
-[Unreleased]: https://github.com/ncke/myron/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/ncke/myron/compare/0.3.0...HEAD
+[0.3.0]: https://github.com/ncke/myron/compare/0.2.0...0.3.0
 [0.2.0]: https://github.com/ncke/myron/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/ncke/myron/releases/tag/0.1.0

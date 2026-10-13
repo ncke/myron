@@ -130,4 +130,87 @@ struct NameTests {
         expectValue(c.source, c.expected)
     }
 
+    // MARK: Agreement With the Lexer
+
+    // Binding checks names without running the lexer, which is too slow for every
+    // call. The lexer is the reference, so the cheaper check must agree with it.
+    private static func lexesAsSymbol(_ name: String) -> Bool {
+        let (tokens, errors) = Lexer(input: name, sourceHandle: nil).tokenize()
+        guard
+            errors.isEmpty,
+            tokens.count == 1,
+            case .symbol(let symbol) = tokens[0].kind
+        else {
+            return false
+        }
+
+        return symbol == name
+    }
+
+    @Test("a name is a symbol name exactly when the lexer reads it as one", arguments: [
+        // Ordinary names.
+        "x", "map", "point-x", "x?", "set!", "a.b", "geo.area", "x.", "->x", "x->y",
+        "<=", "==", "*", "/", "%", "^", "_", "λ", "naïve", "x1",
+        // Punctuation that starts a token, inside a name and at its start.
+        "a,b", ",x", ",", ",@x", "a,@b", "a@b", "@x", "@",
+        "a`b", "`x", "`", "a'b", "'x", "'",
+        // Signs and numbers.
+        "+", "-", "+x", "-x", "--", "-1", "+1", "-1a", "-.5", "1", "1a", "1.5", ".5",
+        "x1.5",
+        // Token breakers.
+        "", " ", "two words", " x", "x ", "x\n", "\tx", "(", ")", "a(b", "a)b",
+        ";", ";x", "x;y", "x;",
+        // Quotes, which the lexer skips over inside a token.
+        "\"", "\"s\"", "\"s", "s\"", "a\"b\"", "a\"b c\"", "\"a\"b",
+        // Literals.
+        "true", "false", "nothing", "nothings", "true?", "falsehood"
+    ])
+    func agreesWithLexer(_ name: String) {
+        // Quotes are stricter than the lexer: it reads `a"b"` as one symbol,
+        // since it skips over quoted text inside a token, but no name may hold
+        // a quote.
+        let expected = Self.lexesAsSymbol(name) && !name.contains("\"")
+        #expect(MyronValue.isValidAsSymbolName(name) == expected)
+    }
+
+    @Test("a quote inside a name is the one place the check is stricter")
+    func quotesAreStricter() {
+        #expect(Self.lexesAsSymbol("a\"b\""))
+        #expect(!MyronValue.isValidAsSymbolName("a\"b\""))
+    }
+
+    @Test("punctuation inside a name can be bound in source", arguments: [
+        ("(define a,b 1) a,b", "1"),
+        ("(define a@b 2) a@b", "2"),
+        ("(define @x 3) @x", "3"),
+        ("(define a'b 4) a'b", "4"),
+        ("(define a`b 5) a`b", "5"),
+        ("(let ((a,b 6)) a,b)", "6"),
+        ("((lambda (a@b) a@b) 7)", "7"),
+        ("(define (f a'b) a'b) (f 8)", "8")
+    ] as [ValueCase])
+    func punctuatedNameBinds(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("make-symbol accepts a name source could write", arguments: [
+        ("(make-symbol \"a,b\")", "a,b"),
+        ("(make-symbol \"@x\")", "@x"),
+        ("(make-symbol \"+\")", "+")
+    ] as [ValueCase])
+    func makeSymbolPunctuated(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    // MARK: Order of Checking
+
+    @Test("define rejects a name before evaluating its value", arguments: [
+        ("(define x. (raise \"evaluated\"))", "x."),
+        ("(define if (raise \"evaluated\"))", "if")
+    ])
+    func defineChecksNameFirst(source: String, name: String) throws {
+        let error = try Self.firstError(source)
+        #expect(error.reason == .invalidName(name))
+    }
+
 }

@@ -30,7 +30,7 @@ final class Script: @unchecked Sendable {
             fatalError("myron: cannot define the runner's primitives: \(error)")
         }
 
-        session.set("arguments", to: .list(arguments.map(MyronValue.string)))
+        try? session.set("arguments", to: .list(arguments.map(MyronValue.string)))
         self.session = session
     }
 

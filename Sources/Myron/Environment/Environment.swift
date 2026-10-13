@@ -30,7 +30,8 @@ final class Environment {
         mappings = [:]
     }
 
-    func insert(_ name: String, value: MyronValue) {
+    func insert(_ name: String, value: MyronValue, location: MyronLocation?) throws {
+        try MyronValue.validateAsName(name, location: location)
         mappings[name] = value
     }
 

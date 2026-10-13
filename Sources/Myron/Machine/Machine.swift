@@ -31,7 +31,7 @@ extension Machine {
         case branch(Expression, Expression, Environment, MyronLocation?)
         case condition(ArraySlice<Expression>, ArraySlice<Expression>, Environment, MyronLocation?)
         case conjunction(ArraySlice<Expression>, Environment, MyronLocation?)
-        case define(String, Environment)
+        case define(String, Environment, MyronLocation?)
         case disjunction(ArraySlice<Expression>, Environment, MyronLocation?)
         case expanding(Environment, MyronLocation?)
         case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
@@ -273,10 +273,11 @@ extension Machine {
             let sigExpression = tail[tail.startIndex]
 
             if let name = sigExpression.asSymbolName() {
+                let nameLocation = sigExpression.location
                 try tail.mustHaveExactly(2, meta.location)
                 try MyronValue.validateAsName(name, location: sigExpression.location)
                 let definition = tail[tail.startIndex + 1]
-                return (.define(name, environment), .eval(definition, environment))
+                return (.define(name, environment, nameLocation), .eval(definition, environment))
             }
 
             guard let sigList = sigExpression.asList() else {
@@ -295,7 +296,7 @@ extension Machine {
                 bodies: bodies,
                 environment: environment,
                 location: sigExpression.location)
-            return (.define(name, environment), .value(.procedure(procedure)))
+            return (.define(name, environment, nameExpr.location), .value(.procedure(procedure)))
 
         case Self.specialDefmacro:
             try tail.mustHaveAtLeast(2, meta.location)
@@ -311,7 +312,7 @@ extension Machine {
                 bodies: Array(bodies),
                 environment: environment,
                 location: sigMeta.location)
-            return (.define(name, environment), .value(.macro(macro)))
+            return (.define(name, environment, nameExpr.location), .value(.macro(macro)))
 
         case Self.specialIf:
             let (condition, thenClause, elseClause) = try tail.unwrap3(meta.location)
@@ -337,7 +338,7 @@ extension Machine {
                         let explain = "Missing import of \(export) in \(module.name)"
                         throw MyronError(.internal(explain), at: expr.location)
                     }
-                    environment.insert(export, value: definition)
+                    try environment.insert(export, value: definition, location: meta.location)
                     definitions.append(.define(export))
                 }
             }
@@ -511,7 +512,7 @@ extension Machine {
             }
 
         case .bind(let name, let remaining, let bodies, let environment, let location):
-            environment.insert(name, value: value)
+            try environment.insert(name, value: value, location: location)
             if let next = remaining.first {
                 let (name, expr) = try next.unwrapBinding()
                 stack.append(.bind(name, remaining.dropFirst(), bodies, environment, location))
@@ -568,8 +569,8 @@ extension Machine {
                 control = .value(.boolean(true))
             }
 
-        case .define(let name, let environment):
-            environment.insert(name, value: value)
+        case .define(let name, let environment, let location):
+            try environment.insert(name, value: value, location: location)
             control = .value(.define(name))
 
         case .disjunction(let remaining, let environment, let location):
@@ -646,7 +647,7 @@ extension Machine {
             }
 
             let module = MyronModule(name: name, lookup: lookup)
-            environment.insert(name, value: .module(module))
+            try environment.insert(name, value: .module(module), location: location)
             control = .value(.define(name))
 
         case .probing(let higher, let function, let remaining, let location):

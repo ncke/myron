@@ -265,7 +265,7 @@ extension MyronValue {
         }
     }
     
-    static func validateNotEndingInDot(_ name: String, location: MyronLocation?) throws {
+    private static func validateNotEndingInDot(_ name: String, location: MyronLocation?) throws {
         guard !name.hasSuffix(".") else {
             throw MyronError(.invalidName(name), at: location)
                 .withHint(.nameCannotEndInDot(name))
@@ -273,17 +273,29 @@ extension MyronValue {
     }
 
     static func isValidAsSymbolName(_ name: String) -> Bool {
-        let (tokens, errors) = Lexer(input: name, sourceHandle: nil).tokenize()
-        guard
-            errors.isEmpty,
-            tokens.count == 1,
-            case .symbol(let symbol) = tokens[0].kind,
-            symbol == name
-        else {
-            return false
+        guard let firstCharacter = name.first else { return false }
+
+        func hasOnlyLegalCharacters() -> Bool {
+            !name.contains { ch in
+                ch.isWhitespace || ch.isBracket || ch.isSemicolon || ch.isQuotation
+            }
         }
 
-        return true
+        func beginsIllegally() -> Bool {
+            return firstCharacter.isDigit
+            || firstCharacter.isComma
+            || firstCharacter.isQuasiquote
+            || firstCharacter.isTick
+        }
+
+        func beginsIllegallyWithASign() -> Bool {
+            return firstCharacter.isSign && name.count > 1
+        }
+
+        return hasOnlyLegalCharacters()
+        && !beginsIllegally()
+        && !beginsIllegallyWithASign()
+        && !Lexer.reservedNames.contains(name)
     }
 
     static func isValidAsName(_ name: String) -> Bool {

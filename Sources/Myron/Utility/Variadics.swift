@@ -86,13 +86,13 @@ extension Variadics {
         for binding in bindings {
             if binding.isVariadic {
                 let value = MyronValue.list(Array(binding.binding))
-                environment.insert(binding.name, value: value)
+                try environment.insert(binding.name, value: value, location: location)
             } else {
                 guard binding.binding.count == 1, let value = binding.binding.first else {
                     let explain = "Procedure binding encountered non-single non-variadic"
                     throw MyronError(.internal(explain), at: location)
                 }
-                environment.insert(binding.name, value: value)
+                try environment.insert(binding.name, value: value, location: location)
             }
         }
     }

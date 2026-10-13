@@ -205,7 +205,7 @@ private extension Lexer {
 
 // MARK: - Lexing Constants
 
-private extension Lexer {
+extension Lexer {
     private static let comma = ","
     private static let commaAt = ",@"
     private static let quasiquote = "`"
@@ -216,15 +216,17 @@ private extension Lexer {
     private static let leftBracket = "("
     private static let rightBracket = ")"
     private static let tick = "'"
+    static let reservedNames = [ trueExpression, falseExpression, nothingExpression ]
 }
 
 // MARK: - Character Helper
 
-fileprivate extension Character {
+extension Character {
     var isAt: Bool { self == "@" }
     var isBracket: Bool { self == "(" || self == ")" }
     var isComma: Bool { self == "," }
     var isQuasiquote: Bool { self == "`" }
+    var isDecimalPoint: Bool { self == "." }
     var isDigit: Bool { ("0"..."9").contains(self) }
     var isQuotation: Bool { self == "\"" }
     var isSemicolon: Bool { self == ";" }

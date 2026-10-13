@@ -189,7 +189,7 @@ struct RecordInteropTests {
     func hostOwnedType() throws {
         let type = try Self.point()
         let session = MyronSession()
-        session.set("point", to: type.myronValue)
+        try session.set("point", to: type.myronValue)
 
         let made = try #require(session.eval("(make-record point 1 2)").asSuccess)
         let record = try made.requireRecord()
@@ -197,7 +197,7 @@ struct RecordInteropTests {
         #expect(try record.get(field: "x") == 1)
 
         let hostMade = try MyronRecord(type: type, values: 1, 2)
-        session.set("q", to: hostMade.myronValue)
+        try session.set("q", to: hostMade.myronValue)
         #expect(session.eval("(record-isa? point q)").asSuccess == true)
         #expect(session.eval("(eq q (make-record point 1 2))").asSuccess == true)
     }
@@ -226,7 +226,7 @@ struct RecordInteropTests {
         _ = snd.eval("(define point (make-record-type 'point '(x y)))")
 
         let record = try #require(fst.eval("(make-record point 1 2)").asSuccess)
-        snd.set("p", to: record)
+        try snd.set("p", to: record)
 
         #expect(snd.eval("(record-isa? point p)").asSuccess == true)
         #expect(snd.eval("(eq p (make-record point 1 2))").asSuccess == true)
@@ -250,7 +250,7 @@ struct RecordInteropTests {
     func hostPrimitives() throws {
         let type = try Self.point()
         let session = MyronSession()
-        session.set("point", to: type.myronValue)
+        try session.set("point", to: type.myronValue)
 
         try session.define("origin") { () in
             try MyronRecord(type: type, values: 0, 0)
