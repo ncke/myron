@@ -16,6 +16,7 @@ public enum MyronValue {
     case nothing
     case primitive(MyronPrimitive)
     case procedure(MyronProcedure)
+    case process(MyronProcess)
     case record(MyronRecord)
     case recordType(MyronRecordType)
     case set(MyronSet)
@@ -110,6 +111,7 @@ extension MyronValue: CustomStringConvertible {
         case .nothing: "<nothing>"
         case .primitive(let primitive): "\(primitive.description)"
         case .procedure: "<procedure>"
+        case .process(let process): "\(process)"
         case .record(let record): "\(record)"
         case .recordType(let recordType): "\(recordType)"
         case .set(let set): "\(set)"

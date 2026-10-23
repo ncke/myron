@@ -4,10 +4,18 @@ import Foundation
 
 public struct MyronModule {
     public let name: String
+    let exportNames: [String]
+    let definition: Expression
     let lookup: [String: MyronValue]
 
-    init(name: String, lookup: [String: MyronValue]) {
+    init(
+        name: String,
+        definition: Expression,
+        lookup: [String: MyronValue]
+    ) {
         self.name = name
+        self.exportNames = lookup.keys.sorted()
+        self.definition = definition
         self.lookup = lookup
     }
     
@@ -18,7 +26,7 @@ public struct MyronModule {
 extension MyronModule {
 
     public var exports: [String] {
-        return lookup.keys.sorted()
+        return exportNames
     }
 
     public subscript(_ name: String) -> MyronValue? {
@@ -39,4 +47,15 @@ extension MyronModule: CustomStringConvertible {
 
 // MARK:- Equatable & Hashable
 
-extension MyronModule: Equatable, Hashable {}
+extension MyronModule: Equatable, Hashable {
+
+    public static func ==(lhs: MyronModule, rhs: MyronModule) -> Bool {
+        return lhs.name == rhs.name && lhs.lookup == rhs.lookup
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(lookup)
+    }
+
+}

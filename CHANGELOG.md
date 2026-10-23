@@ -8,6 +8,46 @@ the language, and a patch release will not.
 
 ## [Unreleased]
 
+The first step towards processes. `spawn` starts a process with an environment
+of its own and gives it back as a value; sessions now run as processes inside a
+runtime. Processes cannot yet exchange messages, so a spawned process runs to
+the end before `spawn` returns. `MyronValue` has a new case, so hosts that
+switch over it exhaustively need updating — see [Changed](#changed).
+
+### Added
+
+- `spawn`, a special form that starts a process:
+  `(spawn (module …) entry argument …)`. Each listed module is rebuilt inside
+  the new process from its own source, and the entry, usually a qualified name
+  such as `geo.area`, is looked up there and applied to the arguments. The
+  arguments are evaluated where `spawn` is written and must be plain data. A
+  failure inside the entry call ends the process without reaching the code
+  that spawned it.
+- Process values. `spawn` gives back a process, which prints as
+  `<process: 1>`, has the kind `"process"`, compares by the process it
+  addresses, and works as a set member and a hashmap key.
+- `process?`, `record?` and `record-type?`.
+- `MyronRuntime`, which owns processes. `MyronRuntime.makeSession()` makes a
+  session in an existing runtime, so several sessions can share one; a session
+  made with `MyronSession()` has a runtime of its own.
+- `MyronProcess`, the payload of the new `MyronValue.process` case, with
+  `asProcess` and `requireProcess()`, and conformances to
+  `MyronValueConvertible` and `MyronValueRepresentable`.
+- `MyronError.Reason.unexpectedNonData`, for a procedure, primitive, macro or
+  module where only plain data can go, such as an argument to `spawn`, at any
+  depth inside it.
+
+### Changed
+
+- `MyronValue` has a new case, `.process`, and `MyronValue.Kind` has `.process`,
+  so an exhaustive `switch` over either needs a new case.
+- `MyronError.Reason` has a new case, `unexpectedNonData`.
+- `spawn` is a special form, so it can no longer be bound as a name, by Myron
+  code or by a host's `define`.
+- A session's environment now belongs to a process in its runtime. Nothing a
+  host can call has changed, and a session still shuts its environments down
+  when it is deallocated.
+
 ## [0.3.0] — 2026-10-13
 
 Macros and templates, modules, records, error handling with `try` and `raise`,
@@ -15,7 +55,7 @@ and variadic parameters. The executable is now `myron`, and runs scripts and
 literate markdown files as well as the REPL. Some of the public Swift interface
 has changed: new cases on `MyronValue` and its companions, and `set(_:to:)`
 now throws. Hosts written against `0.2.0` may need updating — see
-[Changed](#changed).
+[Changed](#changed-1).
 
 ### Added
 
@@ -288,7 +328,7 @@ now throws. Hosts written against `0.2.0` may need updating — see
 
 Three new data types, a two-way bridge to Swift, and primitives written in
 Swift. The public Swift interface has been renamed throughout, so hosts written
-against `0.1.0` will need updating — see [Changed](#changed-1) and
+against `0.1.0` will need updating — see [Changed](#changed-2) and
 [Removed](#removed).
 
 ### Added

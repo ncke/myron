@@ -28,6 +28,10 @@ extension MyronModule: MyronValueConvertible {
     public init(myronValue: MyronValue) throws { self = try myronValue.unwrapModule(nil) }
 }
 
+extension MyronProcess: MyronValueConvertible {
+    public init(myronValue: MyronValue) throws { self = try myronValue.unwrapProcess(nil) }
+}
+
 extension MyronRecord: MyronValueConvertible {
     public init(myronValue: MyronValue) throws { self = try myronValue.unwrapRecord(nil) }
 }
@@ -101,6 +105,7 @@ extension MyronValue {
     public func requireDouble() throws -> Double { try self.unwrapDouble(nil) }
     public func requireMacro() throws -> MyronMacro { try self.unwrapMacro(nil) }
     public func requireModule() throws -> MyronModule { try self.unwrapModule(nil) }
+    public func requireProcess() throws -> MyronProcess { try self.unwrapProcess(nil) }
     public func requireRecord() throws -> MyronRecord { try self.unwrapRecord(nil) }
     public func requireRecordType() throws -> MyronRecordType { try self.unwrapRecordType(nil) }
     public func requireString() throws -> String { try self.unwrapString(nil) }
@@ -129,6 +134,10 @@ extension MyronMacro: MyronValueRepresentable {
 
 extension MyronModule: MyronValueRepresentable {
     public var myronValue: MyronValue { return .module(self) }
+}
+
+extension MyronProcess: MyronValueRepresentable {
+    public var myronValue: MyronValue { return .process(self) }
 }
 
 extension MyronRecord: MyronValueRepresentable {

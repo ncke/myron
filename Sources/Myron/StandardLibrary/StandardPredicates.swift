@@ -191,6 +191,24 @@ struct StandardPredicates: StandardModule {
         }),
 
         MyronPrimitive(
+            primitiveName: "predicate.record?",
+            representations: ["record?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isRecord)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.record-type?",
+            representations: ["record-type?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isRecordType)
+        }),
+
+        MyronPrimitive(
             primitiveName: "predicate.module?",
             representations: ["module?"],
             signature: "({any})",
@@ -224,6 +242,15 @@ struct StandardPredicates: StandardModule {
 
                 let module = try snd.unwrapModule(location)
                 return .boolean(names.allSatisfy { name in module[name] != nil })
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.process?",
+            representations: ["process?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isProcess)
         })
 
     ]

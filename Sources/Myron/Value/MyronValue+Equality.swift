@@ -36,6 +36,7 @@ extension MyronValue {
             case (.define(let f), .define(let s)): guard f == s else { return false }
             case (.primitive(let f), .primitive(let s)): guard f == s else { return false }
             case (.procedure(let f), .procedure(let s)): guard f == s else { return false }
+            case (.process(let f), .process(let s)): guard f == s else { return false }
             case (.higherOrder(let f), .higherOrder(let s)): guard f == s else { return false }
             case (.higherProbe(let f), .higherProbe(let s)): guard f == s else { return false }
             case (.recordType(let f), .recordType(let s)): guard f == s else { return false }

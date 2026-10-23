@@ -176,6 +176,39 @@ struct StandardRecordTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("record?", arguments: [
+        (p + " (record? p)", "true"),
+        (p + " (record? (put 'x 10 p))", "true"),
+        (p + " (record? point)", "false"),
+        (p + " (record? (make-hashmap))", "false"),
+        (p + " (record? '(1 2))", "false"),
+        (p + " (record? nothing)", "false")
+    ] as [ValueCase])
+    func isRecord(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("record-type?", arguments: [
+        (p + " (record-type? point)", "true"),
+        (p + " (record-type? (record-type p))", "true"),
+        (p + " (record-type? p)", "false"),
+        (p + " (record-type? 'point)", "false"),
+        (p + " (record-type? nothing)", "false")
+    ] as [ValueCase])
+    func isRecordType(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("record? and record-type? take one argument", arguments: [
+        ("(record?)", .unexpectedArity(0, .exactly(1))),
+        (p + " (record? p p)", .unexpectedArity(2, .exactly(1))),
+        ("(record-type?)", .unexpectedArity(0, .exactly(1))),
+        (point + " (record-type? point point)", .unexpectedArity(2, .exactly(1)))
+    ] as [FailureCase])
+    func recordPredicateFailures(_ c: FailureCase) {
+        expectFailure(c.source, reason: c.reason)
+    }
+
     @Test("record-type and record-isa? want records and record types", arguments: [
         ("(record-type 5)", .unexpectedType(.integer, [.record])),
         (p + " (record-isa? 5 p)", .unexpectedType(.integer, [.recordType])),

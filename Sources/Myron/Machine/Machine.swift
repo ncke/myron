@@ -6,6 +6,7 @@ final class Machine {
     private let maximumStackDepth: Int?
     private let maximumEvalDepth: Int?
     private let rootEnvironment: Environment
+    weak var process: MyronRuntime.Process?
     private var evaluationStack = [([Frame], Control)]()
     private var stack = [Frame]()
     private var control = Control.value(.nothing)
@@ -38,11 +39,13 @@ extension Machine {
         case foldring(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case handling(Expression, Environment, MyronLocation?)
         case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
-        case modularising(ArraySlice<Expression>, String, [String], Environment, Environment, MyronLocation?)
+        case modularising(ArraySlice<Expression>, String, [String], Environment, Environment, Expression, MyronLocation?)
         case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case quasiquotingList([MyronValue], ArraySlice<Expression>, Int, Environment, MyronLocation?)
         case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
         case sequence(ArraySlice<Expression>, Environment, MyronLocation?)
+        case spawningArguments(ArraySlice<Expression>, SpawningContext)
+        case spawningModules(ArraySlice<Expression>, ArraySlice<Expression>, MyronLocation?, SpawningContext)
         case quasiSplicing([MyronValue], ArraySlice<Expression>, Int, Environment, MyronLocation?)
     }
 
@@ -130,13 +133,26 @@ extension Machine {
         }
     }
 
+    private func getRuntime() throws -> MyronRuntime {
+        guard let runtime = process?.runtime else {
+            let explain = "machine could not resolve a runtime"
+            throw MyronError(.internal(explain), at: nil)
+        }
+
+        return runtime
+    }
+
 }
 
 // MARK: - Error Handling
 
 extension Machine {
 
-    private func pushHandler(_ handler: Expression, environment: Environment, location: MyronLocation?) {
+    private func pushHandler(
+        _ handler: Expression,
+        environment: Environment,
+        location: MyronLocation?
+    ) {
         let handling = Frame.handling(handler, environment, location)
         stack.append(handling)
     }
@@ -192,6 +208,7 @@ extension Machine {
                 head: head,
                 tail: tail,
                 meta: meta,
+                expression: expression,
                 environment: environment
             ) {
                 if let frame { stack.append(frame) }
@@ -223,6 +240,7 @@ extension Machine {
     private static let specialOr = "or"
     private static let specialQuasiquote = "quasiquote"
     private static let specialQuote = "quote"
+    private static let specialSpawn = "spawn"
     private static let specialTry = "try"
     private static let specialUnquote = "unquote"
     private static let specialUnquoteSplicing = "unquote-splicing"
@@ -238,6 +256,7 @@ extension Machine {
         head: Expression,
         tail: ArraySlice<Expression>,
         meta: Expression.Metadata,
+        expression: Expression,
         environment: Environment
     ) throws -> (Frame?, Control)? {
         guard let formName = head.asSymbolName() else { return nil }
@@ -401,7 +420,9 @@ extension Machine {
 
             let inner = try Environment(outer: environment, at: meta.location)
             let others = bodies.dropFirst()
-            let frame = Frame.modularising(others, name, exports, inner, environment, meta.location)
+            let frame = Frame.modularising(
+                others, name, exports, inner,
+                environment, expression, meta.location)
 
             if let firstBody = bodies.first {
                 return (frame, .eval(firstBody, inner))
@@ -448,6 +469,33 @@ extension Machine {
             let quotation = try tail.unwrap1(meta.location)
             let value = try MyronValue.makeValue(from: quotation, at: meta.location)
             return (nil, .value(value))
+
+        case Self.specialSpawn:
+            try tail.mustHaveAtLeast(2, meta.location)
+            let (fst, remainder) = try tail.headtail(meta.location)
+            let (modules, _) = try fst.unwrapList()
+            let (head, arguments) = try remainder.headtail(meta.location)
+
+            let context = SpawningContext(
+                parentEnvironment: environment,
+                parentLocation: meta.location,
+                entry: try head.unwrapSymbolName())
+
+            if let firstModule = modules.first {
+                return (
+                    .spawningModules(modules.dropFirst(), arguments, firstModule.location, context),
+                    .eval(firstModule, environment))
+            }
+
+            if let firstArgument = arguments.first {
+                return (
+                    .spawningArguments(arguments.dropFirst(), context),
+                    .eval(firstArgument, environment))
+            }
+
+            let runtime = try getRuntime()
+            let spawn = try runtime.spawn(using: context)
+            return (nil, .value(spawn))
 
         case Self.specialTry:
             let (handlingExpr, snd) = try tail.unwrap2(meta.location)
@@ -624,9 +672,9 @@ extension Machine {
 
             control = .value(shape.rebuild(done))
 
-        case .modularising(let remaining, let name, let exports, let inner, let environment, let location):
+        case .modularising(let remaining, let name, let exports, let inner, let environment, let definition, let location):
             if let next = remaining.first {
-                stack.append(.modularising(remaining.dropFirst(), name, exports, inner, environment, location))
+                stack.append(.modularising(remaining.dropFirst(), name, exports, inner, environment, definition, location))
                 control = .eval(next, inner)
                 return
             }
@@ -634,11 +682,11 @@ extension Machine {
             var undefinedNames = [String]()
             var lookup = [String: MyronValue]()
             for exportName in exports {
-                guard let definition = inner.localLookup(exportName) else {
+                guard let exportDefinition = inner.localLookup(exportName) else {
                     undefinedNames.append(exportName)
                     continue
                 }
-                lookup[exportName] = definition
+                lookup[exportName] = exportDefinition
             }
 
             guard undefinedNames.isEmpty else {
@@ -646,7 +694,7 @@ extension Machine {
                     .withHint(.moduleDidNotDefineExports(name, undefinedNames))
             }
 
-            let module = MyronModule(name: name, lookup: lookup)
+            let module = MyronModule(name: name, definition: definition, lookup: lookup)
             try environment.insert(name, value: .module(module), location: location)
             control = .value(.define(name))
 
@@ -691,6 +739,42 @@ extension Machine {
             } else {
                 control = .value(value)
             }
+
+        case .spawningArguments(let argumentExprs, let context):
+            context.addArgument(value)
+
+            if let nextArgument = argumentExprs.first {
+                stack.append(.spawningArguments(argumentExprs.dropFirst(), context))
+                control = .eval(nextArgument, context.parentEnvironment)
+                return
+            }
+
+            let runtime = try getRuntime()
+            let spawn = try runtime.spawn(using: context)
+            control = .value(spawn)
+
+        case .spawningModules(let moduleExprs, let argumentExprs, let moduleLocation, let context):
+            guard case .module(let module) = value else {
+                throw MyronError(.unexpectedType(value.kind, [.module]), at: moduleLocation)
+            }
+
+            context.addModule(module)
+
+            if let nextModule = moduleExprs.first {
+                stack.append(.spawningModules(moduleExprs.dropFirst(), argumentExprs, nextModule.location, context))
+                control = .eval(nextModule, context.parentEnvironment)
+                return
+            }
+
+            if let firstArgument = argumentExprs.first {
+                stack.append(.spawningArguments(argumentExprs.dropFirst(), context))
+                control = .eval(firstArgument, context.parentEnvironment)
+                return
+            }
+
+            let runtime = try getRuntime()
+            let spawn = try runtime.spawn(using: context)
+            control = .value(spawn)
 
         case .quasiSplicing(var done, let remaining, let depth, let environment, let location):
             guard case .list(let elements) = value else {
@@ -939,6 +1023,26 @@ extension Machine {
         }
 
         return expression
+    }
+
+}
+
+// MARK: - Process Entry Helper
+
+extension Machine {
+
+    func entryCall(
+        _ callable: MyronValue,
+        with arguments: [MyronValue],
+        at location: MyronLocation?
+    ) throws -> MyronValue {
+        try checkEvalDepth()
+        reentrancyPush()
+        defer { reentrancyPop() }
+
+        stack = []
+        try apply(callable, to: arguments[...], at: location)
+        return try run()
     }
 
 }

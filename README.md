@@ -34,7 +34,8 @@ looking things up later.
 - [Features](#features)
 - [Getting started](#getting-started)
 - [The Swift interface](#the-swift-interface)
-  — [`MyronSession`](#myronsession) · [`MyronResult`](#myronresult) ·
+  — [`MyronSession`](#myronsession) · [`MyronRuntime`](#myronruntime) ·
+  [`MyronResult`](#myronresult) ·
   [`MyronValue`](#myronvalue) · [`MyronError`](#myronerror) ·
   [Swift interoperability](#swift-interoperability) ·
   [Configuration](#configuration) ·
@@ -61,8 +62,9 @@ looking things up later.
 - Classic s-expression syntax, with `quote` and its `'` abbreviation, and
   templates written with a backtick: `,x` inside one puts in the value of `x`,
   and `,@xs` splices in the elements of `xs`.
-- Fourteen special forms: `and`, `begin`, `cond`, `define`, `defmacro`, `if`,
-  `import`, `lambda`, `let`, `module`, `or`, `quasiquote`, `quote`, and `try`.
+- Fifteen special forms: `and`, `begin`, `cond`, `define`, `defmacro`, `if`,
+  `import`, `lambda`, `let`, `module`, `or`, `quasiquote`, `quote`, `spawn`, and
+  `try`.
 - Macros. `defmacro` defines a procedure that receives its arguments as
   unevaluated code and returns new code to evaluate in their place, so a
   program can add forms of its own.
@@ -70,6 +72,10 @@ looking things up later.
   brings them into scope, and a qualified name such as `geo.area` reaches one
   without importing anything. A module is an ordinary value: it can be passed
   around, nested inside another module, and defined inside a procedure.
+- The beginnings of processes. `spawn` starts a process with an environment of
+  its own, rebuilds the modules it is given inside it, and calls an entry point
+  there. Nothing is shared with the process that spawned it. Processes cannot
+  yet send each other messages.
 - Lexically scoped closures. `and` and `or` short-circuit.
 - Variadic procedures. A parameter written `xs...` collects the arguments the
   others leave over into a list.
@@ -144,7 +150,7 @@ swift run myron --repl
 *  ██ ████ ██    ▀███▀    ██  ·  ██  ██     ██  ██▀█▄ ·██    **     **  .  **
    ██  ██  ██     ██      █████████  ██  ·  ██  ██  ▀█▄██     **  .  **     **
  · ██      ██     ██      ██ · ████  █████████  ██   ▀███    **     **     **
-.    ·     .        *      .      ·         version 0.3.0   *   .  *      *
+.    ·     .        *      .      ·         version 0.3.1   *   .  *      *
          ·       .       ·      .     *      .      ·          ·      .      ·
 
 Ready.
@@ -366,7 +372,7 @@ targets: [
 ## The Swift interface
 
 Myron is a library first. The public surface is deliberately small: a session,
-its configuration, a result, the `MyronValue` enum, `MyronHashmap`,
+the runtime behind it, its configuration, a result, the `MyronValue` enum, `MyronHashmap`,
 `MyronSet`, `MyronError`, and the language version. The `myron`
 executable is itself just another host of the library, in a few dozen lines of
 Swift.
@@ -377,7 +383,7 @@ import Myron
 let session = MyronSession()
 let result = session.eval("(+ 1 2)")      // .success(.integer(3))
 
-print(MyronLanguage.version)              // 0.3.0
+print(MyronLanguage.version)              // 0.3.1
 ```
 
 ### `MyronSession`
@@ -417,7 +423,9 @@ number — and is carried through tokenisation. It is not yet surfaced on
 errors, so treat it as reserved.
 
 Each session is independent. Create a new one when you want a clean
-environment; there is no way to reset an existing one.
+environment; there is no way to reset an existing one. `MyronSession()` makes a
+[runtime](#myronruntime) of its own to run in, so two sessions made this way
+share nothing at all.
 
 `evalEach` evaluates the same way, but gives back a result for every top-level
 form, each with the location of the form's source. A failing form does not stop
@@ -583,7 +591,7 @@ session.eval("(double \"a\")")
 Myron source could actually write: one that reads back as that one symbol.
 That rules out the empty string, anything containing whitespace, brackets, a
 `;` or a `"`, and anything that would read as something else — `42`, `3.5`,
-`-x`, `true`, `nothing`, `,x`, `'x`. The fourteen
+`-x`, `true`, `nothing`, `,x`, `'x`. The fifteen
 [special forms](#special-forms), and `unquote` and `unquote-splicing`, are
 rejected too, since they are intercepted before symbol lookup and a primitive
 under one of those names could never be called, and so is a name ending in a
@@ -691,6 +699,31 @@ primitives with signatures in this syntax, and uses them to choose between
 primitives that share a name, such as `length`, which has one primitive each
 for lists, strings, sets and hashmaps.
 
+### `MyronRuntime`
+
+A runtime owns processes. Every session is one process in a runtime, and so is
+every process that Myron code starts with [`spawn`](#spawn). A host that only
+wants one session never needs to see its runtime: `MyronSession()` makes one.
+To have several sessions in one runtime, make the runtime and ask it for them:
+
+```swift
+let runtime = MyronRuntime()              // or MyronRuntime(configuration: …)
+let a = runtime.makeSession()
+let b = runtime.makeSession()
+
+_ = a.eval("(define x 1)")
+b.eval("x")                               // .failure — unrecognisedSymbol
+```
+
+Each session has its own environment, so what one defines the other cannot see.
+What they share is the runtime: its [configuration](#configuration), and the
+numbering of the processes they spawn. Sharing a runtime is the groundwork for
+processes that talk to one another, which Myron cannot do yet.
+
+A session holds its runtime, so the runtime lasts as long as any session made
+from it, or as long as the host holds it. See
+[Lifetime and threading](#lifetime-and-threading).
+
 ### `MyronResult`
 
 `eval` returns a `MyronResult`, a three-case enum:
@@ -757,6 +790,7 @@ public enum MyronValue {
     case record(MyronRecord)
     case recordType(MyronRecordType)
     case module(MyronModule)
+    case process(MyronProcess)            // a process made by spawn
     case nothing
     case procedure(MyronProcedure)        // a lambda or a defined procedure
     case macro(MyronMacro)                // a macro made by defmacro
@@ -793,6 +827,7 @@ value.asSet                               // MyronSet?
 value.asRecord                            // MyronRecord?
 value.asRecordType                        // MyronRecordType?
 value.asModule                            // MyronModule?
+value.asProcess                           // MyronProcess?
 value.asMacro                             // MyronMacro?
 ```
 
@@ -911,6 +946,7 @@ also has a `description`, which is the first line of the rendered message.
 | `typeCastFailed(MyronValue.Kind, MyronValue.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
 | `unexpectedField(String, String, [String])` | A record was asked for a field its type does not have; carries the field, the type's name, and the fields it does have. |
 | `unexpectedArity(Int, IntegerExpectation)` | Wrong number of arguments; carries what was given and what was wanted. |
+| `unexpectedNonData(MyronValue.Kind)` | A procedure, primitive, macro or module was given where only plain data can go, such as an argument to [`spawn`](#spawn), or was found inside a list, set, hashmap or record given there; carries the kind of the part that is not data. |
 | `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
 | `unexpectedUnquoting` | A `,` or `,@` was evaluated outside a [template](#quasiquote), or a `,@` had no list around it to splice into. |
 | `unexpectedVariadicParameter(String)` | A parameter list had a second [variadic parameter](#lambda), or a bare `...`; carries the parameter as written. |
@@ -992,6 +1028,7 @@ try value.requireSymbol()                 // String, from a symbol
 try value.requireRecord()                 // MyronRecord
 try value.requireRecordType()             // MyronRecordType
 try value.requireModule()                 // MyronModule
+try value.requireProcess()                // MyronProcess
 ```
 
 And a generic `require()` for everything else, which takes its type from
@@ -1009,7 +1046,7 @@ let held: MyronValue = try value.require()
 Nesting comes free, so a structure converts in one step however deep it goes.
 `Array`, `Set`, `Dictionary` and `Optional` conform where their elements do;
 `MyronValue`, `MyronHashmap`, `MyronSet`, `MyronRecord`, `MyronRecordType`,
-`MyronModule` and `MyronMacro` conform as themselves. A list and a
+`MyronModule`, `MyronProcess` and `MyronMacro` conform as themselves. A list and a
 set each convert into either Swift collection, so the Swift type you ask for
 decides the shape — and asking for a `Set` collapses duplicates, as Swift's
 `Set` always does. `nothing` becomes `nil` for an optional and an error for
@@ -1349,6 +1386,19 @@ A module is an immutable value type, `Equatable` and `Hashable`. Two modules are
 equal when they have the same name and their exports are equal, so a module is
 equal to itself however many names it is bound to.
 
+#### `MyronProcess`
+
+The payload of `MyronValue.process`: the address of a process, made by
+[`spawn`](#spawn) rather than in Swift. It is a value type, `Equatable`,
+`Hashable` and `Sendable`, and two are equal when they address the same
+process. Its description is `<process: 3>`, numbered within its
+[runtime](#myronruntime), where a number is never used twice.
+
+An address does not keep its process alive, and says nothing about whether it
+still is. A process ends when its entry call returns, whoever holds its
+address — and for now that is always before `spawn` returns, so every process a
+host is given has already finished.
+
 #### Keys
 
 A hashmap is keyed by `MyronValue`, so any value is a key — a string, a list, a
@@ -1393,6 +1443,10 @@ let session = MyronSession(
 | `maximumStackDepth` | An `Int` limit, or `nil` for no limit | `2000` |
 | `maximumEvalDepth` | An `Int` limit, or `nil` for no limit | `8` |
 
+`MyronSession(configuration:)` hands its configuration to the runtime it
+makes. Sessions that share a [runtime](#myronruntime) share the configuration
+given to `MyronRuntime(configuration:)`, and so do the processes they spawn.
+
 Choose `.terse` when you are going to format diagnostics yourself from `reason`
 and `location` — it skips rendering work you would only throw away.
 
@@ -1418,14 +1472,17 @@ configurations keep working.
 
 ### Lifetime and threading
 
-Sessions are not thread-safe. Confine each one to a single thread or actor.
+Sessions and runtimes are not thread-safe. Confine a runtime, and every
+session made from it, to a single thread or actor.
 
-When a session is deallocated it shuts down every environment it created. This
-matters because closures capture their defining environment, and a procedure
-stored in an environment forms a reference cycle with it; the session's
-registry breaks those cycles at teardown. The practical consequence is that a
-`.procedure` value is only meaningful while the session that produced it is
-alive — extract the data you need before letting the session go.
+When a session is deallocated it shuts down every environment it created, and
+its process leaves the runtime. A spawned process does the same when it ends,
+so nothing it defined outlives it. This matters because closures capture their 
+defining environment, and a procedure stored in an environment forms a reference 
+cycle with it; the session's registry breaks those cycles at teardown. The 
+practical consequence is that a `.procedure` value is only meaningful while 
+the session that produced it is alive — extract the data you need before letting
+the session go.
 
 Calling one afterwards is an error rather than a crash: the procedure has no
 environment left to run in, and evaluation fails with
@@ -1474,7 +1531,8 @@ Comments run from a `;` to the end of the line.
 ### Values and types
 
 Myron has integers, doubles, booleans, strings, symbols, lists, hashmaps, sets,
-records, and `nothing`.
+records, and `nothing`. A program can also hold modules, procedures, and
+[processes](#processes).
 
 ```lisp
 42                                        ; integer
@@ -1948,6 +2006,46 @@ A module is a value like any other. It can be bound to another name, passed to
 a procedure, or exported from another module, in which case the qualified name
 walks through both: `outer.inner.x`.
 
+### Processes
+
+A process is a computation with an environment of its own. `spawn` starts one.
+It takes a list of modules, an entry point and its arguments, and gives back
+the new process:
+
+```lisp
+(define p (spawn (geo) geo.area 2.0))
+(process? p)                              ; true
+(kind p)                                  ; "process"
+```
+
+The new process shares nothing with the one that spawned it. Each module in the
+list is rebuilt inside it from the module's own source, so `geo` there is a
+fresh copy, and the entry `geo.area` is found and called there, with the
+arguments. Those are evaluated where `spawn` is written and copied across, so
+they must be plain data — no procedures and no modules, however deeply they
+are tucked away.
+
+A module that imports another must come after it in the list, because each is
+rebuilt with nothing around it but the modules before it:
+
+```lisp
+(process? (spawn (geo shapes) shapes.volume 1.0 2.0))
+                                          ; true
+```
+
+A process ends when its entry call returns. If the call fails, the process
+ends there, and the failure stays with it: `spawn` still gives back the
+process, and the code that spawned it carries on.
+
+```lisp
+(module boom (go) (define (go) (raise "boom")))
+(process? (spawn (boom) boom.go))         ; true
+```
+
+This is the start of processes, not the whole of them. Processes cannot yet
+send each other messages, so for now a spawned process runs to the end before
+`spawn` returns, and what it returns is set aside.
+
 ### Macros
 
 A procedure receives the *values* of its arguments, and sometimes that is too
@@ -2162,7 +2260,7 @@ so a macro call in tail position leaves its expansion in tail position.
 
 ### Special forms
 
-Fourteen forms are evaluated specially rather than as applications, because
+Fifteen forms are evaluated specially rather than as applications, because
 each one needs to leave some part of itself unevaluated.
 
 | Form | Shape |
@@ -2180,6 +2278,7 @@ each one needs to leave some part of itself unevaluated.
 | [`or`](#and-and-or) | `(or test …)` |
 | [`quasiquote`](#quasiquote) | `(quasiquote expr)`, abbreviated `` `expr `` |
 | [`quote`](#quote) | `(quote expr)`, abbreviated `'expr` |
+| [`spawn`](#spawn) | `(spawn (module …) entry argument …)` |
 | [`try`](#try) | `(try handler (body …))` |
 
 `unquote` and `unquote-splicing`, written `,expr` and `,@expr`, are reserved in
@@ -2583,6 +2682,56 @@ names the module kept private.
 not written as a symbol, or names a value that is not a module;
 `unrecognisedSymbol` for a name that is not bound.
 
+#### `spawn`
+
+```lisp ignore
+(spawn (module …) entry argument …)
+```
+
+Starts a new process and evaluates to it. The modules and then the arguments
+are evaluated in the current environment, left to right. The entry is not
+evaluated: it is a name, looked up in the new process rather than here, so it
+must be written as a symbol.
+
+The new process starts with an environment of its own, which sees only the
+standard environment — not the names around the `spawn`, and not a host's
+[primitives](#defining-primitives). Each module in the list is rebuilt there
+from its source, in order, and bound under its own name, whatever name it was
+reached by. The entry is then looked up and applied to the argument values. It
+is usually a qualified name, `module.export`, whose first part must be one of
+the listed modules, but any name the new process can see will do, including a
+standard primitive.
+
+```lisp
+(process? (spawn (geo) geo.area 1.0))     ; true
+(process? (spawn () + 1 2))               ; true
+(spawn (geo) circle.area 1.0)             ; ERROR: Unrecognised symbol ...
+```
+
+The arguments are copied into the new process, so each must be plain data: not
+a procedure, a primitive, a macro or a module, and not a list, set, hashmap or
+record holding one at any depth.
+
+A rebuilt module has nothing around it but the modules before it in the list.
+One that imports another must come after it, and one that uses a name defined
+outside it — rather than importing it — finds nothing there. If that happens
+while the module is being rebuilt, `spawn` fails; if it happens inside a
+procedure, the new process fails when the procedure is called.
+
+The process ends when the entry call returns, or fails. Either way, nothing in
+the spawning process hears about it. Until processes can exchange messages, the
+entry call runs to the end before `spawn` returns, so a spawned process that
+never returns holds up the one that spawned it.
+
+*Errors:* `unexpectedArity` without a module list and an entry; `unexpectedType`
+when the module list is not a list, one of its values is not a module, or the
+entry is not a symbol; `unexpectedNonData` for an argument that is not plain
+data, naming the kind of the part that is not, with a hint showing the
+argument; `unrecognisedSymbol` when the entry's first part is not a listed
+module, with a hint, when a module cannot be rebuilt, or when the entry is not
+found in the new process. Errors inside the entry call belong to the new
+process and are not reported.
+
 ## Standard library reference
 
 Every environment can see the standard environment: primitives and constants
@@ -2678,6 +2827,9 @@ them.
 | `list?` | a list |
 | `set?` | a set |
 | `module?` | a [module](#modules-1) |
+| `record?` | a [record](#records-1) |
+| `record-type?` | a [record type](#records-1) |
+| `process?` | a [process](#spawn) |
 | `positive?` | a number greater than zero |
 | `negative?` | a number less than zero |
 | `zero?` | a number equal to zero |
@@ -2729,7 +2881,8 @@ and `infinite?` are both `false`.
 ```
 
 The names are `boolean`, `double`, `hashmap`, `integer`, `list`, `module`,
-`nothing`, `record`, `record-type`, `set`, `string` and `symbol` for data,
+`nothing`, `process`, `record`, `record-type`, `set`, `string` and `symbol` for
+data,
 `primitive` or `procedure` for anything callable, and `macro` for a macro made
 with [`defmacro`](#defmacro). A primitive is built in or supplied by the host; a
 procedure is written in Myron with `lambda` or `define`. The
@@ -3389,6 +3542,8 @@ type is made.
 | `put` | symbol, value, record | the record with that field replaced |
 | `keys-values` | record | an alist of its fields, in declaration order |
 | `record-type` | record | the record type it was made from |
+| `record?` | 1 value of any type | `true` if it is a record |
+| `record-type?` | 1 value of any type | `true` if it is a record type |
 | `record-isa?` | record type, value of any type | `true` if the value is a record of that type |
 | `record-type-name` | record or record type | the type's name, as a symbol |
 | `record-type-fields` | record or record type | a list of the field names, as symbols |
@@ -3715,7 +3870,7 @@ must be a string; use `string` or `implode` to build one from other values.
 
 ## Status
 
-Myron is a young language, and version `0.3.0` should be read as an invitation
+Myron is a young language, and version `0.3.1` should be read as an invitation
 rather than a promise: the public Swift interface may still change.
 
 Myron is purely functional. Values are immutable, and there is no `set!`: a
@@ -3741,8 +3896,13 @@ Still to come:
 - Modules kept in files of their own, found by the host when `import` names one
   the program cannot see. Until then, `load` the file that defines the module
   and `import` it afterwards.
+- Processes that exchange messages, with `send` and `receive`, and take turns
+  to run. Until then, a spawned process runs to the end before `spawn` returns,
+  and nothing can be learned from it.
 - `sourceHandle` on errors. It is carried through tokenisation but not yet
-  surfaced.
+  surfaced. Until then, an error in a procedure defined by an earlier `eval` is
+  shown against the source of the current one, and an error raised while
+  `spawn` rebuilds a module is shown without its source line.
 
 A few operations over a deeply nested value, such as printing and hashing, still
 run on the host thread's stack, so how deep they reach depends on that thread.

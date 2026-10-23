@@ -61,6 +61,13 @@ extension MyronValue {
         return m
     }
 
+    func unwrapProcess(_ location: MyronLocation?) throws -> MyronProcess {
+        guard let p = asProcess else {
+            throw MyronError(.unexpectedType(self.kind, [.process]), at: location)
+        }
+        return p
+    }
+
     func unwrapRecord(_ location: MyronLocation?) throws -> MyronRecord {
         guard let r = asRecord else {
             throw MyronError(.unexpectedType(self.kind, [.record]), at: location)
@@ -145,6 +152,11 @@ extension MyronValue {
         return nil
     }
 
+    public var asProcess: MyronProcess? {
+        if case .process(let p) = self { return p }
+        return nil
+    }
+
     public var asRecord: MyronRecord? {
         if case .record(let record) = self { return record }
         return nil
@@ -215,6 +227,21 @@ extension MyronValue {
     var asProcedure: MyronProcedure? {
         if case .procedure(let p) = self { return p }
         return nil
+    }
+
+    var isProcess: Bool {
+        if case .process = self { return true }
+        return false
+    }
+
+    var isRecord: Bool {
+        if case .record = self { return true }
+        return false
+    }
+
+    var isRecordType: Bool {
+        if case .recordType = self { return true }
+        return false
     }
 
     var asDefine: String? {

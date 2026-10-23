@@ -82,3 +82,19 @@ extension MyronError {
     }
 
 }
+
+// MARK: - Adornment Helper
+
+extension Array where Element == MyronError {
+
+    func adorned(
+        style: MyronSessionConfiguration.ErrorStyle,
+        in expression: String
+    ) -> [MyronError] {
+        switch style {
+        case .terse: return self
+        case .verbose: return self.map { e in e.withMessage(in: expression) }
+        }
+    }
+
+}

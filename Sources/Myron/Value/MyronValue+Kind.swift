@@ -19,6 +19,7 @@ extension MyronValue {
         case .nothing: return .nothing
         case .primitive: return .primitive
         case .procedure: return .procedure
+        case .process: return .process
         case .record: return .record
         case .recordType: return .recordType
         case .set: return .set
@@ -47,6 +48,7 @@ extension MyronValue {
         case nothing
         case primitive
         case procedure
+        case process
         case record
         case recordType
         case set
@@ -75,6 +77,7 @@ extension MyronValue.Kind: CustomStringConvertible {
         case .nothing: return "nothing"
         case .primitive: return "primitive"
         case .procedure: return "procedure"
+        case .process: return "process"
         case .record: return "record"
         case .recordType: return "record-type"
         case .set: return "set"

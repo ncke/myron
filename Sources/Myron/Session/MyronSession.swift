@@ -3,31 +3,29 @@ import Foundation
 // MARK: - MyronSession
 
 public final class MyronSession {
-    private let configuration: MyronSessionConfiguration
-    private let environment: Environment
-    private let environmentRegistry: EnvironmentRegistry
-    private let machine: Machine
+    private let runtime: MyronRuntime
+    private let process: MyronProcess
 
-    public init(configuration: MyronSessionConfiguration = .standard) {
-        self.configuration = configuration
-        self.environmentRegistry = EnvironmentRegistry()
-        self.environment = Environment(registry: environmentRegistry)
-        self.machine = Machine(
-            environment: environment,
-            maximumStackDepth: configuration.maximumStackDepth,
-            maximumEvalDepth: configuration.maximumEvalDepth)
+    init(runtime: MyronRuntime) {
+        self.runtime = runtime
+        self.process = runtime.makeProcess()
+    }
+
+    public convenience init(configuration: MyronSessionConfiguration = .standard) {
+        let runtime = MyronRuntime(configuration: configuration)
+        self.init(runtime: runtime)
     }
 
     deinit {
-         environmentRegistry.shutdownAll()
+        try? runtime.shutdownProcess(process)
     }
 
     public func eval(
         _ expression: String,
         sourceHandle: Int? = nil
     ) -> MyronResult {
-        defer { environmentRegistry.tidy() }
-        environmentRegistry.resetTidyTrigger()
+        runtime.prepareEnvironment(process)
+        defer { runtime.tidyEnvironment(process) }
 
         let (forms, errors) = parse(expression, sourceHandle: sourceHandle)
         guard errors.isEmpty else {
@@ -39,13 +37,21 @@ public final class MyronSession {
         }
 
         for form in forms.dropLast() {
-            let result = caughtEval(form, in: expression)
+            let result = runtime.eval(
+                process,
+                expression: form,
+                containingRepresentation: expression)
+
             if result.isFailure {
                 return result
             }
         }
 
-        let result = caughtEval(lastForm, in: expression)
+        let result = runtime.eval(
+            process,
+            expression: lastForm,
+            containingRepresentation: expression)
+
         return result
     }
 
@@ -55,8 +61,8 @@ public final class MyronSession {
         willEvaluate: (MyronLocation?) -> Void = { _ in },
         didEvaluate: (MyronFormResult) -> Void = { _ in }
     ) -> [MyronFormResult] {
-        defer { environmentRegistry.tidy() }
-        environmentRegistry.resetTidyTrigger()
+        runtime.prepareEnvironment(process)
+        defer { runtime.tidyEnvironment(process) }
 
         let (forms, errors) = parse(expression, sourceHandle: sourceHandle)
         guard errors.isEmpty else {
@@ -67,13 +73,18 @@ public final class MyronSession {
             return [failure]
         }
 
-        return forms.map { form in
+        let results = forms.map { form in
             willEvaluate(form.location)
-            let result = caughtEval(form, in: expression)
+            let result = runtime.eval(
+                process,
+                expression: form,
+                containingRepresentation: expression)
             let formResult = MyronFormResult(location: form.location, result: result)
             didEvaluate(formResult)
             return formResult
         }
+
+        return results
     }
 
 }
@@ -87,26 +98,10 @@ private extension MyronSession {
         let (tokens, lexingErrors) = lexer.tokenize()
         let parser = Parser(tokens: tokens)
         let (forms, parsingErrors) = parser.parse()
+        let errors = (lexingErrors + parsingErrors)
+            .adorned(style: runtime.configuration.errorStyle, in: expression)
 
-        let errors = lexingErrors + parsingErrors
-        return (forms, adornErrorsIfNecessary(errors, in: expression))
-    }
-
-    func caughtEval(_ form: Expression, in expression: String) -> MyronResult {
-        do {
-            let value = try machine.eval(form)
-            return .success(value)
-
-        } catch let error as MyronError {
-            let adornedError = adornErrorIfNecessary(error, in: expression)
-            return .failure([adornedError])
-
-        } catch {
-            let message = "unhandled error type: \(error)"
-            let error = MyronError(.internal(message), at: form.location)
-            let adornedError = adornErrorIfNecessary(error, in: expression)
-            return .failure([adornedError])
-        }
+        return (forms, errors)
     }
 
 }
@@ -132,7 +127,7 @@ extension MyronSession {
             arity: .exactly(0),
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -152,7 +147,7 @@ extension MyronSession {
             arity: .exactly(1),
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -172,7 +167,7 @@ extension MyronSession {
             arity: .exactly(2),
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -192,7 +187,7 @@ extension MyronSession {
             arity: .exactly(3),
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -211,7 +206,7 @@ extension MyronSession {
             arity: .exactly(4),
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -230,7 +225,7 @@ extension MyronSession {
             arity: .exactly(5),
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
     
     public func define(
@@ -249,7 +244,7 @@ extension MyronSession {
             arity: .exactly(6),
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
 
     public func define(
@@ -269,7 +264,7 @@ extension MyronSession {
             arity: arity,
             wrapped: wrapped)
 
-        try environment.insert(name, value: .primitive(primitive), location: nil)
+        try runtime.insert(process, name: name, value: .primitive(primitive), location: nil)
     }
 
     private func primitivise(
@@ -357,32 +352,16 @@ extension MyronSession {
 extension MyronSession {
     
     public func query(_ name: String) -> MyronValue? {
-        return try? environment.lookup(name, at: nil)
+        return try? runtime.query(process, name: name, location: nil)
     }
 
     public func set(_ name: String, to value: MyronValue) throws {
-        try environment.insert(name, value: value, location: nil)
+        try runtime.insert(process, name: name, value: value, location: nil)
     }
 
     public var names: Set<String> {
-        return environment.names
-    }
-
-}
-
-// MARK: - Error Messages
-
-private extension MyronSession {
-
-    func adornErrorsIfNecessary(_ errors: [MyronError], in expression: String) -> [MyronError] {
-        errors.map { error in adornErrorIfNecessary(error, in: expression) }
-    }
-
-    func adornErrorIfNecessary(_ error: MyronError, in expression: String) -> MyronError {
-        switch configuration.errorStyle {
-        case .terse: return error
-        case .verbose: return error.withMessage(in: expression)
-        }
+        let names = try? runtime.names(process)
+        return names ?? Set()
     }
 
 }

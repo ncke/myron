@@ -35,6 +35,7 @@ public struct MyronError: Error, Sendable {
         case typeCastFailed(MyronValue.Kind, MyronValue.Kind)
         case unexpectedArity(Int, IntegerExpectation)
         case unexpectedField(String, String, [String])
+        case unexpectedNonData(MyronValue.Kind)
         case unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)
         case unexpectedUnquoting
         case unexpectedVariadicParameter(String)
@@ -189,6 +190,8 @@ extension MyronError.Reason: CustomStringConvertible {
         case .unexpectedField(let got, let name, let fields):
             let has = "(\(fields.joined(separator: " ")))"
             return "Unexpected field name for record-type \(name), got: \(got), has: \(has)"
+        case .unexpectedNonData(let kind):
+            return "Unexpected kind '\(kind)', expected plain data"
         case .unexpectedType(let got, let expected):
             let expectedString = expected
                 .map { kind in "'\(kind.description)'" }

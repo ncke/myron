@@ -41,6 +41,8 @@ extension MyronError {
         case onlyAtomsAndListsAreCode
         case parameterNamesMustBeUnique
         case quotedSymbolNamesFunction(String)
+        case spawnCannotEnterThroughUnrecognisedModule(String)
+        case spawnCannotEnterWithNonDataArgument(String, String)
         case splitSeparatorCannotBeEmptyString
         case stackDepthAdvice
         case tooManyVariadics
@@ -101,6 +103,15 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Names in a parameter list cannot be repeated"
         case .quotedSymbolNamesFunction(let name):
             return "Symbol '\(name)' names a function, consider removing quote"
+        case .spawnCannotEnterThroughUnrecognisedModule(let name):
+            return "Spawn cannot enter because the module '\(name)' is not recognised"
+        case .spawnCannotEnterWithNonDataArgument(let argument, let part) where argument == part:
+            return "Spawn cannot enter because the argument '\(argument)' is not plain data"
+        case .spawnCannotEnterWithNonDataArgument(let argument, let part):
+            return """
+            Spawn cannot enter because the argument '\(argument)' \
+            holds '\(part)', which is not plain data
+            """
         case .splitSeparatorCannotBeEmptyString:
             return "An empty string cannot be used as a split separator"
         case .stackDepthAdvice:
