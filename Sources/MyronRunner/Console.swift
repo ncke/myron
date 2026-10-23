@@ -1,14 +1,6 @@
 import Foundation
 import Myron
 
-// The Linux C library declares `stdin` as a mutable global, which Swift 6
-// rejects as shared mutable state.
-#if canImport(Glibc)
-@preconcurrency import Glibc
-#elseif canImport(Musl)
-@preconcurrency import Musl
-#endif
-
 // MARK: - Console
 
 enum Console {
@@ -43,7 +35,7 @@ extension MyronSession {
         }
 
         try define("read-line") { () -> MyronValueRepresentable in
-            guard let line = readLine() else { return MyronValue.nothing }
+            guard let line = Console.readLine() else { return MyronValue.nothing }
             return MyronValue.string(line)
         }
 
@@ -54,7 +46,7 @@ extension MyronSession {
 
         try define("read-all") { () -> MyronValueRepresentable in
             var text = ""
-            while let line = readLine(strippingNewline: false) { text += line }
+            while let line = Console.readLine(strippingNewline: false) { text += line }
             return MyronValue.string(text)
         }
 
@@ -70,12 +62,45 @@ extension MyronSession {
 
 }
 
-// MARK: - Reading Characters
+// MARK: - Reading Input
 
 private extension Console {
 
+    // A byte read past the end of a character, kept for the next read. The
+    // Linux C library declares `stdin` as a mutable global, which Swift 6
+    // rejects as shared mutable state, so the byte cannot go back with `ungetc`.
+    nonisolated(unsafe) static var pending: Int32?
+
+    static func readByte() -> Int32 {
+        if let byte = pending {
+            pending = nil
+            return byte
+        }
+
+        return getchar()
+    }
+
+    static func readLine(strippingNewline: Bool = true) -> String? {
+        var bytes: [UInt8] = []
+        while true {
+            let byte = readByte()
+            guard byte != EOF else { break }
+            bytes.append(UInt8(byte))
+            if byte == 0x0A { break }
+        }
+
+        guard !bytes.isEmpty else { return nil }
+
+        if strippingNewline, bytes.last == 0x0A {
+            bytes.removeLast()
+            if bytes.last == 0x0D { bytes.removeLast() }
+        }
+
+        return String(decoding: bytes, as: UTF8.self)
+    }
+
     static func readScalar() -> String? {
-        let lead = getchar()
+        let lead = readByte()
         guard lead != EOF else { return nil }
 
         let length = switch lead {
@@ -87,10 +112,10 @@ private extension Console {
 
         var bytes = [UInt8(lead)]
         while bytes.count < length {
-            let next = getchar()
+            let next = readByte()
             guard next != EOF else { break }
             guard (0x80...0xBF).contains(next) else {
-                ungetc(next, stdin)
+                pending = next
                 break
             }
 

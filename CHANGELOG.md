@@ -48,6 +48,14 @@ switch over it exhaustively need updating — see [Changed](#changed).
   host can call has changed, and a session still shuts its environments down
   when it is deallocated.
 
+### Fixed
+
+- The executable builds on Linux again. `read-character` handed a byte back to
+  the C library's `stdin`, which Swift 6 rejects on Linux, so `0.3.0` built
+  only the library there. The runner now keeps that byte itself, and
+  `read-line` and `read-all` read through the same buffer, so a byte left over
+  by `read-character` still arrives first.
+
 ## [0.3.0] — 2026-10-13
 
 Macros and templates, modules, records, error handling with `try` and `raise`,
