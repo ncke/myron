@@ -75,8 +75,8 @@ looking things up later.
   around, nested inside another module, and defined inside a procedure.
 - The beginnings of processes. `spawn` starts a process with an environment of
   its own, rebuilds the modules it is given inside it, and calls an entry point
-  there. Nothing is shared with the process that spawned it. Processes cannot
-  yet send each other messages.
+  there. Nothing is shared with the process that spawned it. `self` is the
+  process doing the evaluating. Processes cannot yet send each other messages.
 - Lexically scoped closures. `and` and `or` short-circuit.
 - Variadic procedures. A parameter written `xs...` collects the arguments the
   others leave over into a list.
@@ -593,8 +593,8 @@ Myron source could actually write: one that reads back as that one symbol.
 That rules out the empty string, anything containing whitespace, brackets, a
 `;` or a `"`, and anything that would read as something else — `42`, `3.5`,
 `-x`, `true`, `nothing`, `,x`, `'x`. The fifteen
-[special forms](#special-forms), and `unquote` and `unquote-splicing`, are
-rejected too, since they are intercepted before symbol lookup and a primitive
+[special forms](#special-forms), [`self`](#self), and `unquote` and
+`unquote-splicing`, are rejected too, since they are intercepted before symbol lookup and a primitive
 under one of those names could never be called, and so is a name ending in a
 dot, which source cannot bind either. Everything
 else is fair game, including non-ASCII: if `(define café 1)` works in source,
@@ -955,7 +955,7 @@ also has a `description`, which is the first line of the rendered message.
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
-| `invalidName(String)` | A name Myron source could not write was given to a host's `define` or `set`, to `make-symbol`, or as a record type, field, module or export name, or a name ending in a dot or a special form's name was bound; carries the name. |
+| `invalidName(String)` | A name Myron source could not write was given to a host's `define` or `set`, to `make-symbol`, or as a record type, field, module or export name, or a name ending in a dot, a special form's name or `self` was bound; carries the name. |
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `malformedSignature(String, String)` | A [signature](#signatures) could not be parsed, or disagreed with the arity of the body given to a host's `define`; carries the signature and what is wrong with it. |
@@ -1414,16 +1414,17 @@ equal to itself however many names it is bound to.
 
 #### `MyronProcess`
 
-The payload of `MyronValue.process`: the address of a process, made by
-[`spawn`](#spawn) rather than in Swift. It is a value type, `Equatable`,
+The payload of `MyronValue.process`: the address of a process, given by
+[`spawn`](#spawn) or [`self`](#self) rather than made in Swift. It is a value type, `Equatable`,
 `Hashable` and `Sendable`, and two are equal when they address the same
 process. Its description is `<process: 3>`, numbered within its
 [runtime](#myronruntime), where a number is never used twice.
 
 An address does not keep its process alive, and says nothing about whether it
 still is. A process ends when its entry call returns, whoever holds its
-address — and for now that is always before `spawn` returns, so every process a
-host is given has already finished.
+address — and for now that is always before `spawn` returns, so every spawned
+process a host is given has already finished. A session's own process, which
+`self` gives back, lasts as long as the session.
 
 #### Keys
 
@@ -2068,6 +2069,16 @@ process, and the code that spawned it carries on.
 (process? (spawn (boom) boom.go))         ; true
 ```
 
+`self` is the process doing the evaluating. In a session it is the session's
+own process, and inside a spawned process it is that process. It is plain data,
+so a process can hand its own address to one it spawns:
+
+```lisp
+(process? self)                           ; true
+(eq self (spawn () + 1 2))                ; false
+(process? (spawn () list self))           ; true
+```
+
 This is the start of processes, not the whole of them. Processes cannot yet
 send each other messages, so for now a spawned process runs to the end before
 `spawn` returns, and what it returns is set aside.
@@ -2246,7 +2257,9 @@ Semicolons inside a string literal are ordinary characters.
 - **Numbers, booleans, strings and `nothing`** evaluate to themselves.
 - **Symbols** evaluate to the value they are bound to. Lookup walks outward
   from the innermost environment and ends at the standard environment; an
-  unbound symbol is an `unrecognisedSymbol` error.
+  unbound symbol is an `unrecognisedSymbol` error. The one exception is
+  [`self`](#self), which evaluates to the current process without being looked
+  up.
 - **Qualified names** are symbols with dots in them, such as `geo.area`. A
   symbol that is bound as it stands is used as it stands, dots and all.
   Otherwise the part before the first dot is looked up as above and must be a
@@ -2267,9 +2280,9 @@ and the value of the last is the value of the program; the first error stops
 evaluation.
 
 User bindings shadow standard-environment names, so `(define max 9)` hides the
-built-in `max`. The names of the special forms are reserved: binding one, by
+built-in `max`. The names of the special forms, and `self`, are reserved: binding one, by
 `define`, `let`, `defmacro` or as a parameter, is an `invalidName` error with a
-hint, so `if` always branches.
+hint, so `if` always branches and `self` is always the current process.
 
 New scopes are created by a procedure call, by `let` and by `module`. A `define`
 binds into whichever environment is current, which means a `define` inside a
@@ -2309,7 +2322,8 @@ each one needs to leave some part of itself unevaluated.
 
 `unquote` and `unquote-splicing`, written `,expr` and `,@expr`, are reserved in
 the same way, but only mean something inside a [template](#quasiquote).
-Evaluated anywhere else, they are an `unexpectedUnquoting` error.
+Evaluated anywhere else, they are an `unexpectedUnquoting` error. So is
+[`self`](#self), which is not a form but a name for the current process.
 
 #### `define`
 
@@ -2758,6 +2772,33 @@ argument; `unrecognisedSymbol` when the entry's first part is not a listed
 module, with a hint, when a module cannot be rebuilt, or when the entry is not
 found in the new process. Errors inside the entry call belong to the new
 process and are not reported.
+
+#### `self`
+
+```lisp ignore
+self
+```
+
+Evaluates to the process doing the evaluating. It is not looked up: nothing can
+bind `self`, so it means the same process wherever it is written, inside a
+procedure, a module, a template or a macro's expansion. In a session it is the
+session's own process; in a process started by [`spawn`](#spawn) it is that
+process. An argument to `spawn` is evaluated before the new process starts, so
+`self` there is the spawning process.
+
+```lisp
+(process? self)                           ; true
+(define (me) self)
+(eq (me) self)                            ; true
+(process? (spawn () list self))           ; true
+(self)                                    ; ERROR: Expected function ...
+```
+
+Quoted, `'self` is an ordinary symbol, so a macro can build code that mentions
+it, and that code means the current process wherever it is evaluated.
+
+*Errors:* `invalidName`, with a hint, for binding `self` by `define`, `let`,
+`defmacro`, as a parameter, or by a host's `define` or `set`.
 
 ## Standard library reference
 

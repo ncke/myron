@@ -3,8 +3,8 @@ import Testing
 
 // MARK: - Process Values
 
-// Nothing in the language makes a process yet, so these bind process values
-// from the host: `p` and `p2` address the same process, `q` another.
+// These bind process values from the host, so that their addresses are known:
+// `p` and `p2` address the same process, `q` another.
 
 @Suite("Process Values")
 

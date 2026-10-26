@@ -113,7 +113,14 @@ struct NameTests {
         ("(lambda (if) 1)", "if"),
         ("(define (f a cond) a)", "cond"),
         ("(defmacro (m quote) 1)", "quote"),
-        ("(lambda (a define...) a)", "define")
+        ("(lambda (a define...) a)", "define"),
+        ("(define spawn 1)", "spawn"),
+        ("(define (f spawn) 1)", "spawn"),
+        ("(define self 1)", "self"),
+        ("(define (self) 1)", "self"),
+        ("(lambda (self) 1)", "self"),
+        ("(let ((self 1)) self)", "self"),
+        ("(defmacro (m self) 1)", "self")
     ])
     func specialFormNameCannotBeBound(source: String, name: String) throws {
         let error = try Self.firstError(source)
@@ -121,10 +128,27 @@ struct NameTests {
         #expect(error.hints == [.cannotUseReservedName(name)])
     }
 
+    @Test("a host cannot bind spawn or self", arguments: ["spawn", "self"])
+    func hostCannotBindReservedName(name: String) {
+        let session = MyronSession()
+        let defineError = #expect(throws: MyronError.self) {
+            try session.define(name) { _ in 1 }
+        }
+        let setError = #expect(throws: MyronError.self) {
+            try session.set(name, to: 1)
+        }
+
+        #expect(defineError?.reason == .invalidName(name))
+        #expect(setError?.reason == .invalidName(name))
+        #expect(session.eval("(process? self)").asSuccess == .boolean(true))
+    }
+
     @Test("a name that only contains a reserved word can be bound", arguments: [
         ("(define nothings 1) nothings", "1"),
         ("(define if-not 2) if-not", "2"),
-        ("(let ((try-again 3)) try-again)", "3")
+        ("(let ((try-again 3)) try-again)", "3"),
+        ("(define self-made 4) self-made", "4"),
+        ("(define spawned 5) spawned", "5")
     ] as [ValueCase])
     func reservedWordInsideName(_ c: ValueCase) {
         expectValue(c.source, c.expected)

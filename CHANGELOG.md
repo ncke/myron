@@ -23,6 +23,9 @@ switch over it exhaustively need updating — see [Changed](#changed).
   arguments are evaluated where `spawn` is written and must be plain data. A
   failure inside the entry call ends the process without reaching the code
   that spawned it.
+- `self`, which evaluates to the process doing the evaluating: a session's own
+  process, or a spawned process inside itself. It is not looked up, so it
+  means the same process inside procedures, modules and macro expansions.
 - Process values. `spawn` gives back a process, which prints as
   `<process: 1>`, has the kind `"process"`, compares by the process it
   addresses, and works as a set member and a hashmap key.
@@ -58,6 +61,9 @@ switch over it exhaustively need updating — see [Changed](#changed).
 - `MyronError.Reason` has a new case, `unexpectedNonData`.
 - `spawn` is a special form, so it can no longer be bound as a name, by Myron
   code or by a host's `define`.
+- `self` is reserved, like the names of the special forms, so it can no longer
+  be bound by `define`, `let`, `defmacro`, as a parameter, or by a host's
+  `define` or `set`.
 - A session's environment now belongs to a process in its runtime. Nothing a
   host can call has changed, and a session still shuts its environments down
   when it is deallocated.

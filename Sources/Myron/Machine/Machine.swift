@@ -191,6 +191,11 @@ extension Machine {
         switch expression {
 
         case .atom(.symbol(let name), let meta):
+            guard name != Self.specialSelf else {
+                control = .value(try getOwningProcess(at: meta.location))
+                return
+            }
+
             let value = try environment.lookup(name, at: meta.location)
             control = .value(value)
 
@@ -221,6 +226,15 @@ extension Machine {
         }
     }
 
+    private func getOwningProcess(at location: MyronLocation?) throws -> MyronValue {
+        guard let id = process?.identifier else {
+            let explain = "self could not resolve the process identifier"
+            throw MyronError(.internal(explain), at: location)
+        }
+
+        return .process(id)
+    }
+
 }
 
 // MARK: - Special Forms
@@ -240,6 +254,7 @@ extension Machine {
     private static let specialOr = "or"
     private static let specialQuasiquote = "quasiquote"
     private static let specialQuote = "quote"
+    private static let specialSelf = "self"
     private static let specialSpawn = "spawn"
     private static let specialTry = "try"
     private static let specialUnquote = "unquote"
@@ -248,8 +263,8 @@ extension Machine {
     static let specialFormNames = Set([
         specialAnd, specialBegin, specialCond, specialDefine, specialDefmacro,
         specialIf, specialImport, specialLambda, specialLet, specialModule,
-        specialOr, specialQuasiquote, specialQuote, specialTry, specialUnquote,
-        specialUnquoteSplicing
+        specialOr, specialQuasiquote, specialQuote, specialSelf, specialSpawn,
+        specialTry, specialUnquote, specialUnquoteSplicing
     ])
     
     private func interpretSpecialForm(
