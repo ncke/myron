@@ -121,6 +121,48 @@ struct StandardPredicatesTests {
         expectValue(c.source, c.expected)
     }
 
+    @Test("hashmap?", arguments: [
+        ("(hashmap? (make-hashmap))", "true"),
+        ("(hashmap? (put 'a 1 (make-hashmap)))", "true"),
+        ("(hashmap? '((a 1)))", "false"),
+        ("(hashmap? (set 1))", "false"),
+        ("(hashmap? nothing)", "false")
+    ] as [ValueCase])
+    func isHashmap(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("define?", arguments: [
+        ("(define? (define x 1))", "true"),
+        ("(define? (define (f x) x))", "true"),
+        ("(define? (defmacro (m x) x))", "true"),
+        ("(define? (module m (a) (define a 1)))", "true"),
+        ("(module m (a b) (define a 1) (define b 2)) (all define? (import m))", "true"),
+        ("(define? 'x)", "false"),
+        ("(define? \"x\")", "false"),
+        ("(define? nothing)", "false")
+    ] as [ValueCase])
+    func isDefine(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("macro?", arguments: [
+        ("(defmacro (m x) x) (macro? m)", "true"),
+        ("(defmacro (m x) x) (macro? (head (list m)))", "true"),
+        ("(macro? (defmacro (m x) x))", "false"),
+        ("(macro? (lambda (x) x))", "false"),
+        ("(macro? +)", "false"),
+        ("(macro? 'm)", "false")
+    ] as [ValueCase])
+    func isMacro(_ c: ValueCase) {
+        expectValue(c.source, c.expected)
+    }
+
+    @Test("a macro is not callable")
+    func macroIsNotCallable() {
+        expectValue("(defmacro (m x) x) (callable? m)", "false")
+    }
+
     @Test("positive?", arguments: [
         ("(positive? 0)", "false"),
         ("(positive? -1)", "false"),
@@ -258,6 +300,9 @@ struct StandardPredicatesTests {
         ("(number?)", .unexpectedArity(0, .exactly(1))),
         ("(integer? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(list? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(hashmap?)", .unexpectedArity(0, .exactly(1))),
+        ("(define? 1 2)", .unexpectedArity(2, .exactly(1))),
+        ("(macro?)", .unexpectedArity(0, .exactly(1))),
         ("(positive? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(negative? 1 2)", .unexpectedArity(2, .exactly(1))),
         ("(zero? 1 2)", .unexpectedArity(2, .exactly(1))),

@@ -27,6 +27,20 @@ switch over it exhaustively need updating — see [Changed](#changed).
   `<process: 1>`, has the kind `"process"`, compares by the process it
   addresses, and works as a set member and a hashmap key.
 - `process?`, `record?` and `record-type?`.
+- `hashmap?`, `macro?` and `define?`. Every kind of value now has a predicate
+  named after it, apart from primitives and procedures, which share
+  `callable?`.
+- `defined-name`, which gives back the name a define marker binds, as a
+  symbol, and `does-define?`, which asks whether a marker binds a name given as
+  a symbol or a string.
+- An `is` accessor on `MyronValue` for every case that has an `as` accessor,
+  such as `isInteger` and `isDefine`, and `isNothing`, `isNumeric` and
+  `isCallable`. Each `isX` is `true` exactly when `asX` is not `nil`.
+- `asProcedure`, `asPrimitive` and `asDefine`, which were internal, are now
+  public.
+- `requireList()`, `requireHashmap()`, `requireSet()`, `requireProcedure()`,
+  `requirePrimitive()` and `requireDefine()`, so every `asX` has a matching
+  `requireX()`.
 - `MyronRuntime`, which owns processes. `MyronRuntime.makeSession()` makes a
   session in an existing runtime, so several sessions can share one; a session
   made with `MyronSession()` has a runtime of its own.

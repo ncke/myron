@@ -102,12 +102,18 @@ extension MyronValue {
 extension MyronValue {
     public func requireBoolean() throws -> Bool { try self.unwrapBoolean(nil) }
     public func requireInteger() throws -> Int { try self.unwrapInteger(nil) }
+    public func requireDefine() throws -> String { try self.unwrapDefine(nil) }
     public func requireDouble() throws -> Double { try self.unwrapDouble(nil) }
+    public func requireHashmap() throws -> MyronHashmap { try self.unwrapHashmap(nil) }
+    public func requireList() throws -> [MyronValue] { try self.unwrapList(nil) }
     public func requireMacro() throws -> MyronMacro { try self.unwrapMacro(nil) }
     public func requireModule() throws -> MyronModule { try self.unwrapModule(nil) }
+    public func requirePrimitive() throws -> MyronPrimitive { try self.unwrapPrimitive(nil) }
+    public func requireProcedure() throws -> MyronProcedure { try self.unwrapProcedure(nil) }
     public func requireProcess() throws -> MyronProcess { try self.unwrapProcess(nil) }
     public func requireRecord() throws -> MyronRecord { try self.unwrapRecord(nil) }
     public func requireRecordType() throws -> MyronRecordType { try self.unwrapRecordType(nil) }
+    public func requireSet() throws -> MyronSet { try self.unwrapSet(nil) }
     public func requireString() throws -> String { try self.unwrapString(nil) }
     public func requireSymbol() throws -> String { try self.unwrapSymbol(nil) }
 }

@@ -49,6 +49,7 @@ extension StandardEnvironment {
     static let modules: [any StandardModule.Type] = [
         StandardAlist.self,
         StandardComparison.self,
+        StandardDefine.self,
         StandardError.self,
         StandardHashmap.self,
         StandardKinds.self,

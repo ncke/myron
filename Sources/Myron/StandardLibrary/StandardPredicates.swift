@@ -5,154 +5,15 @@ import Foundation
 struct StandardPredicates: StandardModule {
     
     static let primitiveDefinitions = [
-        
-        MyronPrimitive(
-            primitiveName: "predicate.nothing?",
-            representations: ["nothing?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try args.unwrap1(location).isNothing)
-        }),
-
-        MyronPrimitive(
-            primitiveName: "predicate.something?",
-            representations: ["something?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try !args.unwrap1(location).isNothing)
-        }),
-
-        MyronPrimitive(
-            primitiveName: "predicate.number?",
-            representations: ["number?"],
-            signature: "({any})",
-            body: { args, location in
-                let value = try args.unwrap1(location)
-                if value.asInteger != nil { return .boolean(true) }
-                if value.asDouble != nil { return .boolean(true) }
-                return .boolean(false)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.integer?",
-            representations: ["integer?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try args.unwrap1(location).asInteger != nil)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.double?",
-            representations: ["double?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try args.unwrap1(location).asDouble != nil)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.set?",
-            representations: ["set?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try args.unwrap1(location).asSet != nil)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.string?",
-            representations: ["string?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try args.unwrap1(location).asString != nil)
-        }),
-
-        MyronPrimitive(
-            primitiveName: "predicate.symbol?",
-            representations: ["symbol?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try args.unwrap1(location).asSymbol != nil)
-        }),
 
         MyronPrimitive(
             primitiveName: "predicate.boolean?",
             representations: ["boolean?"],
             signature: "({any})",
             body: { args, location in
-                return .boolean(try args.unwrap1(location).asBoolean != nil)
+                return .boolean(try args.unwrap1(location).isBoolean)
         }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.list?",
-            representations: ["list?"],
-            signature: "({any})",
-            body: { args, location in
-                return .boolean(try args.unwrap1(location).asList != nil)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.positive?",
-            representations: ["positive?"],
-            signature: "({any})",
-            body: { args, location in
-                let number = try args.unwrap1(location)
-                if let i = number.asInteger { return .boolean(i > 0) }
-                if let d = number.asDouble { return .boolean(d > 0) }
-                return .boolean(false)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.negative?",
-            representations: ["negative?"],
-            signature: "({any})",
-            body: { args, location in
-                let number = try args.unwrap1(location)
-                if let i = number.asInteger { return .boolean(i < 0) }
-                if let d = number.asDouble { return .boolean(d < 0) }
-                return .boolean(false)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.zero?",
-            representations: ["zero?"],
-            signature: "({any})",
-            body: { args, location in
-                let number = try args.unwrap1(location)
-                if let i = number.asInteger { return .boolean(i == Int.zero) }
-                if let d = number.asDouble { return .boolean(d == Double.zero) }
-                return .boolean(false)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.finite?",
-            representations: ["finite?"],
-            signature: "({any})",
-            body: { args, location in
-                let number = try args.unwrap1(location)
-                if let d = number.asDouble { return .boolean(d.isFinite) }
-                if number.asInteger != nil { return .boolean(true) }
-                return .boolean(false)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.infinite?",
-            representations: ["infinite?"],
-            signature: "({any})",
-            body: { args, location in
-                let number = try args.unwrap1(location)
-                if let d = number.asDouble { return .boolean(d.isInfinite) }
-                return .boolean(false)
-        }),
-        
-        MyronPrimitive(
-            primitiveName: "predicate.nan?",
-            representations: ["nan?"],
-            signature: "({any})",
-            body: { args, location in
-                let number = try args.unwrap1(location)
-                if let d = number.asDouble { return .boolean(d.isNaN) }
-                return .boolean(false)
-        }),
-        
+
         MyronPrimitive(
             primitiveName: "predicate.callable?",
             representations: ["callable?"],
@@ -161,7 +22,7 @@ struct StandardPredicates: StandardModule {
                 let value = try args.unwrap1(location)
                 return .boolean(value.isCallable)
         }),
-        
+
         MyronPrimitive(
             primitiveName: "predicate.comparable?",
             representations: ["comparable?"],
@@ -170,51 +31,22 @@ struct StandardPredicates: StandardModule {
                 let value = try args.unwrap1(location)
                 return .boolean(isComparable(value.kind))
         }),
-        
+
         MyronPrimitive(
-            primitiveName: "predicate.sortable?",
-            representations: ["sortable?"],
+            primitiveName: "predicate.define?",
+            representations: ["define?"],
             signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
-                guard let elements = try? value.unwrapElements(location) else {
-                    return .boolean(false)
-                }
-                guard let fst = elements.first else { return .boolean(true) }
-                
-                for element in elements {
-                    let kind = element.kind
-                    if kind != fst.kind || !isComparable(kind) { return .boolean(false) }
-                }
-                
-                return .boolean(true)
+                return .boolean(value.isDefine)
         }),
 
         MyronPrimitive(
-            primitiveName: "predicate.record?",
-            representations: ["record?"],
+            primitiveName: "predicate.double?",
+            representations: ["double?"],
             signature: "({any})",
             body: { args, location in
-                let value = try args.unwrap1(location)
-                return .boolean(value.isRecord)
-        }),
-
-        MyronPrimitive(
-            primitiveName: "predicate.record-type?",
-            representations: ["record-type?"],
-            signature: "({any})",
-            body: { args, location in
-                let value = try args.unwrap1(location)
-                return .boolean(value.isRecordType)
-        }),
-
-        MyronPrimitive(
-            primitiveName: "predicate.module?",
-            representations: ["module?"],
-            signature: "({any})",
-            body: { args, location in
-                let value = try args.unwrap1(location)
-                return .boolean(value.isModule)
+                return .boolean(try args.unwrap1(location).isDouble)
         }),
 
         MyronPrimitive(
@@ -245,12 +77,204 @@ struct StandardPredicates: StandardModule {
         }),
 
         MyronPrimitive(
+            primitiveName: "predicate.finite?",
+            representations: ["finite?"],
+            signature: "({any})",
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let d = number.asDouble { return .boolean(d.isFinite) }
+                if number.isInteger { return .boolean(true) }
+                return .boolean(false)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.hashmap?",
+            representations: ["hashmap?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isHashmap)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.infinite?",
+            representations: ["infinite?"],
+            signature: "({any})",
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let d = number.asDouble { return .boolean(d.isInfinite) }
+                return .boolean(false)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.integer?",
+            representations: ["integer?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isInteger)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.list?",
+            representations: ["list?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isList)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.macro?",
+            representations: ["macro?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isMacro)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.module?",
+            representations: ["module?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isModule)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.nan?",
+            representations: ["nan?"],
+            signature: "({any})",
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let d = number.asDouble { return .boolean(d.isNaN) }
+                return .boolean(false)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.negative?",
+            representations: ["negative?"],
+            signature: "({any})",
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let i = number.asInteger { return .boolean(i < 0) }
+                if let d = number.asDouble { return .boolean(d < 0) }
+                return .boolean(false)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.nothing?",
+            representations: ["nothing?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isNothing)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.number?",
+            representations: ["number?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isNumeric)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.set?",
+            representations: ["set?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isSet)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.positive?",
+            representations: ["positive?"],
+            signature: "({any})",
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let i = number.asInteger { return .boolean(i > 0) }
+                if let d = number.asDouble { return .boolean(d > 0) }
+                return .boolean(false)
+        }),
+
+        MyronPrimitive(
             primitiveName: "predicate.process?",
             representations: ["process?"],
             signature: "({any})",
             body: { args, location in
                 let value = try args.unwrap1(location)
                 return .boolean(value.isProcess)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.record?",
+            representations: ["record?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isRecord)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.record-type?",
+            representations: ["record-type?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                return .boolean(value.isRecordType)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.something?",
+            representations: ["something?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try !args.unwrap1(location).isNothing)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.sortable?",
+            representations: ["sortable?"],
+            signature: "({any})",
+            body: { args, location in
+                let value = try args.unwrap1(location)
+                guard let elements = try? value.unwrapElements(location) else {
+                    return .boolean(false)
+                }
+                guard let fst = elements.first else { return .boolean(true) }
+
+                for element in elements {
+                    let kind = element.kind
+                    if kind != fst.kind || !isComparable(kind) { return .boolean(false) }
+                }
+
+                return .boolean(true)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.string?",
+            representations: ["string?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isString)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.symbol?",
+            representations: ["symbol?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isSymbol)
+        }),
+
+        MyronPrimitive(
+            primitiveName: "predicate.zero?",
+            representations: ["zero?"],
+            signature: "({any})",
+            body: { args, location in
+                let number = try args.unwrap1(location)
+                if let i = number.asInteger { return .boolean(i == Int.zero) }
+                if let d = number.asDouble { return .boolean(d == Double.zero) }
+                return .boolean(false)
         })
 
     ]

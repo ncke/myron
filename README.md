@@ -46,7 +46,8 @@ looking things up later.
   [Evaluation model](#evaluation-model) · [Special forms](#special-forms)
 - [Standard library reference](#standard-library-reference)
   — [Comparison](#comparison) · [Predicates](#predicates) ·
-  [Kinds](#kinds) · [Logic](#logic) · [Mathematics](#mathematics) ·
+  [Kinds](#kinds) · [Definitions](#definitions) · [Logic](#logic) ·
+  [Mathematics](#mathematics) ·
   [Sequences](#sequences) · [Lists](#lists) ·
   [Association lists](#association-lists) · [Hashmaps](#hashmaps) ·
   [Sets](#sets) · [Records](#records-1) · [Modules](#modules-1) ·
@@ -829,11 +830,29 @@ value.asRecordType                        // MyronRecordType?
 value.asModule                            // MyronModule?
 value.asProcess                           // MyronProcess?
 value.asMacro                             // MyronMacro?
+value.asProcedure                         // MyronProcedure?
+value.asPrimitive                         // MyronPrimitive?
+value.asDefine                            // String?, the name a marker binds
 ```
 
 These do not coerce: `MyronValue.integer(1).asDouble` is `nil`, exactly as
-`(== 1 1.0)` is `false` in Myron. `.procedure`, `.primitive` and `.define` have
-no accessor — match on them if you need them.
+`(== 1 1.0)` is `false` in Myron.
+
+Each has an `is` partner that only asks — `isInteger`, `isList`, `isDefine` and
+so on — along with `isNothing` for the one case with nothing to extract:
+
+```swift
+value.isString                            // Bool
+value.isNothing                           // Bool
+value.isNumeric                           // an integer or a double
+value.isCallable                          // a procedure or any primitive
+```
+
+`isX` is `true` exactly when `asX` is not `nil`, and both answer for that one
+kind alone. `.higherOrder` and `.higherProbe` — `map`, `all` and the rest — are
+primitives in name only: Myron calls their kind `primitive`, but they are not
+`MyronPrimitive`s, so `isPrimitive` is `false` for them and `asPrimitive` is
+`nil`. `isCallable` covers them, as `callable?` does in Myron.
 
 `MyronValue` conforms to `CustomStringConvertible`, and its `description`
 renders a value the way Myron prints it: lists in brackets, strings in quotes,
@@ -1016,8 +1035,8 @@ let hashmap: MyronHashmap = [
 
 The [accessors](#myronvalue) return an optional and say nothing about why they
 failed. `MyronValueConvertible` is the other way round: it throws, with the same
-diagnostics the standard library raises. There are named accessors for the
-scalars, which need no annotation:
+diagnostics the standard library raises. Each `asX` has a named `requireX`,
+which needs no annotation:
 
 ```swift
 try value.requireBoolean()                // Bool
@@ -1025,10 +1044,17 @@ try value.requireInteger()                // Int
 try value.requireDouble()                 // Double
 try value.requireString()                 // String
 try value.requireSymbol()                 // String, from a symbol
+try value.requireList()                   // [MyronValue]
+try value.requireHashmap()                // MyronHashmap
+try value.requireSet()                    // MyronSet
 try value.requireRecord()                 // MyronRecord
 try value.requireRecordType()             // MyronRecordType
 try value.requireModule()                 // MyronModule
 try value.requireProcess()                // MyronProcess
+try value.requireMacro()                  // MyronMacro
+try value.requireProcedure()              // MyronProcedure
+try value.requirePrimitive()              // MyronPrimitive
+try value.requireDefine()                 // String, from a define marker
 ```
 
 And a generic `require()` for everything else, which takes its type from
@@ -1062,9 +1088,9 @@ let config = try Config(retries: a.require(), name: b.require())
 ```
 
 Where no type is fixed, use a named accessor instead — it is shorter, because it
-needs no annotation. Symbols only have the named accessor: `.string` and
-`.symbol` are two Myron kinds for one Swift type, and the generic conversion
-takes the string.
+needs no annotation. Symbols and define markers only have the named accessor:
+`.string`, `.symbol` and `.define` are three Myron kinds for one Swift type, and
+the generic conversion takes the string.
 
 A failure reports what was found and what was wanted, and names the innermost
 type rather than the outermost:
@@ -2306,8 +2332,9 @@ the same rules as a `lambda`'s, including a [variadic parameter](#lambda).
   (sqrt (+ (square a) (square b))))
 ```
 
-A `define` evaluates to a define marker naming the binding, not to the bound
-value. Redefining a name in the same environment replaces the binding.
+A `define` evaluates to a [define marker](#definitions) naming the binding, not
+to the bound value. Redefining a name in the same environment replaces the
+binding.
 
 *Errors:* `unexpectedArity` for `(define x 1 2)` or a procedure form with no
 body; `unexpectedType` when the signature is neither a symbol nor a list, or
@@ -2825,18 +2852,21 @@ them.
 | `symbol?` | a symbol |
 | `boolean?` | a boolean |
 | `list?` | a list |
+| `hashmap?` | a [hashmap](#hashmaps) |
 | `set?` | a set |
 | `module?` | a [module](#modules-1) |
 | `record?` | a [record](#records-1) |
 | `record-type?` | a [record type](#records-1) |
 | `process?` | a [process](#spawn) |
+| `macro?` | a macro made with [`defmacro`](#defmacro) |
+| `define?` | a [define marker](#definitions) |
 | `positive?` | a number greater than zero |
 | `negative?` | a number less than zero |
 | `zero?` | a number equal to zero |
 | `finite?` | a number that is neither infinite nor `nan` |
 | `infinite?` | a double that is positive or negative infinity |
 | `nan?` | a double that is not a number |
-| `callable?` | a procedure or a primitive — anything that can head an application |
+| `callable?` | a procedure or a primitive — anything `map` and `apply` can call |
 | `comparable?` | an integer, a double, or a string — a value `lt` and friends can order |
 | `sortable?` | a list or set that [`sort`](#ordering) can order |
 
@@ -2847,9 +2877,18 @@ them.
 (integer? 1.0)                            ; false — the types stay apart
 (list? '())                               ; true
 (list? sqrt)                              ; false — functions match none
+(hashmap? '((a 1)))                       ; false — an alist is a list
 (positive? "x")                           ; false — non-numbers are never
 (nan? (sqrt -1.0))                        ; true — the one that is not
 ```
+
+Every [kind](#kinds) of value has a predicate named after it, so `(hashmap? x)`
+asks what `(eq (kind x) "hashmap")` would. The exceptions are primitives and
+procedures, which share `callable?`: a program can call either the same way,
+and has no reason to tell them apart. A macro is not callable — it can head an
+application, but `map` and `apply` cannot call it — so it has `macro?` instead.
+`hashmap?` is what tells the two [associative types](#association-lists) apart,
+since `get`, `put` and their friends take either.
 
 `something?` is `(not (nothing? x))`, for code that reads better asking whether
 a result is there. A condition must be a boolean, so a primitive that gives back
@@ -2883,8 +2922,9 @@ and `infinite?` are both `false`.
 The names are `boolean`, `double`, `hashmap`, `integer`, `list`, `module`,
 `nothing`, `process`, `record`, `record-type`, `set`, `string` and `symbol` for
 data,
-`primitive` or `procedure` for anything callable, and `macro` for a macro made
-with [`defmacro`](#defmacro). A primitive is built in or supplied by the host; a
+`primitive` or `procedure` for anything callable, `macro` for a macro made
+with [`defmacro`](#defmacro), and `define` for the [marker](#definitions) a
+definition gives back. A primitive is built in or supplied by the host; a
 procedure is written in Myron with `lambda` or `define`. The
 [predicates](#predicates) are usually the better test — `(integer? x)` rather
 than `(eq (kind x) "integer")` — and `kind` is there for when the type itself is
@@ -2908,6 +2948,46 @@ checked when it is bound, so a macro that puts `(make-symbol "if")` into a
 (eq (make-symbol "abc") 'abc)             ; true
 (make-symbol (append "point" "-" "x"))    ; point-x
 ```
+
+### Definitions
+
+[`define`](#define), [`defmacro`](#defmacro) and [`module`](#module) each give
+back a define marker naming what they bound, and [`import`](#import) gives back
+a list of them, one for each name it bound. A marker is an ordinary value of the
+kind `define`, which prints as `<define: name>`. These primitives ask about one.
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `define?` | 1 value of any type | `true` if it is a define marker |
+| `defined-name` | 1 define marker | the name it binds, as a symbol |
+| `does-define?` | a name and a define marker | `true` if the marker binds that name |
+
+```lisp
+(define marker (define width 80))
+marker                                    ; <define: width>
+(define? marker)                          ; true
+(defined-name marker)                     ; width
+(does-define? 'width marker)              ; true
+(does-define? "width" marker)             ; true
+(does-define? 'height marker)             ; false
+
+(module paper (paper-width paper-height)
+  (define paper-width 210)
+  (define paper-height 297))
+(map defined-name (import paper))         ; (paper-height paper-width)
+```
+
+A marker tells a program what a definition bound without looking the name up:
+which names an `import` brought into scope, say, or what the last form of a file
+given to the executable's [`load`](#getting-started) defined. `defined-name`
+gives a symbol, as
+`record-type-name` does, and `string` turns it into a string. The name given to
+`does-define?` may be a symbol or a string, as for [`exports?`](#modules-1).
+
+Unlike the [predicates](#predicates), `defined-name` and `does-define?` need the
+right kinds of argument: a marker that is not a marker, or a name that is not a
+symbol or a string, raises `unexpectedType`. Check with `define?` first when the
+value might be something else.
 
 ### Logic
 

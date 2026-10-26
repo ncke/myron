@@ -30,9 +30,37 @@ final class Environment {
         mappings = [:]
     }
 
+}
+
+// MARK: - Names
+
+extension Environment {
+
+    var names: Set<String> {
+        var ns = Set<String>(mappings.keys)
+        if let outer { ns = ns.union(outer.names) }
+        return ns
+    }
+
+}
+
+// MARK: - Insert
+
+extension Environment {
+
     func insert(_ name: String, value: MyronValue, location: MyronLocation?) throws {
         try MyronValue.validateAsName(name, location: location)
         mappings[name] = value
+    }
+
+}
+
+// MARK: - Lookup
+
+extension Environment {
+
+    func localLookup(_ name: String) -> MyronValue? {
+        return mappings[name]
     }
 
     func optionalLookup(_ name: String, at location: MyronLocation?) -> MyronValue? {
@@ -51,7 +79,7 @@ final class Environment {
         }
     }
 
-    func handleLookup(
+    private func handleLookup(
         _ name: String,
         at location: MyronLocation?,
     ) -> Result<MyronValue, Error> {
@@ -118,16 +146,6 @@ final class Environment {
             traversing = next
             remaining = remaining.dropFirst()
         }
-    }
-
-    func localLookup(_ name: String) -> MyronValue? {
-        return mappings[name]
-    }
-
-    var names: Set<String> {
-        var ns = Set<String>(mappings.keys)
-        if let outer { ns = ns.union(outer.names) }
-        return ns
     }
 
 }

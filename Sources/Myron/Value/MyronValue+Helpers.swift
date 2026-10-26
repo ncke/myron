@@ -10,7 +10,14 @@ extension MyronValue {
         }
         return b
     }
-    
+
+    func unwrapDefine(_ location: MyronLocation?) throws -> String {
+        guard let d = asDefine else {
+            throw MyronError(.unexpectedType(self.kind, [.define]), at: location)
+        }
+        return d
+    }
+
     func unwrapDouble(_ location: MyronLocation?) throws -> Double {
         guard let n = asDouble else {
             throw MyronError(.unexpectedType(self.kind, [.double]), at: location)
@@ -59,6 +66,20 @@ extension MyronValue {
             throw MyronError(.unexpectedType(self.kind, [.module]), at: location)
         }
         return m
+    }
+
+    func unwrapPrimitive(_ location: MyronLocation?) throws -> MyronPrimitive {
+        guard let p = asPrimitive else {
+            throw MyronError(.unexpectedType(self.kind, [.primitive]), at: location)
+        }
+        return p
+    }
+
+    func unwrapProcedure(_ location: MyronLocation?) throws -> MyronProcedure {
+        guard let p = asProcedure else {
+            throw MyronError(.unexpectedType(self.kind, [.procedure]), at: location)
+        }
+        return p
     }
 
     func unwrapProcess(_ location: MyronLocation?) throws -> MyronProcess {
@@ -113,7 +134,7 @@ extension MyronValue {
 
 }
 
-// MARK: - Public Value Probing
+// MARK: - Value Casting
 
 extension MyronValue {
 
@@ -121,9 +142,19 @@ extension MyronValue {
         if case .boolean(let b) = self { return b }
         return nil
     }
-    
+
+    public var asDefine: String? {
+        if case .define(let d) = self { return d }
+        return nil
+    }
+
     public var asDouble: Double? {
         if case .double(let n) = self { return n }
+        return nil
+    }
+
+    public var asHashmap: MyronHashmap? {
+        if case .hashmap(let h) = self { return h }
         return nil
     }
 
@@ -132,11 +163,6 @@ extension MyronValue {
         return nil
     }
 
-    public var asHashmap: MyronHashmap? {
-        if case .hashmap(let h) = self { return h }
-        return nil
-    }
-    
     public var asList: [MyronValue]? {
         if case .list(let l) = self { return l }
         return nil
@@ -149,6 +175,16 @@ extension MyronValue {
 
     public var asModule: MyronModule? {
         if case .module(let m) = self { return m }
+        return nil
+    }
+
+    public var asPrimitive: MyronPrimitive? {
+        if case .primitive(let p) = self { return p }
+        return nil
+    }
+
+    public var asProcedure: MyronProcedure? {
+        if case .procedure(let p) = self { return p }
         return nil
     }
 
@@ -184,6 +220,111 @@ extension MyronValue {
 
 }
 
+// MARK: - Public Value Probing
+
+extension MyronValue {
+
+    public var isBoolean: Bool {
+        if case .boolean = self { return true }
+        return false
+    }
+
+    public var isCallable: Bool {
+        switch self {
+        case .higherOrder, .higherProbe, .primitive, .procedure: return true
+        default: return false
+        }
+    }
+
+    public var isDefine: Bool {
+        if case .define = self { return true }
+        return false
+    }
+
+    public var isDouble: Bool {
+        if case .double = self { return true }
+        return false
+    }
+
+    public var isHashmap: Bool {
+        if case .hashmap = self { return true }
+        return false
+    }
+
+    public var isInteger: Bool {
+        if case .integer = self { return true }
+        return false
+    }
+
+    public var isNumeric: Bool {
+        switch self {
+        case .double, .integer: return true
+        default: return false
+        }
+    }
+
+    public var isList: Bool {
+        if case .list = self { return true }
+        return false
+    }
+
+    public var isMacro: Bool {
+        if case .macro = self { return true }
+        return false
+    }
+
+    public var isModule: Bool {
+        if case .module = self { return true }
+        return false
+    }
+
+    public var isNothing: Bool {
+        if case .nothing = self { return true }
+        return false
+    }
+
+    public var isPrimitive: Bool {
+        if case .primitive = self { return true }
+        return false
+    }
+
+    public var isProcedure: Bool {
+        if case .procedure = self { return true }
+        return false
+    }
+
+    public var isProcess: Bool {
+        if case .process = self { return true }
+        return false
+    }
+
+    public var isRecord: Bool {
+        if case .record = self { return true }
+        return false
+    }
+
+    public var isRecordType: Bool {
+        if case .recordType = self { return true }
+        return false
+    }
+
+    public var isSet: Bool {
+        if case .set = self { return true }
+        return false
+    }
+
+    public var isString: Bool {
+        if case .string = self { return true }
+        return false
+    }
+
+    public var isSymbol: Bool {
+        if case .symbol = self { return true }
+        return false
+    }
+
+}
+
 // MARK: - Internal Value Probing
 
 extension MyronValue {
@@ -193,60 +334,6 @@ extension MyronValue {
             guard case .double(let number) = element else { return false }
             return number.isNaN
         } == nil
-    }
-
-    var isModule: Bool {
-        if case .module = self { return true }
-        return false
-    }
-
-    var isNothing: Bool {
-        if case .nothing = self { return true }
-        return false
-    }
-
-    var isNumeric: Bool {
-        switch self {
-        case .double, .integer: return true
-        default: return false
-        }
-    }
-
-    var isCallable: Bool {
-        switch self {
-        case .higherOrder, .higherProbe, .primitive, .procedure: return true
-        default: return false
-        }
-    }
-
-    var asPrimitive: MyronPrimitive? {
-        if case .primitive(let p) = self { return p }
-        return nil
-    }
-
-    var asProcedure: MyronProcedure? {
-        if case .procedure(let p) = self { return p }
-        return nil
-    }
-
-    var isProcess: Bool {
-        if case .process = self { return true }
-        return false
-    }
-
-    var isRecord: Bool {
-        if case .record = self { return true }
-        return false
-    }
-
-    var isRecordType: Bool {
-        if case .recordType = self { return true }
-        return false
-    }
-
-    var asDefine: String? {
-        if case .define(let d) = self { return d }
-        return nil
     }
 
 }
