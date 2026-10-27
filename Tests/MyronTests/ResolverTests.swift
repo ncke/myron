@@ -27,7 +27,7 @@ struct StandardResolverTests {
         _ args: [MyronValue]
     ) throws -> MyronValue {
         let resolver = StandardResolver.make(representation: "r", primitives: primitives)
-        return try resolver.call(args, at: nil)
+        return try resolver.call(args, context: makeExecutionContext())
     }
 
     // MARK: Specificity

@@ -8,9 +8,9 @@ import Testing
 struct EqualityTests {
 
     private static func proc(named name: String = "prim") -> MyronValue {
-        let primitive = MyronPrimitive(primitiveName: name, representations: []) { _, _ in
+        let primitive = MyronPrimitive(primitiveName: name, representations: [], body: { _, _ in
             return .nothing
-        }
+        })
         
         return .primitive(primitive)
     }

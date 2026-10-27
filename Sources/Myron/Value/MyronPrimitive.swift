@@ -4,11 +4,12 @@ import Foundation
 
 public struct MyronPrimitive: Sendable {
     typealias Body = @Sendable ([MyronValue], MyronLocation?) throws -> MyronValue
+    typealias ContextualBody = @Sendable ([MyronValue], MyronExecutionContext) throws -> MyronValue
     let id: Int?
     let primitiveName: String
     let representations: [String]
     let signature: Result<MyronSignature, MyronError>?
-    private let body: Body
+    private let body: ContextualBody
 
     init(
         id: Int? = nil,
@@ -21,11 +22,29 @@ public struct MyronPrimitive: Sendable {
         self.primitiveName = primitiveName
         self.representations = representations
         self.signature = signature.map(Self.parseSignature)
-        self.body = body
+
+        let contextualBody: ContextualBody = { arguments, context in
+            try body(arguments, context.location)
+        }
+        self.body = contextualBody
     }
 
-    func call(_ arguments: [MyronValue], at location: MyronLocation?) throws -> MyronValue {
-        return try body(arguments, location)
+    init(
+        id: Int? = nil,
+        primitiveName: String,
+        representations: [String],
+        signature: String? = nil,
+        contextualBody: @escaping ContextualBody
+    ) {
+        self.id = id
+        self.primitiveName = primitiveName
+        self.representations = representations
+        self.signature = signature.map(Self.parseSignature)
+        self.body = contextualBody
+    }
+
+    func call(_ arguments: [MyronValue], context: MyronExecutionContext) throws -> MyronValue {
+        return try body(arguments, context)
     }
 
 }

@@ -224,6 +224,14 @@ struct StandardPredicates: StandardModule {
         }),
 
         MyronPrimitive(
+            primitiveName: "predicate.sendable?",
+            representations: ["sendable?"],
+            signature: "({any})",
+            body: { args, location in
+                return .boolean(try args.unwrap1(location).isSendable)
+        }),
+
+        MyronPrimitive(
             primitiveName: "predicate.something?",
             representations: ["something?"],
             signature: "({any})",

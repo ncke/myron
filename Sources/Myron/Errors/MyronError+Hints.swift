@@ -42,12 +42,13 @@ extension MyronError {
         case parameterNamesMustBeUnique
         case quotedSymbolNamesFunction(String)
         case spawnCannotEnterThroughUnrecognisedModule(String)
-        case spawnCannotEnterWithNonDataArgument(String, String)
+        case spawnCannotEnterWithNonSendableArgument
         case splitSeparatorCannotBeEmptyString
         case stackDepthAdvice
         case tooManyVariadics
         case unquoteSplicingOnlyInsideList
         case unquoteOnlyInsideTemplate
+        case valueMustBeSendable(String, String, MyronValue.Kind)
     }
 
 }
@@ -105,13 +106,8 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Symbol '\(name)' names a function, consider removing quote"
         case .spawnCannotEnterThroughUnrecognisedModule(let name):
             return "Spawn cannot enter because the module '\(name)' is not recognised"
-        case .spawnCannotEnterWithNonDataArgument(let argument, let part) where argument == part:
-            return "Spawn cannot enter because the argument '\(argument)' is not plain data"
-        case .spawnCannotEnterWithNonDataArgument(let argument, let part):
-            return """
-            Spawn cannot enter because the argument '\(argument)' \
-            holds '\(part)', which is not plain data
-            """
+        case .spawnCannotEnterWithNonSendableArgument:
+            return "Spawn cannot enter because the argument is non-sendable"
         case .splitSeparatorCannotBeEmptyString:
             return "An empty string cannot be used as a split separator"
         case .stackDepthAdvice:
@@ -122,6 +118,17 @@ extension MyronError.Hint: CustomStringConvertible {
             return "Unquote splicing ',@' can only be used inside a list"
         case .unquoteOnlyInsideTemplate:
             return "Unquoting can only be used inside a template"
+        case .valueMustBeSendable(let value, let part, let kind) where value == part:
+            return """
+            The value '\(value)' is not sendable because it has kind '\(kind)': \
+            cannot send a callable, a module, or a macro
+            """
+        case .valueMustBeSendable(let value, let part, let kind):
+            return """
+            The value '\(value)' is not sendable because it holds '\(part)' \
+            which has kind '\(kind)': \
+            cannot send a callable, a module, or a macro
+            """
         }
     }
 

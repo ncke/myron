@@ -116,30 +116,26 @@ extension Machine {
     }
 
     private func run() throws -> MyronValue {
+        let runtimeContext = try makeRuntimeContext(at: nil)
+
         while true {
             do {
                 switch control {
 
                 case .eval(let expression, let environment):
-                    try step(expression: expression, environment: environment)
+                    try step(
+                        expression: expression,
+                        environment: environment,
+                        runtimeContext: runtimeContext)
                     try checkStackDepth(at: expression.location)
 
                 case .value(let value):
                     guard let frame = stack.popLast() else { return value }
-                    try kontinue(frame, with: value)
+                    try kontinue(frame, with: value, runtimeContext: runtimeContext)
                 }
             }
             catch { try popToHandlerForError(error) }
         }
-    }
-
-    private func getRuntime() throws -> MyronRuntime {
-        guard let runtime = process?.runtime else {
-            let explain = "machine could not resolve a runtime"
-            throw MyronError(.internal(explain), at: nil)
-        }
-
-        return runtime
     }
 
 }
@@ -187,12 +183,16 @@ extension Machine {
 
 extension Machine {
 
-    private func step(expression: Expression, environment: Environment) throws {
+    private func step(
+        expression: Expression,
+        environment: Environment,
+        runtimeContext: MyronExecutionContext.RuntimeContext
+    ) throws {
         switch expression {
 
         case .atom(.symbol(let name), let meta):
             guard name != Self.specialSelf else {
-                control = .value(try getOwningProcess(at: meta.location))
+                control = .value(.process(runtimeContext.process))
                 return
             }
 
@@ -214,7 +214,8 @@ extension Machine {
                 tail: tail,
                 meta: meta,
                 expression: expression,
-                environment: environment
+                environment: environment,
+                runtimeContext: runtimeContext
             ) {
                 if let frame { stack.append(frame) }
                 self.control = control
@@ -224,15 +225,6 @@ extension Machine {
             stack.append(.arguments(tail, [], environment, meta.location))
             control = .eval(head, environment)
         }
-    }
-
-    private func getOwningProcess(at location: MyronLocation?) throws -> MyronValue {
-        guard let id = process?.identifier else {
-            let explain = "self could not resolve the process identifier"
-            throw MyronError(.internal(explain), at: location)
-        }
-
-        return .process(id)
     }
 
 }
@@ -272,7 +264,8 @@ extension Machine {
         tail: ArraySlice<Expression>,
         meta: Expression.Metadata,
         expression: Expression,
-        environment: Environment
+        environment: Environment,
+        runtimeContext: MyronExecutionContext.RuntimeContext
     ) throws -> (Frame?, Control)? {
         guard let formName = head.asSymbolName() else { return nil }
 
@@ -508,8 +501,7 @@ extension Machine {
                     .eval(firstArgument, environment))
             }
 
-            let runtime = try getRuntime()
-            let spawn = try runtime.spawn(using: context)
+            let spawn = try runtimeContext.runtime.spawn(using: context)
             return (nil, .value(spawn))
 
         case Self.specialTry:
@@ -538,7 +530,11 @@ extension Machine {
 
 extension Machine {
 
-    private func kontinue(_ frame: Frame, with value: MyronValue) throws {
+    private func kontinue(
+        _ frame: Frame,
+        with value: MyronValue,
+        runtimeContext: MyronExecutionContext.RuntimeContext
+    ) throws {
         switch frame {
 
         case .arguments(let remaining, var done, let environment, let location):
@@ -571,7 +567,12 @@ extension Machine {
                 control = .eval(next, environment)
             } else {
                 let head = done.first!
-                try apply(head, to: done.dropFirst(), at: location, in: environment)
+                try apply(
+                    head,
+                    to: done.dropFirst(),
+                    at: location,
+                    in: environment,
+                    runtimeContext: runtimeContext)
             }
 
         case .bind(let name, let remaining, let bodies, let environment, let location):
@@ -658,7 +659,7 @@ extension Machine {
 
             if let next = remaining.first {
                 stack.append(.filtering(function, next, remaining.dropFirst(), done, shape, location))
-                try apply(function, to: [next], at: location)
+                try apply(function, to: [next], at: location, runtimeContext: runtimeContext)
                 return
             }
 
@@ -667,7 +668,7 @@ extension Machine {
         case .foldring(let function, let remaining, let location):
             if let next = remaining.last {
                 stack.append(.foldring(function, remaining.dropLast(), location))
-                try apply(function, to: [next, value], at: location)
+                try apply(function, to: [next, value], at: location, runtimeContext: runtimeContext)
                 return
             }
 
@@ -681,7 +682,7 @@ extension Machine {
 
             if let next = remaining.first {
                 stack.append(.mapping(function, remaining.dropFirst(), done, shape, location))
-                try apply(function, to: [next], at: location)
+                try apply(function, to: [next], at: location, runtimeContext: runtimeContext)
                 return
             }
 
@@ -723,7 +724,7 @@ extension Machine {
 
             if let next = remaining.first {
                 stack.append(.probing(higher, function, remaining.dropFirst(), location))
-                try apply(function, to: [next], at: location)
+                try apply(function, to: [next], at: location, runtimeContext: runtimeContext)
                 return
             }
 
@@ -739,7 +740,7 @@ extension Machine {
         case .reducing(let function, let remaining, let location):
             if let next = remaining.first {
                 stack.append(.reducing(function, remaining.dropFirst(), location))
-                try apply(function, to: [value, next], at: location)
+                try apply(function, to: [value, next], at: location, runtimeContext: runtimeContext)
                 return
             }
 
@@ -764,8 +765,7 @@ extension Machine {
                 return
             }
 
-            let runtime = try getRuntime()
-            let spawn = try runtime.spawn(using: context)
+            let spawn = try runtimeContext.runtime.spawn(using: context)
             control = .value(spawn)
 
         case .spawningModules(let moduleExprs, let argumentExprs, let moduleLocation, let context):
@@ -787,8 +787,7 @@ extension Machine {
                 return
             }
 
-            let runtime = try getRuntime()
-            let spawn = try runtime.spawn(using: context)
+            let spawn = try runtimeContext.runtime.spawn(using: context)
             control = .value(spawn)
 
         case .quasiSplicing(var done, let remaining, let depth, let environment, let location):
@@ -811,7 +810,8 @@ extension Machine {
         _ value: MyronValue,
         to arguments: ArraySlice<MyronValue>,
         at location: MyronLocation?,
-        in environment: Environment? = nil
+        in environment: Environment? = nil,
+        runtimeContext: MyronExecutionContext.RuntimeContext
     ) throws {
         switch value {
 
@@ -833,7 +833,11 @@ extension Machine {
 
                 var values = arguments.dropFirst().dropLast()
                 values.append(contentsOf: try last.unwrapElements(location))
-                try apply(function, to: values, at: location)
+                try apply(
+                    function,
+                    to: values,
+                    at: location,
+                    runtimeContext: runtimeContext)
 
             case .map:
                 let (function, valueList) = try arguments.unwrap2(location)
@@ -845,7 +849,11 @@ extension Machine {
 
                 if let headValue = values.first {
                     stack.append(.mapping(function, values.dropFirst(), [], shape, location))
-                    try apply(function, to: [headValue], at: location)
+                    try apply(
+                        function,
+                        to: [headValue],
+                        at: location,
+                        runtimeContext: runtimeContext)
                 } else {
                     control = .value(shape.rebuild([]))
                 }
@@ -859,7 +867,11 @@ extension Machine {
                 
                 if let tailValue = values.last {
                     stack.append(.foldring(function, values.dropLast(), location))
-                    try apply(function, to: [tailValue, partial], at: location)
+                    try apply(
+                        function,
+                        to: [tailValue, partial],
+                        at: location,
+                        runtimeContext: runtimeContext)
                 } else {
                     control = .value(partial)
                 }
@@ -875,7 +887,11 @@ extension Machine {
                 if let headValue = values.first {
                     stack.append(
                         .filtering(function, headValue, values.dropFirst(), [], shape, location))
-                    try apply(function, to: [headValue], at: location)
+                    try apply(
+                        function,
+                        to: [headValue],
+                        at: location,
+                        runtimeContext: runtimeContext)
                 } else {
                     control = .value(shape.rebuild([]))
                 }
@@ -889,7 +905,11 @@ extension Machine {
 
                 if let headValue = values.first {
                     stack.append(.reducing(function, values.dropFirst(), location))
-                    try apply(function, to: [partial, headValue], at: location)
+                    try apply(
+                        function,
+                        to: [partial, headValue],
+                        at: location,
+                        runtimeContext: runtimeContext)
                 } else {
                     control = .value(partial)
                 }
@@ -904,7 +924,11 @@ extension Machine {
 
             if let headValue = values.first {
                 stack.append(.probing(higher, function, values.dropFirst(), location))
-                try apply(function, to: [headValue], at: location)
+                try apply(
+                    function,
+                    to: [headValue],
+                    at: location,
+                    runtimeContext: runtimeContext)
             } else {
                 switch higher {
                 case .all: control = .value(.boolean(true))
@@ -913,7 +937,11 @@ extension Machine {
             }
             
         case .primitive(let primitive):
-            let result = try primitive.call(Array(arguments), at: location)
+            let context = MyronExecutionContext(
+                location: location,
+                runtimeContext: runtimeContext)
+
+            let result = try primitive.call(Array(arguments), context: context)
             control = .value(result)
 
         case .procedure(let procedure):
@@ -1042,6 +1070,30 @@ extension Machine {
 
 }
 
+// MARK: - Runtime Context Helper
+
+extension Machine {
+
+    private func makeRuntimeContext(
+        at location: MyronLocation?
+    ) throws -> MyronExecutionContext.RuntimeContext {
+        let runtimeProcess = try getOwningProcess(at: location)
+        return MyronExecutionContext.RuntimeContext(
+            process: runtimeProcess.identifier,
+            runtime: try runtimeProcess.getRuntime(at: location))
+    }
+
+    private func getOwningProcess(at location: MyronLocation?) throws -> MyronRuntime.Process {
+        guard let process else {
+            let explain = "machine could not resolve the owning process"
+            throw MyronError(.internal(explain), at: location)
+        }
+
+        return process
+    }
+
+}
+
 // MARK: - Process Entry Helper
 
 extension Machine {
@@ -1051,12 +1103,13 @@ extension Machine {
         with arguments: [MyronValue],
         at location: MyronLocation?
     ) throws -> MyronValue {
+        let runtimeContext = try makeRuntimeContext(at: location)
         try checkEvalDepth()
         reentrancyPush()
         defer { reentrancyPop() }
 
         stack = []
-        try apply(callable, to: arguments[...], at: location)
+        try apply(callable, to: arguments[...], at: location, runtimeContext: runtimeContext)
         return try run()
     }
 

@@ -15,6 +15,8 @@ extension MyronRuntime {
         private let environmentRegistry: EnvironmentRegistry
         private(set) weak var runtime: MyronRuntime?
         private let machine: Machine
+        private var sendSequence: Int = 0
+        private var messageQueue = [Message]()
 
         init(
             identifier: MyronProcess,
@@ -33,11 +35,11 @@ extension MyronRuntime {
             machine.process = self
         }
 
-        func shutdownAll() {
+        deinit {
             environmentRegistry.shutdownAll()
         }
 
-        deinit {
+        func shutdownAll() {
             environmentRegistry.shutdownAll()
         }
 
@@ -55,21 +57,21 @@ extension MyronRuntime.Process {
             return .success(value)
 
         } catch {
-            guard let errorStyle = runtime?.configuration.errorStyle else {
-                let explain = "missing runtime when evaluating"
+            guard let runtime else {
+                let explain = "process '\(identifier)': missing runtime with soft requirement"
                 let error = MyronError(.internal(explain))
                 return .failure([error])
             }
 
+            let errorStyle = runtime.configuration.errorStyle
             if let error = error as? MyronError {
                 let errors = [error].adorned(style: errorStyle, in: expression)
                 return .failure(errors)
             }
 
-            let message = "unhandled error type: \(error)"
-            let error = MyronError(.internal(message), at: form.location)
-            let errors = [error].adorned(style: errorStyle, in: expression)
-            return .failure(errors)
+            let explain = "process '\(identifier)': unhandled error type: \(error)"
+            let error = MyronError(.internal(explain), at: form.location)
+            return .failure([error].adorned(style: errorStyle, in: expression))
         }
     }
 
@@ -105,6 +107,8 @@ extension MyronRuntime.Process {
 
 }
 
+// MARK: - Entry Call
+
 extension MyronRuntime.Process {
 
     func entryCall(
@@ -115,4 +119,39 @@ extension MyronRuntime.Process {
         return try machine.entryCall(callable, with: arguments, at: location)
     }
 
+}
+
+// MARK: - Message Handling
+
+extension MyronRuntime.Process {
+
+    func getNextSendSequence() -> Int {
+        let sequence = sendSequence
+        sendSequence += 1
+        return sequence
+    }
+
+    func enqueueMessage(_ message: Message) {
+        messageQueue.append(message)
+    }
+
+    var mailbox: [Message] {
+        messageQueue
+    }
+
+}
+
+// MARK: - Runtime Helper
+
+extension MyronRuntime.Process {
+
+    func getRuntime(at location: MyronLocation?) throws -> MyronRuntime {
+        guard let runtime else {
+            let explain = "process '\(identifier)': missing runtime with hard requirement"
+            throw MyronError(.internal(explain), at: location)
+        }
+
+        return runtime
+    }
+    
 }

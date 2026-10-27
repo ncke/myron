@@ -396,10 +396,10 @@ struct HostPrimitiveTests {
         #expect(session.query("visible")?.kind == .primitive)
         #expect(session.names.contains("visible"))
 
-        // A host primitive is namespaced, so it describes itself under `host.`
+        // A host primitive is namespaced, so it describes itself under `user.`
         // rather than as the bare name it was defined under.
         #expect(session.eval("visible").asSuccess?.description
-            == "<primitive: host.visible>")
+            == "<primitive: user.visible>")
     }
 
     // MARK: Identity
@@ -431,7 +431,7 @@ struct HostPrimitiveTests {
         // Each is namespaced, so the two are distinguishable on sight even
         // though they answer to the same name in source.
         #expect(standard.description == "<primitive: logic.not>")
-        #expect(hosted.description == "<primitive: host.not>")
+        #expect(hosted.description == "<primitive: user.not>")
     }
 
     // The namespaced name says where a primitive came from, not which one it

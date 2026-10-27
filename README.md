@@ -51,7 +51,7 @@ looking things up later.
   [Sequences](#sequences) · [Lists](#lists) ·
   [Association lists](#association-lists) · [Hashmaps](#hashmaps) ·
   [Sets](#sets) · [Records](#records-1) · [Modules](#modules-1) ·
-  [Ordering](#ordering) · [Strings](#strings) ·
+  [Messaging](#messaging) · [Ordering](#ordering) · [Strings](#strings) ·
   [Higher-order functions](#higher-order-functions) · [Errors](#errors-1)
 - [Status](#status)
 - [Changelog](#changelog)
@@ -76,7 +76,8 @@ looking things up later.
 - The beginnings of processes. `spawn` starts a process with an environment of
   its own, rebuilds the modules it is given inside it, and calls an entry point
   there. Nothing is shared with the process that spawned it. `self` is the
-  process doing the evaluating. Processes cannot yet send each other messages.
+  process doing the evaluating, and `send` puts a message in another process's
+  mailbox. Processes cannot yet receive messages.
 - Lexically scoped closures. `and` and `or` short-circuit.
 - Variadic procedures. A parameter written `xs...` collects the arguments the
   others leave over into a list.
@@ -373,8 +374,8 @@ targets: [
 ## The Swift interface
 
 Myron is a library first. The public surface is deliberately small: a session,
-the runtime behind it, its configuration, a result, the `MyronValue` enum, `MyronHashmap`,
-`MyronSet`, `MyronError`, and the language version. The `myron`
+the runtime behind it, its configuration, a result, the `MyronValue` enum,
+`MyronHashmap`, `MyronSet`, `MyronError`, and the language version. The `myron`
 executable is itself just another host of the library, in a few dozen lines of
 Swift.
 
@@ -553,11 +554,11 @@ session.eval("(double 1 2)")
 A primitive defined this way is an ordinary value in the session's environment.
 It can be shadowed by a later `define`, replaced by Myron's own `define`, passed
 to `map` and friends, stored in a list or a hashmap and called back out, and
-read through `query`. It is namespaced under `host.` so it is recognisable on
+read through `query`. It is namespaced under `user.` so it is recognisable on
 sight:
 
 ```swift
-session.eval("double")                    // <primitive: host.double>
+session.eval("double")                    // <primitive: user.double>
 ```
 
 **Failing from a body.** Throw `MyronHostError` and its description arrives as
@@ -589,16 +590,15 @@ session.eval("(double \"a\")")
 ```
 
 **Naming.** `define` throws rather than returning, because a name has to be one
-Myron source could actually write: one that reads back as that one symbol.
-That rules out the empty string, anything containing whitespace, brackets, a
-`;` or a `"`, and anything that would read as something else — `42`, `3.5`,
-`-x`, `true`, `nothing`, `,x`, `'x`. The fifteen
-[special forms](#special-forms), [`self`](#self), and `unquote` and
-`unquote-splicing`, are rejected too, since they are intercepted before symbol lookup and a primitive
-under one of those names could never be called, and so is a name ending in a
-dot, which source cannot bind either. Everything
-else is fair game, including non-ASCII: if `(define café 1)` works in source,
-`define("café")` works from Swift.
+Myron source could actually write: one that reads back as that one symbol. That
+rules out the empty string, anything containing whitespace, brackets, a `;` or a
+`"`, and anything that would read as something else — `42`, `3.5`, `-x`, `true`,
+`nothing`, `,x`, `'x`. The fifteen [special forms](#special-forms),
+[`self`](#self), and `unquote` and `unquote-splicing`, are rejected too, since
+they are intercepted before symbol lookup and a primitive under one of those
+names could never be called, and so is a name ending in a dot, which source
+cannot bind either. Everything else is fair game, including non-ASCII: if
+`(define café 1)` works in source, `define("café")` works from Swift.
 
 ```swift
 try session.define("if") { _ in 1 }       // throws — Invalid name: if
@@ -717,9 +717,19 @@ b.eval("x")                               // .failure — unrecognisedSymbol
 ```
 
 Each session has its own environment, so what one defines the other cannot see.
-What they share is the runtime: its [configuration](#configuration), and the
-numbering of the processes they spawn. Sharing a runtime is the groundwork for
-processes that talk to one another, which Myron cannot do yet.
+What they share is the runtime: its [configuration](#configuration), the
+numbering of the processes they spawn, and the delivery of
+[messages](#messaging) between them. A session can send a message from Swift
+as well as from Myron, to any process whose address it holds:
+
+```swift
+let address = b.eval("self").asSuccess?.asProcess
+try a.send(.symbol("hello"), to: address!)   // into b's mailbox
+```
+
+`send(_:to:)` throws `expectedSendable` for a value that Myron code could not
+send either, and otherwise succeeds whether or not the destination is still
+alive. Nothing can take a message out of a mailbox yet.
 
 A session holds its runtime, so the runtime lasts as long as any session made
 from it, or as long as the host holds it. See
@@ -846,13 +856,16 @@ value.isString                            // Bool
 value.isNothing                           // Bool
 value.isNumeric                           // an integer or a double
 value.isCallable                          // a procedure or any primitive
+value.isSendable                          // could be sent to another process
 ```
 
 `isX` is `true` exactly when `asX` is not `nil`, and both answer for that one
 kind alone. `.higherOrder` and `.higherProbe` — `map`, `all` and the rest — are
 primitives in name only: Myron calls their kind `primitive`, but they are not
 `MyronPrimitive`s, so `isPrimitive` is `false` for them and `asPrimitive` is
-`nil`. `isCallable` covers them, as `callable?` does in Myron.
+`nil`. `isCallable` covers them, as `callable?` does in Myron. `isSendable` is
+not about one case: it asks whether a value holds no procedure, primitive, macro
+or module at any depth, as [`sendable?`](#messaging) does in Myron.
 
 `MyronValue` conforms to `CustomStringConvertible`, and its `description`
 renders a value the way Myron prints it: lists in brackets, strings in quotes,
@@ -952,6 +965,7 @@ also has a `description`, which is the first line of the rendered message.
 | `expectedExpressionAfterUnquoting` | A `,` or `,@` was not followed by an expression. |
 | `expectedFunction(MyronValue.Kind)` | The head of an application was not callable, or a value that is not, such as a macro, was given where a function was wanted. |
 | `expectedQuote` | A string literal was never closed. |
+| `expectedSendable(MyronValue.Kind)` | A value that is not [sendable](#messaging) was given to `send` or as an argument to [`spawn`](#spawn); carries the kind of the part that is not sendable, which may be deep inside the value. |
 | `hostError(String)` | A [host-defined primitive](#defining-primitives) threw; carries the error's description. |
 | `incomparableTypes` | `gt`/`lt` and friends, or `sort`, were given types with no ordering. |
 | `` `internal`(String) `` | An invariant inside the interpreter broke. Please report these. |
@@ -965,7 +979,6 @@ also has a `description`, which is the first line of the rendered message.
 | `typeCastFailed(MyronValue.Kind, MyronValue.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
 | `unexpectedField(String, String, [String])` | A record was asked for a field its type does not have; carries the field, the type's name, and the fields it does have. |
 | `unexpectedArity(Int, IntegerExpectation)` | Wrong number of arguments; carries what was given and what was wanted. |
-| `unexpectedNonData(MyronValue.Kind)` | A procedure, primitive, macro or module was given where only plain data can go, such as an argument to [`spawn`](#spawn), or was found inside a list, set, hashmap or record given there; carries the kind of the part that is not data. |
 | `unexpectedType(MyronValue.Kind?, Set<MyronValue.Kind>)` | Wrong type of argument; carries what was given and what was acceptable. |
 | `unexpectedUnquoting` | A `,` or `,@` was evaluated outside a [template](#quasiquote), or a `,@` had no list around it to splice into. |
 | `unexpectedVariadicParameter(String)` | A parameter list had a second [variadic parameter](#lambda), or a bare `...`; carries the parameter as written. |
@@ -1072,8 +1085,8 @@ let held: MyronValue = try value.require()
 Nesting comes free, so a structure converts in one step however deep it goes.
 `Array`, `Set`, `Dictionary` and `Optional` conform where their elements do;
 `MyronValue`, `MyronHashmap`, `MyronSet`, `MyronRecord`, `MyronRecordType`,
-`MyronModule`, `MyronProcess` and `MyronMacro` conform as themselves. A list and a
-set each convert into either Swift collection, so the Swift type you ask for
+`MyronModule`, `MyronProcess` and `MyronMacro` conform as themselves. A list and
+a set each convert into either Swift collection, so the Swift type you ask for
 decides the shape — and asking for a `Set` collapses duplicates, as Swift's
 `Set` always does. `nothing` becomes `nil` for an optional and an error for
 anything else.
@@ -1415,16 +1428,17 @@ equal to itself however many names it is bound to.
 #### `MyronProcess`
 
 The payload of `MyronValue.process`: the address of a process, given by
-[`spawn`](#spawn) or [`self`](#self) rather than made in Swift. It is a value type, `Equatable`,
-`Hashable` and `Sendable`, and two are equal when they address the same
-process. Its description is `<process: 3>`, numbered within its
+[`spawn`](#spawn) or [`self`](#self) rather than made in Swift. It is a value
+type, `Equatable`, `Hashable` and `Sendable`, and two are equal when they
+address the same process. Its description is `<process: 3>`, numbered within its
 [runtime](#myronruntime), where a number is never used twice.
 
 An address does not keep its process alive, and says nothing about whether it
 still is. A process ends when its entry call returns, whoever holds its
 address — and for now that is always before `spawn` returns, so every spawned
 process a host is given has already finished. A session's own process, which
-`self` gives back, lasts as long as the session.
+`self` gives back, lasts as long as the session. A message sent to an address
+whose process has ended is dropped without an error.
 
 #### Keys
 
@@ -1503,13 +1517,13 @@ Sessions and runtimes are not thread-safe. Confine a runtime, and every
 session made from it, to a single thread or actor.
 
 When a session is deallocated it shuts down every environment it created, and
-its process leaves the runtime. A spawned process does the same when it ends,
-so nothing it defined outlives it. This matters because closures capture their 
-defining environment, and a procedure stored in an environment forms a reference 
-cycle with it; the session's registry breaks those cycles at teardown. The 
-practical consequence is that a `.procedure` value is only meaningful while 
-the session that produced it is alive — extract the data you need before letting
-the session go.
+its process leaves the runtime. A spawned process does the same when it ends, so
+nothing it defined outlives it, and nor does anything left in its mailbox. This
+matters because closures capture their defining environment, and a procedure
+stored in an environment forms a reference cycle with it; the session's registry
+breaks those cycles at teardown. The practical consequence is that a
+`.procedure` value is only meaningful while the session that produced it is
+alive — extract the data you need before letting the session go.
 
 Calling one afterwards is an error rather than a crash: the procedure has no
 environment left to run in, and evaluation fails with
@@ -2049,8 +2063,8 @@ The new process shares nothing with the one that spawned it. Each module in the
 list is rebuilt inside it from the module's own source, so `geo` there is a
 fresh copy, and the entry `geo.area` is found and called there, with the
 arguments. Those are evaluated where `spawn` is written and copied across, so
-they must be plain data — no procedures and no modules, however deeply they
-are tucked away.
+they must be [sendable](#messaging) — no procedures and no modules, however
+deeply they are tucked away.
 
 A module that imports another must come after it in the list, because each is
 rebuilt with nothing around it but the modules before it:
@@ -2070,7 +2084,7 @@ process, and the code that spawned it carries on.
 ```
 
 `self` is the process doing the evaluating. In a session it is the session's
-own process, and inside a spawned process it is that process. It is plain data,
+own process, and inside a spawned process it is that process. It is sendable,
 so a process can hand its own address to one it spawns:
 
 ```lisp
@@ -2079,9 +2093,21 @@ so a process can hand its own address to one it spawns:
 (process? (spawn () list self))           ; true
 ```
 
-This is the start of processes, not the whole of them. Processes cannot yet
-send each other messages, so for now a spawned process runs to the end before
-`spawn` returns, and what it returns is set aside.
+A process talks to another by sending it a message: `send` takes the address
+of the process and a sendable value, puts the value in that process's mailbox,
+and carries on. A process that wants an answer sends its own address along, so
+the other knows where to reply:
+
+```lisp
+(module echo (go) (define (go parent) (send parent 'hello)))
+(spawn (echo) echo.go self)               ; hello waits in our mailbox
+(send self (list 1 "two" 'three))         ; <nothing>
+(sendable? +)                             ; false
+```
+
+This is the start of processes, not the whole of them. Messages can be sent but
+not yet received, so for now a spawned process runs to the end before `spawn`
+returns, and what it returns is set aside.
 
 ### Macros
 
@@ -2280,9 +2306,10 @@ and the value of the last is the value of the program; the first error stops
 evaluation.
 
 User bindings shadow standard-environment names, so `(define max 9)` hides the
-built-in `max`. The names of the special forms, and `self`, are reserved: binding one, by
-`define`, `let`, `defmacro` or as a parameter, is an `invalidName` error with a
-hint, so `if` always branches and `self` is always the current process.
+built-in `max`. The names of the special forms, and `self`, are reserved:
+binding one, by `define`, `let`, `defmacro` or as a parameter, is an
+`invalidName` error with a hint, so `if` always branches and `self` is always
+the current process.
 
 New scopes are created by a procedure call, by `let` and by `module`. A `define`
 binds into whichever environment is current, which means a `define` inside a
@@ -2749,9 +2776,9 @@ standard primitive.
 (spawn (geo) circle.area 1.0)             ; ERROR: Unrecognised symbol ...
 ```
 
-The arguments are copied into the new process, so each must be plain data: not
-a procedure, a primitive, a macro or a module, and not a list, set, hashmap or
-record holding one at any depth.
+The arguments are copied into the new process, so each must be
+[sendable](#messaging): not a procedure, a primitive, a macro or a module, and
+not a list, set, hashmap or record holding one at any depth.
 
 A rebuilt module has nothing around it but the modules before it in the list.
 One that imports another must come after it, and one that uses a name defined
@@ -2760,18 +2787,18 @@ while the module is being rebuilt, `spawn` fails; if it happens inside a
 procedure, the new process fails when the procedure is called.
 
 The process ends when the entry call returns, or fails. Either way, nothing in
-the spawning process hears about it. Until processes can exchange messages, the
+the spawning process hears about it. Until processes can receive messages, the
 entry call runs to the end before `spawn` returns, so a spawned process that
 never returns holds up the one that spawned it.
 
 *Errors:* `unexpectedArity` without a module list and an entry; `unexpectedType`
 when the module list is not a list, one of its values is not a module, or the
-entry is not a symbol; `unexpectedNonData` for an argument that is not plain
-data, naming the kind of the part that is not, with a hint showing the
-argument; `unrecognisedSymbol` when the entry's first part is not a listed
-module, with a hint, when a module cannot be rebuilt, or when the entry is not
-found in the new process. Errors inside the entry call belong to the new
-process and are not reported.
+entry is not a symbol; `expectedSendable` for an argument that is not sendable,
+naming the kind of the part that is not, with hints showing the argument and
+saying that `spawn` cannot enter; `unrecognisedSymbol` when the entry's first
+part is not a listed module, with a hint, when a module cannot be rebuilt, or
+when the entry is not found in the new process. Errors inside the entry call
+belong to the new process and are not reported.
 
 #### `self`
 
@@ -2899,6 +2926,7 @@ them.
 | `record?` | a [record](#records-1) |
 | `record-type?` | a [record type](#records-1) |
 | `process?` | a [process](#spawn) |
+| `sendable?` | a value that can be [sent](#messaging): one holding no procedure, primitive, macro or module at any depth |
 | `macro?` | a macro made with [`defmacro`](#defmacro) |
 | `define?` | a [define marker](#definitions) |
 | `positive?` | a number greater than zero |
@@ -2928,6 +2956,8 @@ asks what `(eq (kind x) "hashmap")` would. The exceptions are primitives and
 procedures, which share `callable?`: a program can call either the same way,
 and has no reason to tell them apart. A macro is not callable — it can head an
 application, but `map` and `apply` cannot call it — so it has `macro?` instead.
+`sendable?` is not about a kind: it looks inside a value, as described under
+[Messaging](#messaging).
 `hashmap?` is what tells the two [associative types](#association-lists) apart,
 since `get`, `put` and their friends take either.
 
@@ -3787,6 +3817,49 @@ argument: a module that is not a module, or a name that is not a symbol or a
 string, raises `unexpectedType`. Check with `module?` first when the value might
 be something else.
 
+### Messaging
+
+| Primitive | Arguments | Result |
+|---|---|---|
+| `send` | 1 process, 1 sendable value | `nothing`, having put the value in the process's mailbox |
+
+```lisp
+(send self 'hello)                        ; <nothing>
+(send self (list 1 (set 2) "three"))      ; <nothing>
+(sendable? (list 1 +))                    ; false
+(send self +)                             ; ERROR: Expected a sendable value ...
+```
+
+A value is **sendable** when it holds no procedure, primitive, macro or module —
+not as itself, and not anywhere inside it: in a list, a set, a record, or a
+hashmap as either a key or a value. Numbers, strings, symbols, booleans,
+`nothing`, record types and processes are all sendable. The rule is what keeps
+processes apart. A procedure carries the environment it was defined in, so
+sending one would let two processes share it; sending only plain values means a
+message shares nothing with the process that sent it. The same rule governs the
+arguments to [`spawn`](#spawn). It has nothing to do with Swift's `Sendable`
+protocol, which is about threads.
+
+`send` is an ordinary procedure: both arguments are evaluated, it can be passed
+to `map` and `apply`, and it can be shadowed like any standard name. It puts the
+message in the destination's mailbox and gives back `nothing` straight away.
+
+A send never says whether its destination is alive. Sending to a process that
+has ended succeeds, and the message is dropped. The only thing that makes a send
+fail is a message that is not sendable, and that is checked before anything
+else, so a send that fails would have failed whatever the destination. Messages
+from one process to another arrive in the order they were sent; there is no
+promise about the order of messages from different senders.
+
+A message is just the value: it does not say who sent it. A process that wants a
+reply puts [`self`](#self) in the message. Nothing can take a message out of a
+mailbox yet — that is what `receive` will do.
+
+*Errors:* `unexpectedArity` without exactly two arguments; `unexpectedType` when
+the destination is not a process; `expectedSendable` when the message is not
+sendable, naming the kind of the part that is not, with a hint showing the
+message and that part.
+
 ### Ordering
 
 | Primitive | Arguments | Result |
@@ -4017,9 +4090,9 @@ Still to come:
 - Modules kept in files of their own, found by the host when `import` names one
   the program cannot see. Until then, `load` the file that defines the module
   and `import` it afterwards.
-- Processes that exchange messages, with `send` and `receive`, and take turns
-  to run. Until then, a spawned process runs to the end before `spawn` returns,
-  and nothing can be learned from it.
+- Processes that receive messages, with `receive`, and take turns to run.
+  Until then, a spawned process runs to the end before `spawn` returns, and a
+  message sent to a process waits in its mailbox with nothing to read it.
 - `sourceHandle` on errors. It is carried through tokenisation but not yet
   surfaced. Until then, an error in a procedure defined by an earlier `eval` is
   shown against the source of the current one, and an error raised while

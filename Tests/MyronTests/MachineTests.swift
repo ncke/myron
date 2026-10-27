@@ -5,22 +5,33 @@ import Testing
 
 @Suite("Machine") struct MachineTests {
 
+    // A machine always runs on behalf of a process, so it is tested through
+    // one: the runtime makes the process, and the process owns the machine.
     @Test("smoke test") func evaluatePrimitive() throws {
+        let runtime = MyronRuntime()
+        let process = runtime.makeProcess()
+        let input = "(define x '(1 2 (a b c) 3 ())) x"
 
+        let exprs = try #require(makeExpressions(input))
+
+        var last: MyronResult = .nothing
+        for expr in exprs {
+            last = runtime.eval(process, expression: expr, containingRepresentation: input)
+        }
+        #expect(last.asSuccess?.description == "(1 2 (a b c) 3 ())")
+    }
+
+    @Test("a machine with no process cannot run")
+    func machineNeedsProcess() throws {
         let registry = EnvironmentRegistry()
         let environment = Environment(registry: registry)
         let machine = Machine(environment: environment)
-        let input = "(define x '(1 2 (a b c) 3 ())) x"
+        let expr = try #require(makeExpressions("1")?.first)
 
-
-        let exprs = makeExpressions(input)
-        guard let exprs = exprs else {
-            Issue.record("Could not make expressions")
+        let error = #expect(throws: MyronError.self) { try machine.eval(expr) }
+        guard case .internal = error?.reason else {
+            Issue.record("expected an internal error, got \(String(describing: error?.reason))")
             return
-        }
-
-        for expr in exprs {
-            let _ = try machine.eval(expr)
         }
     }
 

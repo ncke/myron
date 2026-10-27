@@ -89,9 +89,9 @@ struct HashableTests {
     // MARK: Callables
 
     private func primitive(_ name: String) -> MyronValue {
-        return .primitive(MyronPrimitive(primitiveName: name, representations: []) { _, _ in
+        return .primitive(MyronPrimitive(primitiveName: name, representations: [], body: { _, _ in
             return .nothing
-        })
+        }))
     }
 
     @Test("a callable that compares equal hashes equally")

@@ -10,9 +10,10 @@ the language, and a patch release will not.
 
 The first step towards processes. `spawn` starts a process with an environment
 of its own and gives it back as a value; sessions now run as processes inside a
-runtime. Processes cannot yet exchange messages, so a spawned process runs to
-the end before `spawn` returns. `MyronValue` has a new case, so hosts that
-switch over it exhaustively need updating — see [Changed](#changed).
+runtime. A process can send another a message with `send`, but nothing can
+receive one yet, so a spawned process runs to the end before `spawn` returns.
+`MyronValue` has a new case, so hosts that switch over it exhaustively need
+updating — see [Changed](#changed).
 
 ### Added
 
@@ -20,12 +21,23 @@ switch over it exhaustively need updating — see [Changed](#changed).
   `(spawn (module …) entry argument …)`. Each listed module is rebuilt inside
   the new process from its own source, and the entry, usually a qualified name
   such as `geo.area`, is looked up there and applied to the arguments. The
-  arguments are evaluated where `spawn` is written and must be plain data. A
+  arguments are evaluated where `spawn` is written and must be sendable. A
   failure inside the entry call ends the process without reaching the code
   that spawned it.
 - `self`, which evaluates to the process doing the evaluating: a session's own
   process, or a spawned process inside itself. It is not looked up, so it
   means the same process inside procedures, modules and macro expansions.
+- `send`, which puts a message in another process's mailbox:
+  `(send process value)`. It gives back `nothing` at once, and succeeds whether
+  or not the destination is alive; a message to a process that has ended is
+  dropped. Messages from one process to another arrive in the order they were
+  sent. Nothing can take a message out of a mailbox yet.
+- Sendable values: those holding no procedure, primitive, macro or module at
+  any depth. Only a sendable value can be sent, or given to `spawn` as an
+  argument. `sendable?` asks whether a value is one, and so does `isSendable`
+  on `MyronValue`.
+- `MyronSession.send(_:to:)`, which sends a message from a session's own
+  process, with the same rules as `send`.
 - Process values. `spawn` gives back a process, which prints as
   `<process: 1>`, has the kind `"process"`, compares by the process it
   addresses, and works as a set member and a hashmap key.
@@ -50,15 +62,19 @@ switch over it exhaustively need updating — see [Changed](#changed).
 - `MyronProcess`, the payload of the new `MyronValue.process` case, with
   `asProcess` and `requireProcess()`, and conformances to
   `MyronValueConvertible` and `MyronValueRepresentable`.
-- `MyronError.Reason.unexpectedNonData`, for a procedure, primitive, macro or
-  module where only plain data can go, such as an argument to `spawn`, at any
-  depth inside it.
+- `MyronError.Reason.expectedSendable`, for a value that is not sendable given
+  to `send` or to `spawn`, carrying the kind of the part that is not sendable,
+  however deep inside the value it is.
 
 ### Changed
 
 - `MyronValue` has a new case, `.process`, and `MyronValue.Kind` has `.process`,
   so an exhaustive `switch` over either needs a new case.
-- `MyronError.Reason` has a new case, `unexpectedNonData`.
+- `MyronError.Reason` has a new case, `expectedSendable`.
+- A primitive a host defines is namespaced under `user.` rather than `host.`,
+  so `double` describes itself as `<primitive: user.double>`.
+- The `expectedFunction` message now reads "Expected function but got kind:
+  …".
 - `spawn` is a special form, so it can no longer be bound as a name, by Myron
   code or by a host's `define`.
 - `self` is reserved, like the names of the special forms, so it can no longer

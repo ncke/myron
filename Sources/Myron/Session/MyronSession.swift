@@ -295,7 +295,7 @@ extension MyronSession {
 
         let primitive = MyronPrimitive(
             id: Counter.next(),
-            primitiveName: Self.hostNamespace + name,
+            primitiveName: Self.userNamespace + name,
             representations: [name],
             signature: signature,
             body: checked)
@@ -324,7 +324,7 @@ extension MyronSession {
         return primitive
     }
     
-    private static let hostNamespace = "host."
+    private static let userNamespace = "user."
 
     private static func validatePrimitiveName(_ name: String) throws {
         try MyronValue.validateAsName(name, location: nil)
@@ -362,6 +362,20 @@ extension MyronSession {
     public var names: Set<String> {
         let names = try? runtime.names(process)
         return names ?? Set()
+    }
+
+}
+
+// MARK: - Message Handling
+
+extension MyronSession {
+
+    public func send(_ content: MyronValue, to destination: MyronProcess) throws {
+        try runtime.send(
+            source: process,
+            destination: destination,
+            content: content,
+            location: nil)
     }
 
 }

@@ -9,9 +9,10 @@ struct StandardResolver {
         let contenders = "resolver:\(names)"
         let resolverName = "*." + representation
                 
-        let resolverBody: MyronPrimitive.Body = {
-            args, location in
-            
+        let resolverBody: MyronPrimitive.ContextualBody = {
+            args, context in
+
+            let location = context.location
             let argKinds = args.map { arg in arg.kind }
             var matchedIdxs = [Int]()
             var matchedConstraints = [[MyronSignature.Term.Constraint]]()
@@ -109,14 +110,14 @@ struct StandardResolver {
                 throw MyronError(reason, at: location)
             }
 
-            return try primitives[matchedIdxs[winner]].call(args, at: location)
+            return try primitives[matchedIdxs[winner]].call(args, context: context)
         }
         
         let resolverPrimitive = MyronPrimitive(
             primitiveName: resolverName,
             representations: [],
-            body: resolverBody)
-        
+            contextualBody: resolverBody)
+
         return resolverPrimitive
     }
     

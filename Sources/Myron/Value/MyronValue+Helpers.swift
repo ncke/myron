@@ -110,7 +110,7 @@ extension MyronValue {
         default: throw MyronError(.unexpectedType(self.kind, [.record, .recordType]), at: location)
         }
     }
-    
+
     func unwrapSet(_ location: MyronLocation?) throws -> MyronSet {
         guard let s = asSet else {
             throw MyronError(.unexpectedType(self.kind, [.set]), at: location)
@@ -321,6 +321,32 @@ extension MyronValue {
     public var isSymbol: Bool {
         if case .symbol = self { return true }
         return false
+    }
+
+}
+
+// MARK: - Sendability
+
+extension MyronValue {
+
+    private func findFirstNonSendableValue() -> MyronValue? {
+        return self.flat.first {
+            element in element.isCallable || element.isModule || element.isMacro
+        }
+    }
+
+    public var isSendable: Bool {
+        return findFirstNonSendableValue() == nil
+    }
+
+    func validateAsSendable(_ location: MyronLocation?) throws {
+        if let nonSendable = findFirstNonSendableValue() {
+            let hint = MyronError.Hint.valueMustBeSendable(
+                self.description,
+                nonSendable.description,
+                nonSendable.kind)
+            throw MyronError(.expectedSendable(nonSendable.kind), at: location).withHint(hint)
+        }
     }
 
 }

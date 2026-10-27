@@ -56,6 +56,7 @@ extension StandardEnvironment {
         StandardLists.self,
         StandardLogic.self,
         StandardMathematics.self,
+        StandardMessaging.self,
         StandardOrdering.self,
         StandardPredicates.self,
         StandardRecord.self,

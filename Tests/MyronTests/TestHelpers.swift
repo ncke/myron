@@ -88,6 +88,17 @@ func expectArityFailure(
     }
 }
 
+// MARK: - Execution Context Helpers
+
+// A context for calling a primitive directly, outside any machine. It belongs
+// to a real process in a runtime of its own, which the context keeps alive.
+func makeExecutionContext(at location: MyronLocation? = nil) -> MyronExecutionContext {
+    let runtime = MyronRuntime()
+    let process = runtime.makeProcess()
+    let runtimeContext = MyronExecutionContext.RuntimeContext(process: process, runtime: runtime)
+    return MyronExecutionContext(location: location, runtimeContext: runtimeContext)
+}
+
 // MARK: - Host Stack Helpers
 
 // Some tests reach deep into the host thread's own stack: evaluations nested

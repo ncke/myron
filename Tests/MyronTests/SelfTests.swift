@@ -69,7 +69,7 @@ struct SelfTests {
 
     // MARK: As Data
 
-    @Test("self is plain data, so it can be given to spawn")
+    @Test("self is sendable, so it can be given to spawn")
     func spawnArgument() {
         expectValue("(process? (spawn () list self))", "true")
     }

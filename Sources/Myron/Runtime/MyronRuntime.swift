@@ -69,15 +69,10 @@ extension MyronRuntime {
         }
 
         for argument in context.arguments {
-            let nonData = argument.flat.first { element in
-                element.isCallable || element.isModule || element.kind == .macro
-            }
-
-            if let nonData {
-                throw MyronError(.unexpectedNonData(nonData.kind), at: context.parentLocation)
-                    .withHint(.spawnCannotEnterWithNonDataArgument(
-                        argument.description,
-                        nonData.description))
+            do {
+                try argument.validateAsSendable(context.parentLocation)
+            } catch let error as MyronError {
+                throw error.withHint(.spawnCannotEnterWithNonSendableArgument)
             }
         }
 
@@ -207,6 +202,39 @@ extension MyronRuntime {
 
     public func makeSession() -> MyronSession {
         MyronSession(runtime: self)
+    }
+
+}
+
+// MARK: - Message Handling
+
+extension MyronRuntime {
+
+    func send(
+        source: MyronProcess,
+        destination: MyronProcess,
+        content: MyronValue,
+        location: MyronLocation?
+    ) throws {
+        try content.validateAsSendable(location)
+
+        guard
+            let sourceProcess = processes[source],
+            let destinationProcess = processes[destination]
+        else { return }
+
+        let sequence = sourceProcess.getNextSendSequence()
+        let message = Message(
+            source: source,
+            destination: destination,
+            sequence: sequence,
+            content: content)
+
+        destinationProcess.enqueueMessage(message)
+    }
+
+    func mailbox(of process: MyronProcess) -> [Message]? {
+        processes[process]?.mailbox
     }
 
 }

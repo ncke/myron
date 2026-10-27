@@ -62,7 +62,7 @@ struct SpawnTests {
         expectFailure(Self.geo + " (define g geo) (spawn (g) g.area 2)", reason: .unrecognisedSymbol)
     }
 
-    @Test("arguments are evaluated in the parent and may be any plain data", arguments: [
+    @Test("arguments are evaluated in the parent and may be any sendable value", arguments: [
         (geo + " (define n 2) (process? (spawn (geo) geo.area n))", "true"),
         (geo + " (process? (spawn (geo) geo.area '(1 2)))", "true"),
         (geo + " (process? (spawn (geo) geo.area (list 1 \"a\" 'b (set 1) (make-hashmap))))", "true"),
@@ -140,62 +140,53 @@ struct SpawnTests {
 
     private static let twice = "(defmacro (twice x) (list '+ x x))"
 
-    @Test("an argument must be plain data", arguments: [
-        (geo + " (spawn (geo) geo.area (lambda (x) x))", .unexpectedNonData(.procedure)),
-        (geo + " (spawn (geo) geo.area sqrt)", .unexpectedNonData(.primitive)),
-        (geo + " (spawn (geo) geo.area map)", .unexpectedNonData(.higherOrder)),
-        (geo + " " + twice + " (spawn (geo) geo.area twice)", .unexpectedNonData(.macro)),
-        (geo + " (spawn (geo) geo.area geo)", .unexpectedNonData(.module))
+    @Test("an argument must be sendable", arguments: [
+        (geo + " (spawn (geo) geo.area (lambda (x) x))", .expectedSendable(.procedure)),
+        (geo + " (spawn (geo) geo.area sqrt)", .expectedSendable(.primitive)),
+        (geo + " (spawn (geo) geo.area map)", .expectedSendable(.higherOrder)),
+        (geo + " " + twice + " (spawn (geo) geo.area twice)", .expectedSendable(.macro)),
+        (geo + " (spawn (geo) geo.area geo)", .expectedSendable(.module))
     ] as [FailureCase])
     func nonDataArgument(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
     }
 
-    // The error names the part that is not plain data, not the argument
-    // holding it.
-    @Test("an argument may not hold anything but plain data, at any depth", arguments: [
-        (geo + " (spawn (geo) geo.area (list 1 (lambda (x) x)))", .unexpectedNonData(.procedure)),
-        (geo + " (spawn (geo) geo.area (list (list sqrt)))", .unexpectedNonData(.primitive)),
-        (geo + " (spawn (geo) geo.area (set 1 geo))", .unexpectedNonData(.module)),
+    // The error names the kind of the part that is not sendable, not of the
+    // argument holding it.
+    @Test("an argument may not hold anything unsendable, at any depth", arguments: [
+        (geo + " (spawn (geo) geo.area (list 1 (lambda (x) x)))", .expectedSendable(.procedure)),
+        (geo + " (spawn (geo) geo.area (list (list sqrt)))", .expectedSendable(.primitive)),
+        (geo + " (spawn (geo) geo.area (set 1 geo))", .expectedSendable(.module)),
         (geo + " (spawn (geo) geo.area (put 'k (lambda (x) x) (make-hashmap)))",
-         .unexpectedNonData(.procedure)),
+         .expectedSendable(.procedure)),
         (geo + " (spawn (geo) geo.area (put (lambda (x) x) 'v (make-hashmap)))",
-         .unexpectedNonData(.procedure)),
-        (geo + " " + twice + " (spawn (geo) geo.area (list twice))", .unexpectedNonData(.macro)),
+         .expectedSendable(.procedure)),
+        (geo + " " + twice + " (spawn (geo) geo.area (list twice))", .expectedSendable(.macro)),
         (geo + " (define box (make-record-type 'box '(item)))"
-            + " (spawn (geo) geo.area (make-record box sqrt))", .unexpectedNonData(.primitive))
+            + " (spawn (geo) geo.area (make-record box sqrt))", .expectedSendable(.primitive))
     ] as [FailureCase])
     func nestedNonDataArgument(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)
     }
 
-    @Test("the hint names the argument, and the part of it that is not plain data", arguments: [
+    @Test("the hints name the argument, the part of it that is not sendable, and spawn", arguments: [
         (geo + " (spawn (geo) geo.area geo)",
-         MyronError.Hint.spawnCannotEnterWithNonDataArgument("<module: geo>", "<module: geo>")),
+         MyronError.Hint.valueMustBeSendable("<module: geo>", "<module: geo>", .module)),
         (geo + " (spawn (geo) geo.area (list 1 (lambda (x) x)))",
-         MyronError.Hint.spawnCannotEnterWithNonDataArgument("(1 <procedure>)", "<procedure>"))
+         MyronError.Hint.valueMustBeSendable("(1 <procedure>)", "<procedure>", .procedure))
     ])
-    func nonDataHint(_ source: String, _ hint: MyronError.Hint) {
+    func nonSendableHints(_ source: String, _ hint: MyronError.Hint) {
         guard case .failure(let errors) = MyronSession().eval(source) else {
             Issue.record("\(source) did not fail")
             return
         }
-        #expect(errors.first?.hints?.contains(hint) == true)
+        #expect(errors.first?.hints == [hint, .spawnCannotEnterWithNonSendableArgument])
     }
 
-    @Test("the hint reads differently for a whole argument and a part of one")
-    func nonDataHintWording() {
-        let whole = MyronError.Hint.spawnCannotEnterWithNonDataArgument("<procedure>", "<procedure>")
-        let part = MyronError.Hint.spawnCannotEnterWithNonDataArgument("(1 <procedure>)", "<procedure>")
-        #expect(whole.description == "Spawn cannot enter because the argument '<procedure>' is not plain data")
-        #expect(part.description
-            == "Spawn cannot enter because the argument '(1 <procedure>)' holds '<procedure>', which is not plain data")
-    }
-
-    @Test("the error names the kind and asks for plain data")
-    func nonDataMessage() {
-        #expect(MyronError.Reason.unexpectedNonData(.module).description
-            == "Unexpected kind 'module', expected plain data")
+    @Test("the spawn hint says the argument cannot be sent")
+    func nonSendableSpawnHintWording() {
+        #expect(MyronError.Hint.spawnCannotEnterWithNonSendableArgument.description
+            == "Spawn cannot enter because the argument is non-sendable")
     }
 
     // MARK: Lifetime
