@@ -501,7 +501,7 @@ Myron can call like any other primitive.
 ```swift
 let session = MyronSession()
 
-try session.define("double") { value in
+try session.define("double") { _, value in
     try value.requireInteger() * 2
 }
 
@@ -509,13 +509,18 @@ session.eval("(double 21)")               // .success(.integer(42))
 session.eval("(map double '(1 2 3))")     // .success — the list (2 4 6)
 ```
 
+The closure's first parameter is always the call's context, described under
+**The context** below, and the arguments follow it. A body that doesn't need the
+context ignores it with `_`.
+
 There is an overload for each arity from zero to six. The closure's shape
-chooses the overload, so nothing needs declaring:
+chooses the overload, so nothing needs declaring. A closure with only the
+context takes no arguments:
 
 ```swift
-try session.define("answer") { 42 }
+try session.define("answer") { _ in 42 }
 
-try session.define("hypotenuse") { a, b in
+try session.define("hypotenuse") { _, a, b in
     let x = try a.requireDouble()
     let y = try b.requireDouble()
     return (x * x + y * y).squareRoot()
@@ -529,7 +534,7 @@ an array. The arity is checked in the same way, as `.exactly`, `.atLeast`,
 `.atMost` or `.unspecified`:
 
 ```swift
-try session.define("sum", arity: .atLeast(1)) { values in
+try session.define("sum", arity: .atLeast(1)) { _, values in
     try values.reduce(0) { total, value in try total + value.requireInteger() }
 }
 
@@ -565,7 +570,7 @@ session.eval("double")                    // <primitive: user.double>
 the reason, positioned at the call site:
 
 ```swift
-try session.define("checked") { value in
+try session.define("checked") { _, value in
     let n = try value.requireInteger()
     guard n > 0 else { throw MyronHostError("expected a positive number") }
     return n
@@ -588,6 +593,35 @@ session.eval("(double \"a\")")
 // (double "a")
 // ^^^^^^^^^^^^
 ```
+
+**The context.** A body's first parameter is a `MyronExecutionContext`, which
+describes the call it is answering:
+
+```swift
+context.location                          // MyronLocation? — the call site
+context.process                           // MyronProcess — who is calling
+try context.send(value, to: process)      // send a message from that process
+```
+
+`location` is the call site's position in the source, when it has one: the same
+position a thrown error is given. `process` is the process doing the
+evaluating. That is the session's own process, or a spawned process when the
+primitive is called inside one, so the same primitive always knows which
+process it is serving. `send(_:to:)` sends from that process, with the same
+rules as Myron's [`send`](#messaging):
+
+```swift
+try session.define("ping") { context, destination in
+    try context.send(.symbol("pong"), to: destination.requireProcess())
+    return MyronValue.nothing
+}
+
+session.eval("(ping self)")               // .success(.nothing), and the
+                                          // session's mailbox holds pong
+```
+
+A context describes one call, and is only meaningful while the body runs. It is
+not `Sendable`, so Swift won't let a body hand it to a `Task`.
 
 **Naming.** `define` throws rather than returning, because a name has to be one
 Myron source could actually write: one that reads back as that one symbol. That
@@ -627,11 +661,11 @@ type of your own.
 primitive expects:
 
 ```swift
-try session.define("repeat", "({integer} {string})") { count, text in
+try session.define("repeat", "({integer} {string})") { _, count, text in
     String(repeating: try text.requireString(), count: try count.requireInteger())
 }
 
-try session.define("join", "({string}[1...])", arity: .atLeast(1)) { values in
+try session.define("join", "({string}[1...])", arity: .atLeast(1)) { _, values in
     try values.map { value in try value.requireString() }.joined()
 }
 
@@ -662,9 +696,9 @@ any number of arguments, then a string. Spaces are optional, and `()` is the
 signature of a primitive that takes no arguments.
 
 The signature must accept exactly the arguments the body does. A closure with a
-fixed number of parameters needs a signature whose counts are all fixed and add
-up to that number, so a two-parameter closure can take `({string}[2])` or
-`({integer} {string})` but not `({string}[1...])`. With `arity:`, the signature
+fixed number of arguments after its context needs a signature whose counts are
+all fixed and add up to that number, so a two-argument closure can take
+`({string}[2])` or `({integer} {string})` but not `({string}[1...])`. With `arity:`, the signature
 must allow the same counts: `.atLeast(1)` matches `({string}[1...])`,
 `.atMost(2)` matches `({string}[...2])`, and `.unspecified` matches
 `({any}[...])`. A signature that can't be parsed, or that disagrees with the
@@ -672,11 +706,11 @@ body, makes `define` throw `malformedSignature` and leaves the environment as
 it was:
 
 ```swift
-try session.define("pair", "({string})") { a, b in [a, b] }
+try session.define("pair", "({string})") { _, a, b in [a, b] }
 // throws — Malformed signature ({string}): signature arity doesn't match the
 //          body arity '2'
 
-try session.define("f", "({strng})") { a in a }
+try session.define("f", "({strng})") { _, a in a }
 // throws — Malformed signature ({strng}): unknown kind 'strng'
 ```
 
@@ -1152,7 +1186,7 @@ let many: MyronValue = [[1, 0], [2, 1]]
 let version: Version = try one.require()
 let versions: [Version] = try many.require()   // nests, with no extra work
 
-try session.define("bump") { value in
+try session.define("bump") { _, value in
     let version: Version = try value.require()
     return Version(major: version.major, minor: version.minor + 1)
 }
@@ -1382,7 +1416,7 @@ is `Sendable`, so a [host primitive](#defining-primitives) can capture it:
 let point = try MyronRecordType(name: "point", fields: "x", "y")
 try session.set("point", to: point.myronValue)
 
-try session.define("norm") { value in
+try session.define("norm") { _, value in
     let p = try value.requireRecord()
     guard p.isa(type: point) else {
         throw MyronHostError("norm needs a point")

@@ -21,36 +21,36 @@ enum Console {
 extension MyronSession {
 
     func defineConsolePrimitives() throws {
-        try define("print", arity: .unspecified) { values in
+        try define("print", arity: .unspecified) { _, values in
             values.forEach { value in print(Console.text(of: value), terminator: "") }
             print()
             fflush(nil)
             return MyronValue.nothing
         }
 
-        try define("write", arity: .unspecified) { values in
+        try define("write", arity: .unspecified) { _, values in
             values.forEach { value in print(Console.text(of: value), terminator: "") }
             fflush(nil)
             return MyronValue.nothing
         }
 
-        try define("read-line") { () -> MyronValueRepresentable in
+        try define("read-line") { (_) -> MyronValueRepresentable in
             guard let line = Console.readLine() else { return MyronValue.nothing }
             return MyronValue.string(line)
         }
 
-        try define("read-character") { () -> MyronValueRepresentable in
+        try define("read-character") { (_) -> MyronValueRepresentable in
             guard let character = Console.readScalar() else { return MyronValue.nothing }
             return MyronValue.string(character)
         }
 
-        try define("read-all") { () -> MyronValueRepresentable in
+        try define("read-all") { (_) -> MyronValueRepresentable in
             var text = ""
             while let line = Console.readLine(strippingNewline: false) { text += line }
             return MyronValue.string(text)
         }
 
-        try define("exit") { status in
+        try define("exit") { _, status in
             let code = try status.requireInteger()
             guard (0...255).contains(code) else {
                 throw MyronHostError("exit status must be from 0 to 255, got \(code)")

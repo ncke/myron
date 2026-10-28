@@ -109,15 +109,69 @@ private extension MyronSession {
 // MARK: - Primitive Definition
 
 extension MyronSession {
-    
+
+    public typealias FnContextArg0 = @Sendable (
+        MyronExecutionContext
+    ) throws -> MyronValueRepresentable
+
+    public typealias FnContextArg1 = @Sendable (
+        MyronExecutionContext,
+        MyronValue
+    ) throws -> MyronValueRepresentable
+
+    public typealias FnContextArg2 = @Sendable (
+        MyronExecutionContext,
+        MyronValue,
+        MyronValue
+    ) throws -> MyronValueRepresentable
+
+    public typealias FnContextArg3 = @Sendable (
+        MyronExecutionContext,
+        MyronValue,
+        MyronValue,
+        MyronValue
+    ) throws -> MyronValueRepresentable
+
+    public typealias FnContextArg4 = @Sendable (
+        MyronExecutionContext,
+        MyronValue,
+        MyronValue,
+        MyronValue,
+        MyronValue
+    ) throws -> MyronValueRepresentable
+
+    public typealias FnContextArg5 = @Sendable (
+        MyronExecutionContext,
+        MyronValue,
+        MyronValue,
+        MyronValue,
+        MyronValue,
+        MyronValue
+    ) throws -> MyronValueRepresentable
+
+    public typealias FnContextArg6 = @Sendable (
+        MyronExecutionContext,
+        MyronValue,
+        MyronValue,
+        MyronValue,
+        MyronValue,
+        MyronValue,
+        MyronValue
+    ) throws -> MyronValueRepresentable
+
+    public typealias FnContextArgN = @Sendable (
+        MyronExecutionContext,
+        [MyronValue]
+    ) throws -> MyronValueRepresentable
+
     public func define(
         _ name: String,
         _ signature: String? = nil,
-        body: @escaping @Sendable () throws -> MyronValueRepresentable
+        body: @escaping FnContextArg0
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body()
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context)
             return result.myronValue
         }
 
@@ -133,11 +187,11 @@ extension MyronSession {
     public func define(
         _ name: String,
         _ signature: String? = nil,
-        body: @escaping @Sendable (MyronValue) throws -> MyronValueRepresentable
+        body: @escaping FnContextArg1
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body(args[0])
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context, args[0])
             return result.myronValue
         }
 
@@ -153,11 +207,11 @@ extension MyronSession {
     public func define(
         _ name: String,
         _ signature: String? = nil,
-        body: @escaping @Sendable (MyronValue, MyronValue) throws -> MyronValueRepresentable
+        body: @escaping FnContextArg2
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body(args[0], args[1])
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context, args[0], args[1])
             return result.myronValue
         }
 
@@ -173,11 +227,11 @@ extension MyronSession {
     public func define(
         _ name: String,
         _ signature: String? = nil,
-        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+        body: @escaping FnContextArg3
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body(args[0], args[1], args[2])
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context, args[0], args[1], args[2])
             return result.myronValue
         }
 
@@ -193,11 +247,11 @@ extension MyronSession {
     public func define(
         _ name: String,
         _ signature: String? = nil,
-        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+        body: @escaping FnContextArg4
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body(args[0], args[1], args[2], args[3])
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context, args[0], args[1], args[2], args[3])
             return result.myronValue
         }
         let primitive = try primitivise(
@@ -212,11 +266,11 @@ extension MyronSession {
     public func define(
         _ name: String,
         _ signature: String? = nil,
-        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+        body: @escaping FnContextArg5
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body(args[0], args[1], args[2], args[3], args[4])
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context, args[0], args[1], args[2], args[3], args[4])
             return result.myronValue
         }
         let primitive = try primitivise(
@@ -231,11 +285,11 @@ extension MyronSession {
     public func define(
         _ name: String,
         _ signature: String? = nil,
-        body: @escaping @Sendable (MyronValue, MyronValue, MyronValue, MyronValue, MyronValue, MyronValue) throws -> MyronValueRepresentable
+        body: @escaping FnContextArg6
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body(args[0], args[1], args[2], args[3], args[4], args[5])
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context, args[0], args[1], args[2], args[3], args[4], args[5])
             return result.myronValue
         }
         let primitive = try primitivise(
@@ -251,11 +305,11 @@ extension MyronSession {
         _ name: String,
         _ signature: String? = nil,
         arity: MyronError.IntegerExpectation,
-        body: @escaping @Sendable ([MyronValue]) throws -> MyronValueRepresentable
+        body: @escaping FnContextArgN
     ) throws {
-        let wrapped: MyronPrimitive.Body = {
-            args, location in
-            let result = try body(args)
+        let wrapped: MyronPrimitive.ContextualBody = {
+            args, context in
+            let result = try body(context, args)
             return result.myronValue
         }
         let primitive = try primitivise(
@@ -271,16 +325,17 @@ extension MyronSession {
         name: String,
         signature: String?,
         arity: MyronError.IntegerExpectation,
-        wrapped: @escaping MyronPrimitive.Body
+        wrapped: @escaping MyronPrimitive.ContextualBody
     ) throws -> MyronPrimitive {
         try Self.validatePrimitiveName(name)
 
-        let checked: MyronPrimitive.Body = { args, location in
+        let checked: MyronPrimitive.ContextualBody = { args, context in
+            let location = context.location
             try Self.validatePrimitiveArity(args.count, expected: arity, at: location)
             
             do {
-                return try wrapped(args, location)
-                
+                return try wrapped(args, context)
+
             } catch let error as MyronError {
                 throw error.location == nil ? error.withLocation(location) : error
 
@@ -298,7 +353,7 @@ extension MyronSession {
             primitiveName: Self.userNamespace + name,
             representations: [name],
             signature: signature,
-            body: checked)
+            contextualBody: checked)
 
         switch primitive.signature {
         case .none: break

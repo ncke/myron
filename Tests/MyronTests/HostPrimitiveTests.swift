@@ -25,13 +25,13 @@ struct HostPrimitiveTests {
     @Test("a body of every arity receives its arguments in order")
     func everyArityInOrder() throws {
         let session = MyronSession()
-        try session.define("a0") { MyronValue.list([]) }
-        try session.define("a1") { a in [a] }
-        try session.define("a2") { a, b in [a, b] }
-        try session.define("a3") { a, b, c in [a, b, c] }
-        try session.define("a4") { a, b, c, d in [a, b, c, d] }
-        try session.define("a5") { a, b, c, d, e in [a, b, c, d, e] }
-        try session.define("a6") { a, b, c, d, e, f in [a, b, c, d, e, f] }
+        try session.define("a0") { _ in MyronValue.list([]) }
+        try session.define("a1") { _, a in [a] }
+        try session.define("a2") { _, a, b in [a, b] }
+        try session.define("a3") { _, a, b, c in [a, b, c] }
+        try session.define("a4") { _, a, b, c, d in [a, b, c, d] }
+        try session.define("a5") { _, a, b, c, d, e in [a, b, c, d, e] }
+        try session.define("a6") { _, a, b, c, d, e, f in [a, b, c, d, e, f] }
 
         #expect(session.eval("(a0)").asSuccess?.description == "()")
         #expect(session.eval("(a1 1)").asSuccess?.description == "(1)")
@@ -45,7 +45,7 @@ struct HostPrimitiveTests {
     @Test("a nullary primitive is called with an empty application")
     func nullaryPrimitive() throws {
         let session = MyronSession()
-        try session.define("answer") { 42 }
+        try session.define("answer") { _ in 42 }
 
         #expect(session.eval("(answer)").asSuccess?.asInteger == 42)
         #expect(session.eval("(answer 1)").asFailure?.first?.reason
@@ -55,7 +55,7 @@ struct HostPrimitiveTests {
     @Test("too few and too many arguments both report the expected arity")
     func arityMismatch() throws {
         let session = MyronSession()
-        try session.define("two") { a, b in [a, b] }
+        try session.define("two") { _, a, b in [a, b] }
 
         #expect(session.eval("(two 1)").asFailure?.first?.reason
             == .unexpectedArity(1, .exactly(2)))
@@ -70,10 +70,10 @@ struct HostPrimitiveTests {
     @Test("a signature agreeing with a fixed body's arity is accepted")
     func fixedSignatureAccepted() throws {
         let session = MyronSession()
-        try session.define("none", "()") { 42 }
-        try session.define("one", "({string})") { a in a }
-        try session.define("pair", "({string}[2])") { a, b in [a, b] }
-        try session.define("mixed", "({integer} {string}[2])") { a, b, c in [a, b, c] }
+        try session.define("none", "()") { _ in 42 }
+        try session.define("one", "({string})") { _, a in a }
+        try session.define("pair", "({string}[2])") { _, a, b in [a, b] }
+        try session.define("mixed", "({integer} {string}[2])") { _, a, b, c in [a, b, c] }
 
         #expect(session.eval("(none)").asSuccess?.asInteger == 42)
         #expect(session.eval("(pair \"a\" \"b\")").asSuccess?.description == "(\"a\" \"b\")")
@@ -93,8 +93,8 @@ struct HostPrimitiveTests {
         let session = MyronSession()
         let error = #expect(throws: MyronError.self) {
             switch arity {
-            case 1: try session.define("f", signature) { a in a }
-            default: try session.define("f", signature) { a, b in [a, b] }
+            case 1: try session.define("f", signature) { _, a in a }
+            default: try session.define("f", signature) { _, a, b in [a, b] }
             }
         }
 
@@ -114,7 +114,7 @@ struct HostPrimitiveTests {
         _ arity: MyronError.IntegerExpectation
     ) throws {
         let session = MyronSession()
-        try session.define("v", signature, arity: arity) { args in args }
+        try session.define("v", signature, arity: arity) { _, args in args }
     }
 
     @Test("a signature disagreeing with a declared arity is rejected", arguments: [
@@ -130,7 +130,7 @@ struct HostPrimitiveTests {
     ) {
         let session = MyronSession()
         let error = #expect(throws: MyronError.self) {
-            try session.define("v", signature, arity: arity) { args in args }
+            try session.define("v", signature, arity: arity) { _, args in args }
         }
 
         let explain = "signature arity doesn't match the body arity '\(arity)'"
@@ -141,7 +141,7 @@ struct HostPrimitiveTests {
     func malformedSignatureRejected() {
         let session = MyronSession()
         let error = #expect(throws: MyronError.self) {
-            try session.define("f", "({strng})") { a in a }
+            try session.define("f", "({strng})") { _, a in a }
         }
 
         #expect(error?.reason == .malformedSignature("({strng})", "unknown kind 'strng'"))
@@ -150,9 +150,9 @@ struct HostPrimitiveTests {
     @Test("a rejected signature leaves the environment untouched")
     func rejectedSignatureLeavesEnvironment() throws {
         let session = MyronSession()
-        try session.define("f") { a in a }
+        try session.define("f") { _, a in a }
         #expect(throws: MyronError.self) {
-            try session.define("f", "({string}[2])") { a in [a, a] }
+            try session.define("f", "({string}[2])") { _, a in [a, a] }
         }
 
         #expect(session.eval("(f 1)").asSuccess?.asInteger == 1)
@@ -169,7 +169,7 @@ struct HostPrimitiveTests {
     func specialFormNamesRejected(_ name: String) {
         let session = MyronSession()
         let error = #expect(throws: MyronError.self) {
-            try session.define(name) { _ in 1 }
+            try session.define(name) { _, _ in 1 }
         }
 
         #expect(error?.reason == .invalidName(name))
@@ -181,7 +181,7 @@ struct HostPrimitiveTests {
     ])
     func ordinaryNamesAccepted(_ name: String) throws {
         let session = MyronSession()
-        try session.define(name) { _ in 99 }
+        try session.define(name) { _, _ in 99 }
 
         #expect(session.query(name)?.kind == .primitive)
         #expect(session.eval("(\(name) 0)").asSuccess?.asInteger == 99)
@@ -194,7 +194,7 @@ struct HostPrimitiveTests {
     ])
     func nonAsciiNamesAccepted(_ name: String) throws {
         let session = MyronSession()
-        try session.define(name) { _ in 99 }
+        try session.define(name) { _, _ in 99 }
 
         #expect(session.eval("(\(name) 0)").asSuccess?.asInteger == 99)
 
@@ -214,7 +214,7 @@ struct HostPrimitiveTests {
     func unwritableNamesRejected(_ name: String) {
         let session = MyronSession()
         let error = #expect(throws: MyronError.self) {
-            try session.define(name) { _ in 1 }
+            try session.define(name) { _, _ in 1 }
         }
 
         #expect(error?.reason == .invalidName(name))
@@ -233,7 +233,7 @@ struct HostPrimitiveTests {
         let session = MyronSession()
 
         var accepted = true
-        do { try session.define(name) { _ in 99 } } catch { accepted = false }
+        do { try session.define(name) { _, _ in 99 } } catch { accepted = false }
 
         let reachable = session.eval("(\(name) 0)").asSuccess?.asInteger == 99
 
@@ -244,8 +244,8 @@ struct HostPrimitiveTests {
     func rejectedNameLeavesNothingBehind() {
         let session = MyronSession()
         let before = session.names
-        #expect(throws: MyronError.self) { try session.define("if") { _ in 1 } }
-        #expect(throws: MyronError.self) { try session.define("no good") { _ in 1 } }
+        #expect(throws: MyronError.self) { try session.define("if") { _, _ in 1 } }
+        #expect(throws: MyronError.self) { try session.define("no good") { _, _ in 1 } }
 
         #expect(session.names == before)
     }
@@ -255,7 +255,7 @@ struct HostPrimitiveTests {
     @Test("a host error carries its own description")
     func hostErrorDescription() throws {
         let session = MyronSession()
-        try session.define("fail") { _ in throw MyronHostError("deliberate") }
+        try session.define("fail") { _, _ in throw MyronHostError("deliberate") }
 
         #expect(session.eval("(fail 0)").asFailure?.first?.reason
             == .hostError("deliberate"))
@@ -267,7 +267,7 @@ struct HostPrimitiveTests {
     @Test("an arbitrary error keeps its description rather than being localised")
     func describedErrorKeepsDescription() throws {
         let session = MyronSession()
-        try session.define("fail") { _ in throw DescribedHostFailure() }
+        try session.define("fail") { _, _ in throw DescribedHostFailure() }
 
         #expect(session.eval("(fail 0)").asFailure?.first?.reason
             == .hostError("described"))
@@ -276,7 +276,7 @@ struct HostPrimitiveTests {
     @Test("an undescribed error falls back to its type")
     func plainErrorFallsBackToType() throws {
         let session = MyronSession()
-        try session.define("fail") { _ in throw PlainHostFailure() }
+        try session.define("fail") { _, _ in throw PlainHostFailure() }
 
         #expect(session.eval("(fail 0)").asFailure?.first?.reason
             == .hostError("PlainHostFailure()"))
@@ -288,7 +288,7 @@ struct HostPrimitiveTests {
     @Test("an error thrown from a body is positioned at the call site")
     func bodyErrorIsPositioned() throws {
         let session = MyronSession()
-        try session.define("needs-integer") { v in try v.requireInteger() }
+        try session.define("needs-integer") { _, v in try v.requireInteger() }
         let error = try #require(session.eval("(needs-integer \"a\")").asFailure?.first)
 
         #expect(error.reason == .unexpectedType(.string, [.integer]))
@@ -298,7 +298,7 @@ struct HostPrimitiveTests {
     @Test("a positioned host error carries a source caret")
     func bodyErrorCarriesCaret() throws {
         let session = MyronSession()
-        try session.define("boom") { _ in throw MyronHostError("deliberate") }
+        try session.define("boom") { _, _ in throw MyronHostError("deliberate") }
         let error = try #require(session.eval("(boom 1)").asFailure?.first)
         let message = try #require(error.message)
 
@@ -313,7 +313,7 @@ struct HostPrimitiveTests {
             errorStyle: .terse,
             maximumStackDepth: nil)
         let session = MyronSession(configuration: configuration)
-        try session.define("boom") { _ in throw MyronHostError("deliberate") }
+        try session.define("boom") { _, _ in throw MyronHostError("deliberate") }
         let error = try #require(session.eval("(boom 1)").asFailure?.first)
 
         #expect(error.reason == .hostError("deliberate"))
@@ -325,14 +325,14 @@ struct HostPrimitiveTests {
     @Test("a body returns any representable Swift type")
     func returningSwiftTypes() throws {
         let session = MyronSession()
-        try session.define("r-integer") { _ in 7 }
-        try session.define("r-double") { _ in 1.5 }
-        try session.define("r-string") { _ in "s" }
-        try session.define("r-boolean") { _ in true }
-        try session.define("r-list") { _ in [1, 2] }
-        try session.define("r-dictionary") { _ in ["a": 1] }
-        try session.define("r-absent") { _ in Optional<Int>.none }
-        try session.define("r-present") { _ in Optional<Int>.some(3) }
+        try session.define("r-integer") { _, _ in 7 }
+        try session.define("r-double") { _, _ in 1.5 }
+        try session.define("r-string") { _, _ in "s" }
+        try session.define("r-boolean") { _, _ in true }
+        try session.define("r-list") { _, _ in [1, 2] }
+        try session.define("r-dictionary") { _, _ in ["a": 1] }
+        try session.define("r-absent") { _, _ in Optional<Int>.none }
+        try session.define("r-present") { _, _ in Optional<Int>.some(3) }
 
         #expect(session.eval("(r-integer 0)").asSuccess?.asInteger == 7)
         #expect(session.eval("(r-double 0)").asSuccess?.asDouble == 1.5)
@@ -349,10 +349,10 @@ struct HostPrimitiveTests {
     @Test("a body returns the set and hashmap types in both flavours")
     func returningCollections() throws {
         let session = MyronSession()
-        try session.define("r-swift-set") { _ in Set([1]) }
-        try session.define("r-myron-set") { _ in [1, 2] as MyronSet }
-        try session.define("r-myron-hashmap") { _ in MyronHashmap(["a": 1]) }
-        try session.define("r-value") { _ in MyronValue.symbol("y") }
+        try session.define("r-swift-set") { _, _ in Set([1]) }
+        try session.define("r-myron-set") { _, _ in [1, 2] as MyronSet }
+        try session.define("r-myron-hashmap") { _, _ in MyronHashmap(["a": 1]) }
+        try session.define("r-value") { _, _ in MyronValue.symbol("y") }
 
         #expect(session.eval("(r-swift-set 0)").asSuccess?.asSet?.count == 1)
         #expect(session.eval("(r-myron-set 0)").asSuccess?.asSet?.count == 2)
@@ -365,7 +365,7 @@ struct HostPrimitiveTests {
     @Test("a host primitive shadows a standard library name")
     func shadowsStandardLibrary() throws {
         let session = MyronSession()
-        try session.define("not") { _ in "shadowed" }
+        try session.define("not") { _, _ in "shadowed" }
 
         #expect(session.eval("(not true)").asSuccess?.asString == "shadowed")
     }
@@ -373,8 +373,8 @@ struct HostPrimitiveTests {
     @Test("defining the same name twice keeps the last definition")
     func redefinitionKeepsTheLast() throws {
         let session = MyronSession()
-        try session.define("twice") { _ in 1 }
-        try session.define("twice") { _ in 2 }
+        try session.define("twice") { _, _ in 1 }
+        try session.define("twice") { _, _ in 2 }
 
         #expect(session.eval("(twice 0)").asSuccess?.asInteger == 2)
     }
@@ -382,7 +382,7 @@ struct HostPrimitiveTests {
     @Test("Myron's own define replaces a host primitive")
     func myronDefineReplaces() throws {
         let session = MyronSession()
-        try session.define("replaceable") { _ in 1 }
+        try session.define("replaceable") { _, _ in 1 }
         #expect(session.eval("(define replaceable 99)").isSuccess)
 
         #expect(session.query("replaceable")?.asInteger == 99)
@@ -391,7 +391,7 @@ struct HostPrimitiveTests {
     @Test("a host primitive is visible through the environment API")
     func visibleThroughTheEnvironment() throws {
         let session = MyronSession()
-        try session.define("visible") { _ in 1 }
+        try session.define("visible") { _, _ in 1 }
 
         #expect(session.query("visible")?.kind == .primitive)
         #expect(session.names.contains("visible"))
@@ -410,8 +410,8 @@ struct HostPrimitiveTests {
     func sameNameStaysDistinct() throws {
         let one = MyronSession()
         let other = MyronSession()
-        try one.define("f") { _ in 1 }
-        try other.define("f") { _ in 2 }
+        try one.define("f") { _, _ in 1 }
+        try other.define("f") { _, _ in 2 }
 
         let fromOne = try #require(one.query("f"))
         let fromOther = try #require(other.query("f"))
@@ -423,7 +423,7 @@ struct HostPrimitiveTests {
     func hostDiffersFromStandard() throws {
         let session = MyronSession()
         let standard = try #require(session.query("not"))
-        try session.define("not") { _ in false }
+        try session.define("not") { _, _ in false }
         let hosted = try #require(session.query("not"))
 
         #expect(standard != hosted)
@@ -440,9 +440,9 @@ struct HostPrimitiveTests {
     @Test("two host primitives sharing a name describe themselves alike")
     func sameNameDescribesAlike() throws {
         let session = MyronSession()
-        try session.define("f") { _ in 1 }
+        try session.define("f") { _, _ in 1 }
         let first = try #require(session.query("f"))
-        try session.define("f") { _ in 2 }
+        try session.define("f") { _, _ in 2 }
         let second = try #require(session.query("f"))
 
         #expect(first.description == second.description)
@@ -458,7 +458,7 @@ struct HostPrimitiveTests {
     @Test("a host primitive works as a key and a stored value")
     func hostPrimitiveAsKeyAndValue() throws {
         let session = MyronSession()
-        try session.define("keyed") { _ in 1 }
+        try session.define("keyed") { _, _ in 1 }
         let primitive = try #require(session.query("keyed"))
 
         let hashmap = MyronHashmap([primitive: MyronValue.string("found")])
@@ -474,9 +474,9 @@ struct HostPrimitiveTests {
     @Test("a host primitive works with the higher-order functions")
     func higherOrderFunctions() throws {
         let session = MyronSession()
-        try session.define("double") { v in try v.requireInteger() * 2 }
-        try session.define("big?") { v in try v.requireInteger() > 2 }
-        try session.define("add") { a, b in try a.requireInteger() + b.requireInteger() }
+        try session.define("double") { _, v in try v.requireInteger() * 2 }
+        try session.define("big?") { _, v in try v.requireInteger() > 2 }
+        try session.define("add") { _, a, b in try a.requireInteger() + b.requireInteger() }
 
         #expect(session.eval("(map double '(1 2 3))").asSuccess?.description == "(2 4 6)")
         #expect(session.eval("(filter big? '(1 2 3 4))").asSuccess?.description == "(3 4)")
@@ -488,7 +488,7 @@ struct HostPrimitiveTests {
     @Test("a host primitive is callable from a Myron procedure")
     func callableFromAProcedure() throws {
         let session = MyronSession()
-        try session.define("double") { v in try v.requireInteger() * 2 }
+        try session.define("double") { _, v in try v.requireInteger() * 2 }
         #expect(session.eval("(define (quadruple n) (double (double n)))").isSuccess)
 
         #expect(session.eval("(quadruple 3)").asSuccess?.asInteger == 12)
@@ -497,7 +497,7 @@ struct HostPrimitiveTests {
     @Test("a host primitive is callable from a lambda passed back through map")
     func callableFromALambda() throws {
         let session = MyronSession()
-        try session.define("triple") { v in try v.requireInteger() * 3 }
+        try session.define("triple") { _, v in try v.requireInteger() * 3 }
 
         let source = "(map (lambda (n) (+ (triple n) 1)) '(1 2))"
         #expect(session.eval(source).asSuccess?.description == "(4 7)")
@@ -506,7 +506,7 @@ struct HostPrimitiveTests {
     @Test("a host primitive failing inside a procedure still reports a location")
     func failureInsideAProcedure() throws {
         let session = MyronSession()
-        try session.define("needs-integer") { v in try v.requireInteger() }
+        try session.define("needs-integer") { _, v in try v.requireInteger() }
         #expect(session.eval("(define (wrap x) (needs-integer x))").isSuccess)
 
         let error = try #require(session.eval("(wrap \"a\")").asFailure?.first)
@@ -517,7 +517,7 @@ struct HostPrimitiveTests {
     @Test("a host body sees the arguments already evaluated")
     func argumentsArriveEvaluated() throws {
         let session = MyronSession()
-        try session.define("sum") { a, b in try a.requireInteger() + b.requireInteger() }
+        try session.define("sum") { _, a, b in try a.requireInteger() + b.requireInteger() }
 
         #expect(session.eval("(sum (+ 1 1) (* 2 2))").asSuccess?.asInteger == 6)
     }
@@ -531,7 +531,7 @@ struct HostPrimitiveTests {
     func reentrantEvalResumesCaller() throws {
         let session = MyronSession()
         let box = SessionBox(session)
-        try session.define("inner") { v in
+        try session.define("inner") { _, v in
             try #require(box.session?.eval(v.requireString()).asSuccess)
         }
 
@@ -543,7 +543,7 @@ struct HostPrimitiveTests {
     func reentrantEvalDefines() throws {
         let session = MyronSession()
         let box = SessionBox(session)
-        try session.define("inner") { v in
+        try session.define("inner") { _, v in
             try #require(box.session?.eval(v.requireString()).asSuccess)
         }
 
@@ -556,7 +556,7 @@ struct HostPrimitiveTests {
     func reentrantEvalFailure() throws {
         let session = MyronSession()
         let box = SessionBox(session)
-        try session.define("inner") { v in
+        try session.define("inner") { _, v in
             guard let result = try box.session?.eval(v.requireString()) else { return MyronValue.nothing }
             if let error = result.asFailure?.first { throw error }
             return result.asSuccess ?? .nothing
@@ -577,7 +577,7 @@ struct HostPrimitiveTests {
             maximumStackDepth: 2000,
             maximumEvalDepth: evalLimit))
         let box = SessionBox(session)
-        try session.define("nest") { v in
+        try session.define("nest") { _, v in
             let n = try v.requireInteger()
             guard n > 0 else { return MyronValue.integer(0) }
             guard let result = box.session?.eval("(nest \(n - 1))") else { return MyronValue.nothing }

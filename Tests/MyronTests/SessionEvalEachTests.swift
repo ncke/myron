@@ -101,7 +101,7 @@ struct SessionEvalEachTests {
     func callbacksBracketForms() throws {
         let session = MyronSession()
         let log = Log()
-        try session.define("note") { v in
+        try session.define("note") { _, v in
             log.entries.append("note \(v)")
             return MyronValue.nothing
         }

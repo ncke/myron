@@ -336,7 +336,7 @@ struct ValueConvertibleTests {
     @Test("a host type crosses the boundary through a primitive")
     func hostTypeThroughAPrimitive() throws {
         let session = MyronSession()
-        try session.define("bump") { value in
+        try session.define("bump") { _, value in
             let version: Version = try value.require()
             return Version(major: version.major, minor: version.minor + 1)
         }
@@ -347,7 +347,7 @@ struct ValueConvertibleTests {
     @Test("a host type's error reaches Myron as a located host error")
     func hostTypeErrorThroughAPrimitive() throws {
         let session = MyronSession()
-        try session.define("bump") { value in
+        try session.define("bump") { _, value in
             let version: Version = try value.require()
             return version
         }

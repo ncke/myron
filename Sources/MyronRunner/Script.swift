@@ -143,7 +143,7 @@ extension MyronSession {
 
     // Weak, since the script holds the session that holds this primitive.
     func defineLoadPrimitive(using script: Script) throws {
-        try define("load") { [weak script] (value: MyronValue) -> MyronValueRepresentable in
+        try define("load") { [weak script] (_, value: MyronValue) -> MyronValueRepresentable in
             let path = try value.requireString()
             guard let script else { return MyronValue.nothing }
             do throws(Script.Failure) {

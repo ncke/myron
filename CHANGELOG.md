@@ -13,7 +13,8 @@ of its own and gives it back as a value; sessions now run as processes inside a
 runtime. A process can send another a message with `send`, but nothing can
 receive one yet, so a spawned process runs to the end before `spawn` returns.
 `MyronValue` has a new case, so hosts that switch over it exhaustively need
-updating — see [Changed](#changed).
+updating, and every host primitive's closure takes a new first parameter — see
+[Changed](#changed).
 
 ### Added
 
@@ -65,8 +66,21 @@ updating — see [Changed](#changed).
 - `MyronError.Reason.expectedSendable`, for a value that is not sendable given
   to `send` or to `spawn`, carrying the kind of the part that is not sendable,
   however deep inside the value it is.
+- `MyronExecutionContext`, which a host primitive's body is given for each
+  call. It has the call site as `location`, the process doing the evaluating
+  as `process`, and `send(_:to:)` to send a message from that process, with
+  the same rules as `send`.
 
 ### Changed
+
+- Every `MyronSession.define` body takes the call's `MyronExecutionContext` as
+  its first parameter, before the arguments. A body that doesn't need it
+  ignores it with `_`, so `{ a, b in … }` becomes `{ _, a, b in … }`,
+  `{ 42 }` becomes `{ _ in 42 }`, and `{ values in … }` with `arity:` becomes
+  `{ _, values in … }`. Watch for a body that already ignored its arguments:
+  `{ _ in … }` still compiles, but now defines a primitive that takes no
+  arguments, so it must become `{ _, _ in … }` to keep taking one. The same
+  goes for `{ _, x in … }`, which now takes one argument rather than two.
 
 - `MyronValue` has a new case, `.process`, and `MyronValue.Kind` has `.process`,
   so an exhaustive `switch` over either needs a new case.

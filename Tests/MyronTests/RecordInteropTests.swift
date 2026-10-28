@@ -252,11 +252,11 @@ struct RecordInteropTests {
         let session = MyronSession()
         try session.set("point", to: type.myronValue)
 
-        try session.define("origin") { () in
+        try session.define("origin") { _ in
             try MyronRecord(type: type, values: 0, 0)
         }
 
-        try session.define("sum") { (value: MyronValue) in
+        try session.define("sum") { (_, value: MyronValue) in
             let record = try value.requireRecord()
             guard record.isa(type: type) else {
                 return MyronValue.nothing

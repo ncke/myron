@@ -48,7 +48,7 @@ struct NameTests {
     func hostNameRejected(_ name: String) {
         let session = MyronSession()
         let error = #expect(throws: MyronError.self) {
-            try session.define(name) { _ in 1 }
+            try session.define(name) { _, _ in 1 }
         }
 
         #expect(error?.reason == .invalidName(name))
@@ -97,7 +97,7 @@ struct NameTests {
     func hostCannotDefineNothing() {
         let session = MyronSession()
         let error = #expect(throws: MyronError.self) {
-            try session.define("nothing") { _ in 1 }
+            try session.define("nothing") { _, _ in 1 }
         }
 
         #expect(error?.reason == .invalidName("nothing"))
@@ -132,7 +132,7 @@ struct NameTests {
     func hostCannotBindReservedName(name: String) {
         let session = MyronSession()
         let defineError = #expect(throws: MyronError.self) {
-            try session.define(name) { _ in 1 }
+            try session.define(name) { _, _ in 1 }
         }
         let setError = #expect(throws: MyronError.self) {
             try session.set(name, to: 1)

@@ -309,7 +309,7 @@ struct TryRaiseTests {
     func reentrantRaiseCaughtOutside() throws {
         let session = MyronSession()
         let box = SessionBox(session)
-        try session.define("inner") { v in
+        try session.define("inner") { _, v in
             guard let result = try box.session?.eval(v.requireString()) else { return MyronValue.nothing }
             if let error = result.asFailure?.first { throw error }
             return result.asSuccess ?? .nothing
@@ -324,7 +324,7 @@ struct TryRaiseTests {
     func reentrantTryCaughtInside() throws {
         let session = MyronSession()
         let box = SessionBox(session)
-        try session.define("inner") { v in
+        try session.define("inner") { _, v in
             try #require(box.session?.eval(v.requireString()).asSuccess)
         }
 

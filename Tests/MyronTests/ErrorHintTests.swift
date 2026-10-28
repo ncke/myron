@@ -282,7 +282,7 @@ struct ErrorHintTests {
     @Test("a hinted error from a primitive body is positioned and keeps its hints")
     func hintsSurviveTheTrampoline() throws {
         let session = MyronSession()
-        try session.define("hinted") { _ in
+        try session.define("hinted") { _, _ in
             throw MyronError(.cannotBeNegative).withHint(Self.first)
         }
         let error = try #require(session.eval("(hinted 1)").asFailure?.first)
@@ -295,7 +295,7 @@ struct ErrorHintTests {
     @Test("a primitive body's own location is not overwritten")
     func trampolineKeepsExistingLocation() throws {
         let session = MyronSession()
-        try session.define("located") { _ in
+        try session.define("located") { _, _ in
             throw MyronError(.cannotBeNegative, at: 1..<3).withHint(Self.first)
         }
         let error = try #require(session.eval("(located 1)").asFailure?.first)
