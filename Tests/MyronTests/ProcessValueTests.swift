@@ -42,6 +42,11 @@ struct ProcessValueTests {
             Issue.record(
                 "\(source) got nothing (expected \(expected))",
                 sourceLocation: sourceLocation)
+
+        case .suspended:
+            Issue.record(
+                "\(source) got suspended (expected \(expected))",
+                sourceLocation: sourceLocation)
         }
     }
 

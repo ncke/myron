@@ -76,8 +76,9 @@ looking things up later.
 - The beginnings of processes. `spawn` starts a process with an environment of
   its own, rebuilds the modules it is given inside it, and calls an entry point
   there. Nothing is shared with the process that spawned it. `self` is the
-  process doing the evaluating, and `send` puts a message in another process's
-  mailbox. Processes cannot yet receive messages.
+  process doing the evaluating, `send` puts a message in another process's
+  mailbox, and `receive` takes one out of its own, waiting for one if need be.
+  Processes don't yet take turns to run.
 - Lexically scoped closures. `and` and `or` short-circuit.
 - Variadic procedures. A parameter written `xs...` collects the arguments the
   others leave over into a list.
@@ -447,6 +448,24 @@ and `didEvaluate` its `MyronFormResult` just after. A host can use them to
 interleave its own output with whatever the forms write, as `myron --show`
 does. A parse failure reaches `didEvaluate` alone.
 
+An evaluation that [waits for a message](#messaging) gives back
+[`.suspended`](#myronresult). `resume()` carries it on from where it stopped,
+and gives back its result, or `.suspended` again if there is still nothing to
+receive:
+
+```swift
+let me = session.eval("self").asSuccess!.asProcess!
+
+session.eval("(+ 1 (receive))")           // .suspended
+try session.send(41, to: me)
+session.resume()                          // .success(.integer(42))
+```
+
+While a session is suspended, `eval` fails with `processNotReady`, and a
+`resume()` when nothing is suspended fails with `processCannotResume`. For now,
+suspending is best kept to the last form in a call: the forms after it are not
+kept with the suspension.
+
 #### Reading and writing the environment
 
 A session's top-level environment is open to the host. `query` resolves a name
@@ -763,7 +782,8 @@ try a.send(.symbol("hello"), to: address!)   // into b's mailbox
 
 `send(_:to:)` throws `expectedSendable` for a value that Myron code could not
 send either, and otherwise succeeds whether or not the destination is still
-alive. Nothing can take a message out of a mailbox yet.
+alive. The message waits in the mailbox until Myron code in that process takes
+it out with [`receive`](#messaging).
 
 A session holds its runtime, so the runtime lasts as long as any session made
 from it, or as long as the host holds it. See
@@ -771,13 +791,14 @@ from it, or as long as the host holds it. See
 
 ### `MyronResult`
 
-`eval` returns a `MyronResult`, a three-case enum:
+`eval` returns a `MyronResult`, a four-case enum:
 
 ```swift
 public enum MyronResult {
     case success(MyronValue)
     case failure([MyronError])
     case nothing
+    case suspended
 }
 ```
 
@@ -794,6 +815,9 @@ case .failure(let errors):
 
 case .nothing:
     break                                 // the source contained no forms
+
+case .suspended:
+    break                                 // waiting for a message; see resume()
 }
 ```
 
@@ -801,6 +825,9 @@ case .nothing:
 empty, whitespace, or nothing but comments. It is distinct from a successful
 evaluation that produced the Myron value `nothing`, which arrives as
 `.success(.nothing)`.
+
+`.suspended` is returned when the evaluation is waiting for a message, and the
+session's [`resume()`](#myronsession) carries it on.
 
 A `failure` carries an array because lexing and parsing report every problem
 they find in one pass. Evaluation, by contrast, stops at the first error, so an
@@ -985,6 +1012,7 @@ also has a `description`, which is the first line of the rendered message.
 | `ambiguousResolution(String, String, [String])` | Two standard primitives matched a call equally well; carries the name, the argument kinds, and the primitives that tied. |
 | `cannotBeEmpty` | A value that must not be empty was — `(split-all "" s)`. A hint says which value it was. |
 | `cannotBeNegative` | A count that must be non-negative was not — `(take -1 xs)`. |
+| `cannotReceiveInsideNestedEvaluation` | A [`receive`](#messaging) found nothing to take inside a nested evaluation, such as a `load`, which cannot wait. |
 | `containingEnvironmentNoLongerExists` | A procedure was called after the session that defined it was deallocated. |
 | `couldNotResolve(String, String, [String])` | No standard primitive of that name accepts that shape of call; carries the name, the argument kinds, and the forms that would have worked. |
 | `divisionByZero` | `/`, `mod`, or `rem` was given a zero divisor. |
@@ -1008,6 +1036,8 @@ also has a `description`, which is the first line of the rendered message.
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `malformedSignature(String, String)` | A [signature](#signatures) could not be parsed, or disagreed with the arity of the body given to a host's `define`; carries the signature and what is wrong with it. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
+| `processCannotResume(String)` | A session's `resume()` was called with nothing suspended; carries the process's state. |
+| `processNotReady(String)` | A session was asked to evaluate while it was [suspended](#myronresult); carries the process's state. |
 | `raised(String)` | A program called [`raise`](#errors-1) and no [`try`](#try) caught it; carries the message. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
 | `typeCastFailed(MyronValue.Kind, MyronValue.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
@@ -2139,9 +2169,20 @@ the other knows where to reply:
 (sendable? +)                             ; false
 ```
 
-This is the start of processes, not the whole of them. Messages can be sent but
-not yet received, so for now a spawned process runs to the end before `spawn`
-returns, and what it returns is set aside.
+`receive` takes the oldest message out of the process's own mailbox, and
+`receive-from` takes the oldest one sent by a particular process:
+
+```lisp
+(receive)                                 ; hello
+(receive)                                 ; (1 "two" three)
+(define p (spawn (echo) echo.go self))
+(receive-from p)                          ; hello
+```
+
+When there is nothing to take, the evaluation waits for a message to arrive.
+In a session, that means it suspends, and the host [resumes](#myronsession) it
+later. Processes don't take turns yet, so a spawned process still runs to the
+end before `spawn` returns, and one that waits for a message ends there.
 
 ### Macros
 
@@ -2821,9 +2862,10 @@ while the module is being rebuilt, `spawn` fails; if it happens inside a
 procedure, the new process fails when the procedure is called.
 
 The process ends when the entry call returns, or fails. Either way, nothing in
-the spawning process hears about it. Until processes can receive messages, the
-entry call runs to the end before `spawn` returns, so a spawned process that
-never returns holds up the one that spawned it.
+the spawning process hears about it. Until processes take turns, the entry call
+runs before `spawn` returns, so a spawned process that never returns holds up
+the one that spawned it, and one that [waits for a message](#messaging) ends
+there.
 
 *Errors:* `unexpectedArity` without a module list and an entry; `unexpectedType`
 when the module list is not a list, one of its values is not a module, or the
@@ -3856,12 +3898,16 @@ be something else.
 | Primitive | Arguments | Result |
 |---|---|---|
 | `send` | 1 process, 1 sendable value | `nothing`, having put the value in the process's mailbox |
+| `receive` | none | the oldest message in the process's own mailbox, taken out of it |
+| `receive-from` | 1 process | the oldest message that process sent, taken out of the mailbox |
 
 ```lisp
 (send self 'hello)                        ; <nothing>
 (send self (list 1 (set 2) "three"))      ; <nothing>
 (sendable? (list 1 +))                    ; false
 (send self +)                             ; ERROR: Expected a sendable value ...
+(receive)                                 ; hello
+(receive-from self)                       ; (1 {2} "three")
 ```
 
 A value is **sendable** when it holds no procedure, primitive, macro or module —
@@ -3885,14 +3931,26 @@ else, so a send that fails would have failed whatever the destination. Messages
 from one process to another arrive in the order they were sent; there is no
 promise about the order of messages from different senders.
 
-A message is just the value: it does not say who sent it. A process that wants a
-reply puts [`self`](#self) in the message. Nothing can take a message out of a
-mailbox yet — that is what `receive` will do.
+A message is just the value. `receive` gives back the value alone, so a process
+that wants a reply puts [`self`](#self) in the message. `receive-from` picks
+out messages by who sent them, and leaves messages from anyone else in the
+mailbox, in order.
 
-*Errors:* `unexpectedArity` without exactly two arguments; `unexpectedType` when
-the destination is not a process; `expectedSendable` when the message is not
-sendable, naming the kind of the part that is not, with a hint showing the
-message and that part.
+When there is no message to take, the evaluation waits for one. A session
+reports this as [`.suspended`](#myronresult), and carries on from the same
+place when its host calls [`resume()`](#myronsession). A spawned process that
+waits ends there, for now. Waiting is not possible inside a nested evaluation,
+such as a `load` or a host primitive that evaluates source, so a
+`receive` there with nothing to take is an error.
+
+*Errors:* for `send`, `unexpectedArity` without exactly two arguments;
+`unexpectedType` when the destination is not a process; `expectedSendable` when
+the message is not sendable, naming the kind of the part that is not, with a
+hint showing the message and that part. For `receive` and `receive-from`,
+`unexpectedArity` with any argument to `receive`, or without exactly one to
+`receive-from`; `unexpectedType` when `receive-from` is not given a process;
+`cannotReceiveInsideNestedEvaluation` when there is nothing to take inside a
+nested evaluation.
 
 ### Ordering
 
@@ -4124,9 +4182,10 @@ Still to come:
 - Modules kept in files of their own, found by the host when `import` names one
   the program cannot see. Until then, `load` the file that defines the module
   and `import` it afterwards.
-- Processes that receive messages, with `receive`, and take turns to run.
-  Until then, a spawned process runs to the end before `spawn` returns, and a
-  message sent to a process waits in its mailbox with nothing to read it.
+- Processes that take turns to run. Until then, a spawned process runs before
+  `spawn` returns, and ends if it waits for a message. Suspending works best
+  in the last form of an evaluation, and there is no way yet to give up on a
+  suspended one, so a REPL that suspends stays that way.
 - `sourceHandle` on errors. It is carried through tokenisation but not yet
   surfaced. Until then, an error in a procedure defined by an earlier `eval` is
   shown against the source of the current one, and an error raised while

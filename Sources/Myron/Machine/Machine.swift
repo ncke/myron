@@ -3,11 +3,12 @@ import Foundation
 // MARK: - Machine
 
 final class Machine {
+    private(set) var state: State = .ready
     private let maximumStackDepth: Int?
     private let maximumEvalDepth: Int?
     private let rootEnvironment: Environment
     weak var process: MyronRuntime.Process?
-    private var evaluationStack = [([Frame], Control)]()
+    private var evaluationStack = [([Frame], Control, State)]()
     private var stack = [Frame]()
     private var control = Control.value(.nothing)
 
@@ -19,6 +20,25 @@ final class Machine {
         self.maximumStackDepth = maximumStackDepth
         self.maximumEvalDepth = maximumEvalDepth
         self.rootEnvironment = environment
+    }
+
+}
+
+// MARK: - Machine State
+
+extension Machine {
+
+    enum State: CustomStringConvertible {
+        case ready, evaluating, suspended, waiting
+
+        var description: String {
+            switch self {
+            case .ready: return "ready"
+            case .evaluating: return "evaluating"
+            case .suspended: return "suspended"
+            case .waiting: return "waiting"
+            }
+        }
     }
 
 }
@@ -35,14 +55,14 @@ extension Machine {
         case define(String, Environment, MyronLocation?)
         case disjunction(ArraySlice<Expression>, Environment, MyronLocation?)
         case expanding(Environment, MyronLocation?)
-        case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
-        case foldring(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
+        case filtering(MyronValue, MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, Environment?, MyronLocation?)
+        case foldring(MyronValue, ArraySlice<MyronValue>, Environment?, MyronLocation?)
         case handling(Expression, Environment, MyronLocation?)
-        case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, MyronLocation?)
+        case mapping(MyronValue, ArraySlice<MyronValue>, [MyronValue], Shape, Environment?, MyronLocation?)
         case modularising(ArraySlice<Expression>, String, [String], Environment, Environment, Expression, MyronLocation?)
-        case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, MyronLocation?)
+        case probing(MyronHigherProbe, MyronValue, ArraySlice<MyronValue>, Environment?, MyronLocation?)
         case quasiquotingList([MyronValue], ArraySlice<Expression>, Int, Environment, MyronLocation?)
-        case reducing(MyronValue, ArraySlice<MyronValue>, MyronLocation?)
+        case reducing(MyronValue, ArraySlice<MyronValue>, Environment?, MyronLocation?)
         case sequence(ArraySlice<Expression>, Environment, MyronLocation?)
         case spawningArguments(ArraySlice<Expression>, SpawningContext)
         case spawningModules(ArraySlice<Expression>, ArraySlice<Expression>, MyronLocation?, SpawningContext)
@@ -50,6 +70,7 @@ extension Machine {
     }
 
     enum Control {
+        case apply(MyronValue, ArraySlice<MyronValue>, Environment?, MyronLocation?)
         case eval(Expression, Environment)
         case value(MyronValue)
     }
@@ -84,20 +105,40 @@ extension Machine {
     func eval(_ expression: Expression) throws -> MyronValue {
         try checkEvalDepth()
         reentrancyPush()
-        defer { reentrancyPop() }
+        state = .evaluating
 
         stack = []
         control = .eval(expression, rootEnvironment)
-        return try run()
+        return try proceedWithEvaluation()
+    }
+
+    func resume() throws -> MyronValue {
+        state = .evaluating
+        return try proceedWithEvaluation()
+    }
+
+    private func proceedWithEvaluation() throws -> MyronValue {
+        do {
+            let result = try run()
+            if state == .evaluating { reentrancyPop() }
+            return result
+        } catch {
+            reentrancyPop()
+            throw error
+        }
+    }
+
+    func setState(_ state: State) {
+        self.state = state
     }
 
     private func reentrancyPush() {
-        evaluationStack.append((stack, control))
+        evaluationStack.append((stack, control, state))
     }
 
     private func reentrancyPop() {
         guard let popped = evaluationStack.popLast() else { return }
-        (stack, control) = popped
+        (stack, control, state) = popped
     }
 
     private func checkEvalDepth() throws {
@@ -121,6 +162,15 @@ extension Machine {
         while true {
             do {
                 switch control {
+
+                case .apply(let value, let arguments, let environment, let location):
+                    try apply(
+                        value,
+                        to: arguments,
+                        at: location,
+                        in: environment,
+                        runtimeContext: runtimeContext)
+                    guard state == .evaluating else { return .nothing }
 
                 case .eval(let expression, let environment):
                     try step(
@@ -567,12 +617,11 @@ extension Machine {
                 control = .eval(next, environment)
             } else {
                 let head = done.first!
-                try apply(
+                control = .apply(
                     head,
-                    to: done.dropFirst(),
-                    at: location,
-                    in: environment,
-                    runtimeContext: runtimeContext)
+                    done.dropFirst(),
+                    environment,
+                    location)
             }
 
         case .bind(let name, let remaining, let bodies, let environment, let location):
@@ -651,24 +700,40 @@ extension Machine {
             let expr = try value.asExpression(location)
             control = .eval(expr, environment)
 
-        case .filtering(let function, let element, let remaining, var done, let shape, let location):
+        case .filtering(
+            let function,
+            let element,
+            let remaining,
+            var done,
+            let shape,
+            let environment,
+            let location
+        ):
             let include = try value.unwrapBoolean(location)
             if include {
                 done.append(element)
             }
 
             if let next = remaining.first {
-                stack.append(.filtering(function, next, remaining.dropFirst(), done, shape, location))
-                try apply(function, to: [next], at: location, runtimeContext: runtimeContext)
+                stack.append(
+                    .filtering(
+                        function,
+                        next,
+                        remaining.dropFirst(),
+                        done,
+                        shape,
+                        environment,
+                        location))
+                control = .apply(function, [next], environment, location)
                 return
             }
 
             control = .value(shape.rebuild(done))
 
-        case .foldring(let function, let remaining, let location):
+        case .foldring(let function, let remaining, let environment, let location):
             if let next = remaining.last {
-                stack.append(.foldring(function, remaining.dropLast(), location))
-                try apply(function, to: [next, value], at: location, runtimeContext: runtimeContext)
+                stack.append(.foldring(function, remaining.dropLast(), environment, location))
+                control = .apply(function, [next, value], environment, location)
                 return
             }
 
@@ -677,12 +742,12 @@ extension Machine {
         case .handling:
             control = .value(value)
 
-        case .mapping(let function, let remaining, var done, let shape, let location):
+        case .mapping(let function, let remaining, var done, let shape, let environment, let location):
             done.append(value)
 
             if let next = remaining.first {
-                stack.append(.mapping(function, remaining.dropFirst(), done, shape, location))
-                try apply(function, to: [next], at: location, runtimeContext: runtimeContext)
+                stack.append(.mapping(function, remaining.dropFirst(), done, shape, environment, location))
+                control = .apply(function, [next], environment, location)
                 return
             }
 
@@ -714,7 +779,7 @@ extension Machine {
             try environment.insert(name, value: .module(module), location: location)
             control = .value(.define(name))
 
-        case .probing(let higher, let function, let remaining, let location):
+        case .probing(let higher, let function, let remaining, let environment, let location):
             let result = try value.unwrapBoolean(location)
 
             switch higher {
@@ -723,8 +788,8 @@ extension Machine {
             }
 
             if let next = remaining.first {
-                stack.append(.probing(higher, function, remaining.dropFirst(), location))
-                try apply(function, to: [next], at: location, runtimeContext: runtimeContext)
+                stack.append(.probing(higher, function, remaining.dropFirst(), environment, location))
+                control = .apply(function, [next], environment, location)
                 return
             }
 
@@ -737,10 +802,10 @@ extension Machine {
             done.append(value)
             try continueQuasiquoting(done, remaining, depth, environment, location)
 
-        case .reducing(let function, let remaining, let location):
+        case .reducing(let function, let remaining, let environment, let location):
             if let next = remaining.first {
-                stack.append(.reducing(function, remaining.dropFirst(), location))
-                try apply(function, to: [value, next], at: location, runtimeContext: runtimeContext)
+                stack.append(.reducing(function, remaining.dropFirst(), environment, location))
+                control = .apply(function, [value, next], environment, location)
                 return
             }
 
@@ -833,11 +898,7 @@ extension Machine {
 
                 var values = arguments.dropFirst().dropLast()
                 values.append(contentsOf: try last.unwrapElements(location))
-                try apply(
-                    function,
-                    to: values,
-                    at: location,
-                    runtimeContext: runtimeContext)
+                control = .apply(function, values, environment, location)
 
             case .map:
                 let (function, valueList) = try arguments.unwrap2(location)
@@ -848,12 +909,8 @@ extension Machine {
                 let shape = try Shape(valueList)
 
                 if let headValue = values.first {
-                    stack.append(.mapping(function, values.dropFirst(), [], shape, location))
-                    try apply(
-                        function,
-                        to: [headValue],
-                        at: location,
-                        runtimeContext: runtimeContext)
+                    stack.append(.mapping(function, values.dropFirst(), [], shape, environment, location))
+                    control = .apply(function, [headValue], environment, location)
                 } else {
                     control = .value(shape.rebuild([]))
                 }
@@ -866,12 +923,8 @@ extension Machine {
                 let values = try valueList.unwrapElements(location)
                 
                 if let tailValue = values.last {
-                    stack.append(.foldring(function, values.dropLast(), location))
-                    try apply(
-                        function,
-                        to: [tailValue, partial],
-                        at: location,
-                        runtimeContext: runtimeContext)
+                    stack.append(.foldring(function, values.dropLast(), environment, location))
+                    control = .apply(function, [tailValue, partial], environment, location)
                 } else {
                     control = .value(partial)
                 }
@@ -886,12 +939,8 @@ extension Machine {
 
                 if let headValue = values.first {
                     stack.append(
-                        .filtering(function, headValue, values.dropFirst(), [], shape, location))
-                    try apply(
-                        function,
-                        to: [headValue],
-                        at: location,
-                        runtimeContext: runtimeContext)
+                        .filtering(function, headValue, values.dropFirst(), [], shape, environment, location))
+                    control = .apply(function, [headValue], environment, location)
                 } else {
                     control = .value(shape.rebuild([]))
                 }
@@ -904,12 +953,8 @@ extension Machine {
                 let values = try valueList.unwrapElements(location)
 
                 if let headValue = values.first {
-                    stack.append(.reducing(function, values.dropFirst(), location))
-                    try apply(
-                        function,
-                        to: [partial, headValue],
-                        at: location,
-                        runtimeContext: runtimeContext)
+                    stack.append(.reducing(function, values.dropFirst(), environment, location))
+                    control = .apply(function, [partial, headValue], environment, location)
                 } else {
                     control = .value(partial)
                 }
@@ -923,12 +968,8 @@ extension Machine {
             let values = try valueList.unwrapElements(location)
 
             if let headValue = values.first {
-                stack.append(.probing(higher, function, values.dropFirst(), location))
-                try apply(
-                    function,
-                    to: [headValue],
-                    at: location,
-                    runtimeContext: runtimeContext)
+                stack.append(.probing(higher, function, values.dropFirst(), environment, location))
+                control = .apply(function, [headValue], environment, location)
             } else {
                 switch higher {
                 case .all: control = .value(.boolean(true))
@@ -942,6 +983,13 @@ extension Machine {
                 runtimeContext: runtimeContext)
 
             let result = try primitive.call(Array(arguments), context: context)
+
+            if evaluationStack.count > 1, state != .evaluating {
+                state = .evaluating
+                throw MyronError(.cannotReceiveInsideNestedEvaluation, at: location)
+            }
+
+            guard state == .evaluating else { return }
             control = .value(result)
 
         case .procedure(let procedure):
@@ -1103,14 +1151,13 @@ extension Machine {
         with arguments: [MyronValue],
         at location: MyronLocation?
     ) throws -> MyronValue {
-        let runtimeContext = try makeRuntimeContext(at: location)
         try checkEvalDepth()
         reentrancyPush()
-        defer { reentrancyPop() }
 
+        state = .evaluating
         stack = []
-        try apply(callable, to: arguments[...], at: location, runtimeContext: runtimeContext)
-        return try run()
+        control = .apply(callable, arguments[...], nil, location)
+        return try proceedWithEvaluation()
     }
 
 }

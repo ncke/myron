@@ -81,7 +81,7 @@ final class Script: @unchecked Sendable {
 
         switch session.eval(source) {
         case .success(let value): return value
-        case .nothing: return .nothing
+        case .nothing, .suspended: return .nothing
         case .failure(let errors): throw .failed(path, source, errors)
         }
     }
@@ -234,6 +234,8 @@ extension Script {
             return errors.map { error in error.message ?? error.reason.description }.joined(separator: "\n")
         case .nothing:
             return "=> nothing"
+        case .suspended:
+            return "=> waiting"
         }
     }
 

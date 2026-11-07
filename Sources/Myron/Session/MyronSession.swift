@@ -87,6 +87,11 @@ public final class MyronSession {
         return results
     }
 
+    public func resume() -> MyronResult {
+        defer { runtime.tidyEnvironment(process) }
+        return runtime.resume(process)
+    }
+
 }
 
 // MARK: - Evaluation

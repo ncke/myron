@@ -30,6 +30,11 @@ func expectValue(
         Issue.record(
             "\(source) got nothing (expected \(expected))",
             sourceLocation: sourceLocation)
+
+    case .suspended:
+        Issue.record(
+            "\(source) got suspended (expected \(expected))",
+            sourceLocation: sourceLocation)
     }
 }
 
@@ -55,6 +60,11 @@ func expectFailure(
     case .nothing:
         Issue.record(
             "\(source) got nothing (expected failure)",
+            sourceLocation: sourceLocation)
+
+    case .suspended:
+        Issue.record(
+            "\(source) got suspended (expected failure)",
             sourceLocation: sourceLocation)
     }
 }
@@ -84,6 +94,11 @@ func expectArityFailure(
     case .nothing:
         Issue.record(
             "\(source) got nothing (expected an arity error)",
+            sourceLocation: sourceLocation)
+
+    case .suspended:
+        Issue.record(
+            "\(source) got suspended (expected an arity error)",
             sourceLocation: sourceLocation)
     }
 }

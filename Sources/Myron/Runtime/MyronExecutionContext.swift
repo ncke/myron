@@ -28,4 +28,16 @@ public struct MyronExecutionContext {
             content: content,
             location: location)
     }
+
+    func setProcessState(to state: Machine.State) throws {
+        try runtimeContext.runtime.setState(runtimeContext.process, to: state, at: location)
+    }
+
+    func consumeMessage(where predicate: (Message) -> Bool) throws -> Message? {
+        try runtimeContext.runtime.consumeMailboxMessage(
+            runtimeContext.process,
+            at: location,
+            where: predicate)
+    }
+
 }

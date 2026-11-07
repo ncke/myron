@@ -8,6 +8,7 @@ public struct MyronError: Error, Sendable {
         case ambiguousResolution(String, String, [String])
         case cannotBeEmpty
         case cannotBeNegative
+        case cannotReceiveInsideNestedEvaluation
         case containingEnvironmentNoLongerExists
         case couldNotResolve(String, String, [String])
         case divisionByZero
@@ -31,6 +32,8 @@ public struct MyronError: Error, Sendable {
         case malformedAlist(Int)
         case malformedSignature(String, String)
         case overflow
+        case processCannotResume(String)
+        case processNotReady(String)
         case raised(String)
         case subscriptOutOfBounds(Int, Int)
         case typeCastFailed(MyronValue.Kind, MyronValue.Kind)
@@ -146,6 +149,8 @@ extension MyronError.Reason: CustomStringConvertible {
             return "\(msg)\nCandidates:\n\(listed)"
         case .cannotBeEmpty: return "Cannot be empty"
         case .cannotBeNegative: return "Cannot be negative"
+        case .cannotReceiveInsideNestedEvaluation:
+            return "Cannot wait to receive a message inside a nested evaluation"
         case .containingEnvironmentNoLongerExists: return "Containing environment no longer exists"
         case .couldNotResolve(let representation, let gotSignature, let expectedSignatures):
             let msg = "Could not resolve signature for \(representation), got: \(gotSignature)"
@@ -176,6 +181,10 @@ extension MyronError.Reason: CustomStringConvertible {
             if signature.isEmpty { return "Malformed signature: \(explain)" }
             return "Malformed signature \(signature): \(explain)"
         case .overflow: return "Overflow"
+        case .processCannotResume(let state):
+            return "Process cannot be resumed because its state is '\(state)'"
+        case .processNotReady(let state):
+            return "Process is not ready to be evaluated because its state is '\(state)'"
         case .raised(let message): return "Raised: \(message)"
         case .subscriptOutOfBounds(let got, let length):
             return "Subscript out of bounds: got \(got) for length \(length)"

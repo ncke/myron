@@ -152,12 +152,22 @@ extension MyronRuntime {
         containingRepresentation: String
     ) -> MyronResult {
         guard let runtimeProcess = processes[process] else {
-            let explain = "runtime has no such process for identifier '\(process)'"
+            let explain = "runtime eval has no such process for identifier '\(process)'"
             let error = MyronError(.internal(explain), at: expression.location)
             return .failure([error])
         }
 
         return runtimeProcess.eval(expression, in: containingRepresentation)
+    }
+
+    func resume(_ process: MyronProcess) -> MyronResult {
+        guard let runtimeProcess = processes[process] else {
+            let explain = "runtime resume has no such process for identifier '\(process)'"
+            let error = MyronError(.internal(explain))
+            return .failure([error])
+        }
+
+        return runtimeProcess.resume()
     }
 
     func insert(
@@ -235,6 +245,50 @@ extension MyronRuntime {
 
     func mailbox(of process: MyronProcess) -> [Message]? {
         processes[process]?.mailbox
+    }
+
+    func consumeMailboxMessage(
+        _ process: MyronProcess,
+        at location: MyronLocation?,
+        where predicate: (Message) -> Bool
+    ) throws -> Message? {
+        guard let runtimeProcess = processes[process] else {
+            let explain = """
+            runtime consumeMailboxMessage has no such process for identifier '\(process)'
+            """
+            throw MyronError(.internal(explain), at: location)
+        }
+
+        return runtimeProcess.consumeFirstFromMessageQueue(where: predicate)
+    }
+
+}
+
+// MARK: - Process State Control
+
+extension MyronRuntime {
+
+    func setState(
+        _ process: MyronProcess,
+        to state: Machine.State,
+        at location: MyronLocation?
+    ) throws {
+        guard let runtimeProcess = processes[process] else {
+            let explain = "runtime setState has no such process for identifier '\(process)'"
+            throw MyronError(.internal(explain), at: location)
+        }
+
+        runtimeProcess.setState(state)
+    }
+
+}
+
+// MARK: - Scheduler
+
+extension MyronRuntime {
+
+    func runSchedule() {
+
     }
 
 }

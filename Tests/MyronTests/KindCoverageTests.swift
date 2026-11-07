@@ -49,6 +49,9 @@ struct KindCoverageTests {
         case .failure(let errors):
             Issue.record("the \(kind) sample failed: \(errors.map(\.reason))")
             throw errors[0]
+        case .suspended:
+            Issue.record("the \(kind) sample failed: got 'suspended'")
+            return .nothing
         }
     }
 

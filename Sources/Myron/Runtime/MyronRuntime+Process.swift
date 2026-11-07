@@ -5,18 +5,20 @@ import Foundation
 extension MyronRuntime {
 
     final class Process {
-        enum State {
-            case ready, evaluating, waiting, suspended
+
+        struct CurrentEvaluation {
+            let expression: Expression
+            let representation: String
         }
 
         let identifier: MyronProcess
-        var state: State = .ready
         private let environment: Environment
         private let environmentRegistry: EnvironmentRegistry
         private(set) weak var runtime: MyronRuntime?
         private let machine: Machine
         private var sendSequence: Int = 0
         private var messageQueue = [Message]()
+        private var currentEvaluation = [CurrentEvaluation]()
 
         init(
             identifier: MyronProcess,
@@ -51,12 +53,30 @@ extension MyronRuntime {
 
 extension MyronRuntime.Process {
 
-    func eval(_ form: Expression, in expression: String) -> MyronResult {
+    func eval(_ form: Expression, in representation: String) -> MyronResult {
+        guard machine.state == .ready || machine.state == .evaluating else {
+            let error = MyronError(.processNotReady(machine.state.description), at: form.location)
+            return .failure([error])
+        }
+
+        let current = CurrentEvaluation(expression: form, representation: representation)
+        currentEvaluation.append(current)
+
         do {
             let value = try machine.eval(form)
+
+            if machine.state == .waiting || machine.state == .suspended { return .suspended }
+
+            _ = currentEvaluation.popLast()
             return .success(value)
 
         } catch {
+            guard let current = currentEvaluation.popLast() else {
+                let explain = "process '\(identifier)': missing current evaluation"
+                let error = MyronError(.internal(explain))
+                return .failure([error])
+            }
+
             guard let runtime else {
                 let explain = "process '\(identifier)': missing runtime with soft requirement"
                 let error = MyronError(.internal(explain))
@@ -65,13 +85,54 @@ extension MyronRuntime.Process {
 
             let errorStyle = runtime.configuration.errorStyle
             if let error = error as? MyronError {
-                let errors = [error].adorned(style: errorStyle, in: expression)
+                let errors = [error].adorned(style: errorStyle, in: current.representation)
                 return .failure(errors)
             }
 
             let explain = "process '\(identifier)': unhandled error type: \(error)"
-            let error = MyronError(.internal(explain), at: form.location)
-            return .failure([error].adorned(style: errorStyle, in: expression))
+            let error = MyronError(.internal(explain), at: current.expression.location)
+            return .failure([error].adorned(style: errorStyle, in: current.representation))
+        }
+    }
+
+    func resume() -> MyronResult {
+        guard machine.state == .suspended || machine.state == .waiting else {
+            let error = MyronError(
+                .processCannotResume(machine.state.description),
+                at: currentEvaluation.last?.expression.location)
+            return .failure([error])
+        }
+
+        do {
+            let value = try machine.resume()
+
+            if machine.state == .waiting || machine.state == .suspended { return .suspended }
+
+            _ = currentEvaluation.popLast()
+            return .success(value)
+
+        } catch {
+            guard let current = currentEvaluation.popLast() else {
+                let explain = "process '\(identifier)': missing current evaluation"
+                let error = MyronError(.internal(explain))
+                return .failure([error])
+            }
+
+            guard let runtime else {
+                let explain = "process '\(identifier)': missing runtime with soft requirement"
+                let error = MyronError(.internal(explain))
+                return .failure([error])
+            }
+
+            let errorStyle = runtime.configuration.errorStyle
+            if let error = error as? MyronError {
+                let errors = [error].adorned(style: errorStyle, in: current.representation)
+                return .failure(errors)
+            }
+
+            let explain = "process '\(identifier)': unhandled error type: \(error)"
+            let error = MyronError(.internal(explain), at: current.expression.location)
+            return .failure([error].adorned(style: errorStyle, in: current.representation))
         }
     }
 
@@ -154,4 +215,19 @@ extension MyronRuntime.Process {
         return runtime
     }
     
+}
+
+// MARK: - Process State
+
+extension MyronRuntime.Process {
+
+    func setState(_ state: Machine.State) {
+        machine.setState(state)
+    }
+
+    func consumeFirstFromMessageQueue(where predicate: (Message) -> Bool) -> Message? {
+        guard let idx = messageQueue.firstIndex(where: predicate) else { return nil }
+        return messageQueue.remove(at: idx)
+    }
+
 }

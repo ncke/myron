@@ -10,11 +10,12 @@ the language, and a patch release will not.
 
 The first step towards processes. `spawn` starts a process with an environment
 of its own and gives it back as a value; sessions now run as processes inside a
-runtime. A process can send another a message with `send`, but nothing can
-receive one yet, so a spawned process runs to the end before `spawn` returns.
-`MyronValue` has a new case, so hosts that switch over it exhaustively need
-updating, and every host primitive's closure takes a new first parameter — see
-[Changed](#changed).
+runtime. A process can send another a message with `send` and take one out of
+its own mailbox with `receive`. An evaluation that waits for a message
+suspends, and the host resumes it. Processes don't take turns yet, so a spawned
+process still runs before `spawn` returns. `MyronValue` and `MyronResult` have
+new cases, so hosts that switch over them exhaustively need updating, and every
+host primitive's closure takes a new first parameter — see [Changed](#changed).
 
 ### Added
 
@@ -32,7 +33,17 @@ updating, and every host primitive's closure takes a new first parameter — see
   `(send process value)`. It gives back `nothing` at once, and succeeds whether
   or not the destination is alive; a message to a process that has ended is
   dropped. Messages from one process to another arrive in the order they were
-  sent. Nothing can take a message out of a mailbox yet.
+  sent.
+- `receive`, which takes the oldest message out of the process's own mailbox
+  and evaluates to it, and `receive-from`, which takes the oldest one sent by a
+  given process: `(receive-from p)`. When there is nothing to take, the
+  evaluation waits for a message, and the session reports it as suspended.
+  A spawned process that waits ends there for now. Neither can wait inside a
+  nested evaluation, such as a `load`.
+- `MyronResult.suspended`, for an evaluation that is waiting for a message,
+  and `MyronSession.resume()`, which carries it on once one may have arrived.
+  The process can't start another evaluation while it is suspended. The REPL
+  prints `suspended`, and `--show` prints `=> waiting`.
 - Sendable values: those holding no procedure, primitive, macro or module at
   any depth. Only a sendable value can be sent, or given to `spawn` as an
   argument. `sendable?` asks whether a value is one, and so does `isSendable`
@@ -66,6 +77,9 @@ updating, and every host primitive's closure takes a new first parameter — see
 - `MyronError.Reason.expectedSendable`, for a value that is not sendable given
   to `send` or to `spawn`, carrying the kind of the part that is not sendable,
   however deep inside the value it is.
+- `MyronError.Reason.processNotReady`, for an evaluation started while the
+  process is suspended, `processCannotResume`, for a resume when nothing is
+  suspended, and `cannotReceiveInsideNestedEvaluation`.
 - `MyronExecutionContext`, which a host primitive's body is given for each
   call. It has the call site as `location`, the process doing the evaluating
   as `process`, and `send(_:to:)` to send a message from that process, with
@@ -84,7 +98,10 @@ updating, and every host primitive's closure takes a new first parameter — see
 
 - `MyronValue` has a new case, `.process`, and `MyronValue.Kind` has `.process`,
   so an exhaustive `switch` over either needs a new case.
-- `MyronError.Reason` has a new case, `expectedSendable`.
+- `MyronResult` has a new case, `.suspended`, so an exhaustive `switch` over
+  it needs a new case.
+- `MyronError.Reason` has new cases: `cannotReceiveInsideNestedEvaluation`,
+  `expectedSendable`, `processCannotResume` and `processNotReady`.
 - A primitive a host defines is namespaced under `user.` rather than `host.`,
   so `double` describes itself as `<primitive: user.double>`.
 - The `expectedFunction` message now reads "Expected function but got kind:

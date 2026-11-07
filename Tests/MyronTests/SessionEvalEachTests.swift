@@ -15,6 +15,7 @@ struct SessionEvalEachTests {
             case .success(let value): return value.description
             case .failure(let errors): return "failure: \(errors.map(\.reason))"
             case .nothing: return "nothing"
+            case .suspended: return "suspended"
             }
         }
     }

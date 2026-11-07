@@ -6,6 +6,7 @@ public enum MyronResult {
     case success(MyronValue)
     case failure([MyronError])
     case nothing
+    case suspended
 }
 
 // MARK: - MyronFormResult
