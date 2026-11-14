@@ -3,10 +3,11 @@ import Testing
 
 // MARK: - Spawn
 
-// Until processes can message each other, a spawned process runs its entry
-// call to the end before `spawn` returns, and nothing it does can be seen from
-// outside. So these pin down the contract around the child: what `spawn`
-// accepts, what it rejects, and that the child is gone afterwards.
+// A spawned process runs its entry call before `spawn` returns. If the entry
+// call finishes, or `spawn` fails, the child is gone by the time `spawn`
+// returns; if it is waiting for a message, it lives on until the scheduler
+// finishes it (see the Scheduling tests). These pin down the contract around
+// the child: what `spawn` accepts, what it rejects, and how long the child lives.
 
 @Suite("Spawn")
 
@@ -207,6 +208,37 @@ struct SpawnTests {
         #expect(runtime.processCount == 1)
 
         _ = session.eval(Self.shapes + " (spawn (shapes) shapes.volume 1 2)")
+        #expect(runtime.processCount == 1)
+    }
+
+    @Test("a child waiting for a message outlives spawn")
+    func waitingChildOutlivesSpawn() {
+        let runtime = MyronRuntime()
+        let session = runtime.makeSession()
+
+        let source = "(module m (go) (define (go) (receive))) (process? (spawn (m) m.go))"
+        #expect(session.eval(source).asSuccess == .boolean(true))
+        #expect(runtime.processCount == 2)
+    }
+
+    // A module is evaluated in the parent when it is defined, so each source
+    // first sends the parent a message for that evaluation's own `receive`.
+    @Test("a module cannot wait while it is being spawned", arguments: [
+        "(send self 0) (module m (go) (define x (receive)) (define (go) x)) (spawn (m) m.go)",
+        """
+        (send self 0) (module m (go) (define x (receive)) (define (go) x))
+        (module n (f) (define (f) 1))
+        (spawn (m n) m.go)
+        """
+    ])
+    func moduleCannotWait(_ source: String) throws {
+        let runtime = MyronRuntime()
+        let session = runtime.makeSession()
+
+        let error = try #require(session.eval(source).asFailure?.first)
+        #expect(error.reason == .moduleCannotWaitDuringSpawn("m"))
+        #expect(error.hints == [.receiveFromTheEntryFunction])
+        #expect(error.location != nil)
         #expect(runtime.processCount == 1)
     }
 

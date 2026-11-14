@@ -31,6 +31,7 @@ public struct MyronError: Error, Sendable {
         case invalidNumber
         case malformedAlist(Int)
         case malformedSignature(String, String)
+        case moduleCannotWaitDuringSpawn(String)
         case overflow
         case processCannotResume(String)
         case processNotReady(String)
@@ -180,6 +181,8 @@ extension MyronError.Reason: CustomStringConvertible {
         case .malformedSignature(let signature, let explain):
             if signature.isEmpty { return "Malformed signature: \(explain)" }
             return "Malformed signature \(signature): \(explain)"
+        case .moduleCannotWaitDuringSpawn(let name):
+            return "The module '\(name)' cannot wait during a spawn"
         case .overflow: return "Overflow"
         case .processCannotResume(let state):
             return "Process cannot be resumed because its state is '\(state)'"

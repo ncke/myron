@@ -5,7 +5,10 @@ import Foundation
 public final class MyronRuntime {
     public let configuration: MyronSessionConfiguration
     private var processes = [MyronProcess: Process]()
+    private var runQueue = RunQueue()
     private var counter = 0
+    private var cachedResult = [MyronProcess: MyronResult]()
+    let runtimeEnvironment = RuntimeEnvironment()
 
     public init(configuration: MyronSessionConfiguration = .standard) {
         self.configuration = configuration
@@ -17,22 +20,27 @@ public final class MyronRuntime {
 
 extension MyronRuntime {
 
-    func makeProcess() -> MyronProcess {
+    func makeProcess(isSpawned: Bool = false) -> MyronProcess {
         let identifier = MyronProcess(counter)
         counter += 1
 
         processes[identifier] = Process(
             identifier: identifier,
             runtime: self,
-            configuration: configuration)
+            configuration: configuration,
+            isSpawnedProcess: isSpawned)
 
         return identifier
     }
 
-    func shutdownProcess(_ identifier: MyronProcess) throws {
-        let runtimeProcess = try getProcess(identifier)
-        runtimeProcess.shutdownAll()
+    func shutdownProcess(_ identifier: MyronProcess) {
+        if let runtimeProcess = try? getProcess(identifier) {
+            runtimeProcess.shutdownAll()
+            runQueue.dequeue(runtimeProcess)
+        }
+
         processes[identifier] = nil
+        cachedResult[identifier] = nil
     }
 
     var processCount: Int {
@@ -76,29 +84,40 @@ extension MyronRuntime {
             }
         }
 
-        let process = makeProcess()
+        let process = makeProcess(isSpawned: true)
+        let runtimeProcess = try getProcess(process)
+        var shouldShutdown = true
+        defer {
+            if shouldShutdown { shutdownProcess(process) }
+        }
 
         for module in context.modules {
-            let result = eval(process, expression: module.definition, containingRepresentation: "")
+            let result = eval(
+                process,
+                expression: module.definition,
+                containingRepresentation: "",
+                continueScheduling: false)
 
             switch result {
             case .failure(let errors):
-                try shutdownProcess(process)
-
                 guard let firstError = errors.first else {
                     let explain = "spawning module '\(module.name)' failed with no errors"
                     throw MyronError(.internal(explain), at: module.definition.location)
                 }
 
                 throw firstError
+
+            case .waiting:
+                throw MyronError(
+                    .moduleCannotWaitDuringSpawn(module.name),
+                    at: context.parentLocation
+                ).withHint(.receiveFromTheEntryFunction)
+
             default:
                 continue
             }
         }
 
-        defer { try? shutdownProcess(process) }
-
-        let runtimeProcess = try getProcess(process)
         let callable = try runtimeProcess.query(name: context.entry, at: context.parentLocation)
 
         do {
@@ -108,6 +127,7 @@ extension MyronRuntime {
                 at: context.parentLocation)
         } catch {}
 
+        shouldShutdown = runtimeProcess.state != .waiting
         return .process(process)
     }
 
@@ -149,7 +169,8 @@ extension MyronRuntime {
     func eval(
         _ process: MyronProcess,
         expression: Expression,
-        containingRepresentation: String
+        containingRepresentation: String,
+        continueScheduling: Bool = true
     ) -> MyronResult {
         guard let runtimeProcess = processes[process] else {
             let explain = "runtime eval has no such process for identifier '\(process)'"
@@ -157,17 +178,33 @@ extension MyronRuntime {
             return .failure([error])
         }
 
-        return runtimeProcess.eval(expression, in: containingRepresentation)
+        cachedResult[process] = nil
+        let result = runtimeProcess.eval(expression, in: containingRepresentation)
+
+        if continueScheduling {
+            runSchedule()
+        }
+
+        return result
     }
 
     func resume(_ process: MyronProcess) -> MyronResult {
+        if let cached = cachedResult[process] {
+            cachedResult[process] = nil
+            runSchedule()
+            return cached
+        }
+
         guard let runtimeProcess = processes[process] else {
             let explain = "runtime resume has no such process for identifier '\(process)'"
             let error = MyronError(.internal(explain))
             return .failure([error])
         }
 
-        return runtimeProcess.resume()
+        let result = runtimeProcess.resume()
+        runSchedule()
+
+        return result
     }
 
     func insert(
@@ -241,6 +278,10 @@ extension MyronRuntime {
             content: content)
 
         destinationProcess.enqueueMessage(message)
+
+        if destinationProcess.state == .waiting {
+            runQueue.enqueue(destinationProcess)
+        }
     }
 
     func mailbox(of process: MyronProcess) -> [Message]? {
@@ -283,11 +324,173 @@ extension MyronRuntime {
 
 }
 
-// MARK: - Scheduler
+// MARK: - Scheduling
 
 extension MyronRuntime {
 
-    func runSchedule() {
+    public func hasPendingResult(for process: MyronProcess) -> Bool {
+        return cachedResult[process] != nil
+    }
+
+    public var hasPendingWork: Bool {
+        return !runQueue.isEmpty
+    }
+
+    public func runSchedule() {
+        while let runtimeProcess = runQueue.next() {
+            guard
+                runtimeProcess.state == .waiting,
+                runtimeProcess.hasMessages
+            else {
+                continue
+            }
+
+            let result = runtimeProcess.resume()
+
+            if result != .waiting {
+                if runtimeProcess.isSpawnedProcess {
+                    shutdownProcess(runtimeProcess.identifier)
+                } else {
+                    cachedResult[runtimeProcess.identifier] = result
+                }
+            }
+        }
+    }
+
+}
+
+// MARK: - RunQueue
+
+private extension MyronRuntime {
+
+    final class RunQueue {
+        private var queue = [Process]()
+        private var content = Set<MyronProcess>()
+
+        var isEmpty: Bool { return queue.isEmpty }
+
+        func enqueue(_ process: Process) {
+            guard !content.contains(process.identifier) else { return }
+            queue.append(process)
+            content.insert(process.identifier)
+        }
+
+        func dequeue(_ process: Process) {
+            guard content.contains(process.identifier) else { return }
+            queue.removeAll { queuedProcess in queuedProcess.identifier == process.identifier }
+            content.remove(process.identifier)
+        }
+
+        func next() -> Process? {
+            guard let process = queue.first else { return nil }
+            queue = Array(queue.dropFirst())
+            content.remove(process.identifier)
+
+            return process
+        }
+
+    }
+
+}
+
+// MARK: - Primitive Definition
+
+extension MyronRuntime {
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        body: @escaping MyronPrimitive.FnContextArg0
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        body: @escaping MyronPrimitive.FnContextArg1
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        body: @escaping MyronPrimitive.FnContextArg2
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        body: @escaping MyronPrimitive.FnContextArg3
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        body: @escaping MyronPrimitive.FnContextArg4
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        body: @escaping MyronPrimitive.FnContextArg5
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        body: @escaping MyronPrimitive.FnContextArg6
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+    public func define(
+        _ name: String,
+        _ signature: String? = nil,
+        arity: MyronError.IntegerExpectation,
+        body: @escaping MyronPrimitive.FnContextArgN
+    ) throws {
+        let primitive = try MyronPrimitive.define(name, signature, arity: arity, body: body)
+        try runtimeEnvironment.insert(name: name, value: .primitive(primitive))
+    }
+
+}
+
+// MARK: - Runtime Environment
+
+extension MyronRuntime {
+
+    final class RuntimeEnvironment {
+        private var mappings = [String: MyronValue]()
+
+        func insert(name: String, value: MyronValue) throws {
+            try MyronValue.validateAsName(name, location: nil)
+            mappings[name] = value
+        }
+
+        func lookup(_ name: String) -> MyronValue? {
+            return mappings[name]
+        }
+
+        var names: Set<String> {
+            return Set(mappings.keys)
+        }
 
     }
 

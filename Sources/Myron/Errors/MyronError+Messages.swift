@@ -89,11 +89,13 @@ extension Array where Element == MyronError {
 
     func adorned(
         style: MyronSessionConfiguration.ErrorStyle,
-        in expression: String
+        in expression: String?
     ) -> [MyronError] {
         switch style {
         case .terse: return self
-        case .verbose: return self.map { e in e.withMessage(in: expression) }
+        case .verbose:
+            guard let expression else { return self }
+            return self.map { e in e.withMessage(in: expression) }
         }
     }
 

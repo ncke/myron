@@ -18,7 +18,9 @@ enum Console {
 
 // MARK: - Console Primitives
 
-extension MyronSession {
+// Defined on the runtime rather than a session, since standard input and output
+// and the exit status belong to the whole program: a spawned process can print.
+extension MyronRuntime {
 
     func defineConsolePrimitives() throws {
         try define("print", arity: .unspecified) { _, values in

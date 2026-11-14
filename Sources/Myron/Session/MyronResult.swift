@@ -6,8 +6,10 @@ public enum MyronResult {
     case success(MyronValue)
     case failure([MyronError])
     case nothing
-    case suspended
+    case waiting
 }
+
+extension MyronResult: Equatable {}
 
 // MARK: - MyronFormResult
 
@@ -51,6 +53,13 @@ extension MyronResult {
     public var isNothing: Bool {
         switch self {
         case .nothing: return true
+        default: return false
+        }
+    }
+
+    public var isWaiting: Bool {
+        switch self {
+        case .waiting: return true
         default: return false
         }
     }

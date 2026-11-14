@@ -24,7 +24,8 @@ import Testing
     @Test("a machine with no process cannot run")
     func machineNeedsProcess() throws {
         let registry = EnvironmentRegistry()
-        let environment = Environment(registry: registry)
+        let runtimeEnvironment = MyronRuntime.RuntimeEnvironment()
+        let environment = Environment(registry: registry, runtimeEnvironment: runtimeEnvironment)
         let machine = Machine(environment: environment)
         let expr = try #require(makeExpressions("1")?.first)
 

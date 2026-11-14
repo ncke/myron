@@ -57,6 +57,36 @@ struct ScriptTests {
         #expect(script.session.eval("arguments").asSuccess?.description == "(\"one\" \"two\")")
     }
 
+    // The console primitives are the runtime's, so every process reaches them.
+    @Test("a spawned process reaches the console primitives")
+    func spawnedProcessReachesConsole() throws {
+        let script = Script(arguments: ["one"])
+        let source = """
+            (module probe (go)
+              (define (go reply-to)
+                (send reply-to
+                  (list (callable? print) (callable? write) (callable? read-line)
+                        (callable? read-character) (callable? read-all) (callable? exit)))))
+            (spawn (probe) probe.go self)
+            (receive)
+            """
+
+        #expect(script.session.eval(source).asSuccess?.description
+            == "(true true true true true true)")
+    }
+
+    // `load` and `arguments` are the script session's own, so another process
+    // on the same runtime does not see them.
+    @Test("load and arguments stay with the script's session")
+    func loadAndArgumentsStayWithTheSession() throws {
+        let script = Script(arguments: ["one"])
+        let other = script.session.runtime.makeSession()
+
+        #expect(other.query("print") != nil)
+        #expect(other.query("load") == nil)
+        #expect(other.query("arguments") == nil)
+    }
+
     @Test("an earlier load is gone after a document resets")
     func resetForgetsEarlierLoads() throws {
         let directory = try Self.files(["prelude.my": "(define p 1)", "doc.md": Self.resetting])

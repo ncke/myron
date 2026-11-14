@@ -6,9 +6,23 @@ extension MyronRuntime {
 
     final class Process {
 
-        struct CurrentEvaluation {
-            let expression: Expression
-            let representation: String
+        enum CurrentEvaluation {
+            case evaluation(Expression, String)
+            case entry(MyronLocation?)
+
+            var location: MyronLocation? {
+                switch self {
+                case .evaluation(let expression, _): return expression.location
+                case .entry(let locn): return locn
+                }
+            }
+
+            var representation: String? {
+                switch self {
+                case .evaluation(_, let rep): return rep
+                case .entry: return nil
+                }
+            }
         }
 
         let identifier: MyronProcess
@@ -19,15 +33,20 @@ extension MyronRuntime {
         private var sendSequence: Int = 0
         private var messageQueue = [Message]()
         private var currentEvaluation = [CurrentEvaluation]()
+        let isSpawnedProcess: Bool
 
         init(
             identifier: MyronProcess,
             runtime: MyronRuntime,
-            configuration: MyronSessionConfiguration
+            configuration: MyronSessionConfiguration,
+            isSpawnedProcess: Bool
         ) {
             self.identifier = identifier
+            self.isSpawnedProcess = isSpawnedProcess
             self.environmentRegistry = EnvironmentRegistry()
-            self.environment = Environment(registry: environmentRegistry)
+            self.environment = Environment(
+                registry: environmentRegistry,
+                runtimeEnvironment: runtime.runtimeEnvironment)
             self.runtime = runtime
             self.machine = Machine(
                 environment: environment,
@@ -59,13 +78,13 @@ extension MyronRuntime.Process {
             return .failure([error])
         }
 
-        let current = CurrentEvaluation(expression: form, representation: representation)
+        let current = CurrentEvaluation.evaluation(form, representation)
         currentEvaluation.append(current)
 
         do {
             let value = try machine.eval(form)
 
-            if machine.state == .waiting || machine.state == .suspended { return .suspended }
+            if machine.state == .waiting { return .waiting }
 
             _ = currentEvaluation.popLast()
             return .success(value)
@@ -90,23 +109,23 @@ extension MyronRuntime.Process {
             }
 
             let explain = "process '\(identifier)': unhandled error type: \(error)"
-            let error = MyronError(.internal(explain), at: current.expression.location)
+            let error = MyronError(.internal(explain), at: current.location)
             return .failure([error].adorned(style: errorStyle, in: current.representation))
         }
     }
 
     func resume() -> MyronResult {
-        guard machine.state == .suspended || machine.state == .waiting else {
+        guard machine.state == .waiting else {
             let error = MyronError(
                 .processCannotResume(machine.state.description),
-                at: currentEvaluation.last?.expression.location)
+                at: currentEvaluation.last?.location)
             return .failure([error])
         }
 
         do {
             let value = try machine.resume()
 
-            if machine.state == .waiting || machine.state == .suspended { return .suspended }
+            if machine.state == .waiting { return .waiting }
 
             _ = currentEvaluation.popLast()
             return .success(value)
@@ -131,7 +150,7 @@ extension MyronRuntime.Process {
             }
 
             let explain = "process '\(identifier)': unhandled error type: \(error)"
-            let error = MyronError(.internal(explain), at: current.expression.location)
+            let error = MyronError(.internal(explain), at: current.location)
             return .failure([error].adorned(style: errorStyle, in: current.representation))
         }
     }
@@ -177,6 +196,9 @@ extension MyronRuntime.Process {
         with arguments: [MyronValue],
         at location: MyronLocation?
     ) throws -> MyronValue {
+        let current = CurrentEvaluation.entry(location)
+        currentEvaluation.append(current)
+
         return try machine.entryCall(callable, with: arguments, at: location)
     }
 
@@ -185,6 +207,10 @@ extension MyronRuntime.Process {
 // MARK: - Message Handling
 
 extension MyronRuntime.Process {
+
+    var hasMessages: Bool {
+        return !messageQueue.isEmpty
+    }
 
     func getNextSendSequence() -> Int {
         let sequence = sendSequence
@@ -220,6 +246,10 @@ extension MyronRuntime.Process {
 // MARK: - Process State
 
 extension MyronRuntime.Process {
+
+    var state: Machine.State {
+        return machine.state
+    }
 
     func setState(_ state: Machine.State) {
         machine.setState(state)

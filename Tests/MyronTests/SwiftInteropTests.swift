@@ -465,6 +465,7 @@ struct SwiftInteropTests {
         #expect(result.isSuccess)
         #expect(!result.isFailure)
         #expect(!result.isNothing)
+        #expect(!result.isWaiting)
         #expect(result.asSuccess?.asInteger == 3)
         #expect(result.asFailure == nil)
     }
@@ -485,6 +486,18 @@ struct SwiftInteropTests {
         #expect(result.isNothing)
         #expect(!result.isSuccess)
         #expect(!result.isFailure)
+        #expect(!result.isWaiting)
+    }
+
+    @Test("an evaluation with nothing to receive reports waiting")
+    func resultWaiting() {
+        let result = MyronSession().eval("(receive)")
+        #expect(result.isWaiting)
+        #expect(!result.isSuccess)
+        #expect(!result.isFailure)
+        #expect(!result.isNothing)
+        #expect(result.asSuccess == nil)
+        #expect(result.asFailure == nil)
     }
 
     // MARK: Crossing the boundary

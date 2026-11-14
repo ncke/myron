@@ -7,10 +7,12 @@ final class Environment {
     private var outer: Environment?
     private let standard: StandardEnvironment
     private(set) weak var registry: EnvironmentRegistry?
+    private let runtimeEnvironment: MyronRuntime.RuntimeEnvironment
 
-    init(registry: EnvironmentRegistry) {
+    init(registry: EnvironmentRegistry, runtimeEnvironment: MyronRuntime.RuntimeEnvironment) {
         self.outer = nil
         self.registry = registry
+        self.runtimeEnvironment = runtimeEnvironment
         self.standard = StandardEnvironment()
         registry.register(self)
     }
@@ -23,6 +25,7 @@ final class Environment {
 
         self.standard = outer.standard
         self.registry = outer.registry
+        self.runtimeEnvironment = outer.runtimeEnvironment
         registry.register(self)
     }
 
@@ -36,9 +39,15 @@ final class Environment {
 
 extension Environment {
 
-    var names: Set<String> {
+    private func traverseNames() -> Set<String> {
         var ns = Set<String>(mappings.keys)
-        if let outer { ns = ns.union(outer.names) }
+        if let outer { ns = ns.union(outer.traverseNames()) }
+        return ns
+    }
+
+    var names: Set<String> {
+        var ns = traverseNames()
+        ns = ns.union(runtimeEnvironment.names)
         return ns
     }
 
@@ -84,11 +93,15 @@ extension Environment {
         at location: MyronLocation?,
     ) -> Result<MyronValue, Error> {
         if let match = traversingLookup(name) { return .success(match) }
+        if let match = runtimeEnvironment.lookup(name) { return .success(match) }
         if let match = standard.lookup(name) { return .success(match) }
 
         if name.hasSuffix("..."), name.count > 3 {
             let stem = String(name.dropLast(3))
-            if traversingLookup(stem) != nil || standard.lookup(stem) != nil {
+            if  traversingLookup(stem) != nil
+                || standard.lookup(stem) != nil
+                || runtimeEnvironment.lookup(stem) != nil
+            {
                 let error = MyronError(.unrecognisedSymbol, at: location)
                     .withHint(.nameWasWrittenWithEllipsis(stem))
                 return .failure(error)
@@ -100,6 +113,7 @@ extension Environment {
         guard
             let firstName = components.first,
             let module = traversingLookup(String(firstName))
+                ?? runtimeEnvironment.lookup(String(firstName))
         else {
             return .failure(MyronError(.unrecognisedSymbol, at: location))
         }

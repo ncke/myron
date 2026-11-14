@@ -73,12 +73,13 @@ looking things up later.
   brings them into scope, and a qualified name such as `geo.area` reaches one
   without importing anything. A module is an ordinary value: it can be passed
   around, nested inside another module, and defined inside a procedure.
-- The beginnings of processes. `spawn` starts a process with an environment of
-  its own, rebuilds the modules it is given inside it, and calls an entry point
-  there. Nothing is shared with the process that spawned it. `self` is the
-  process doing the evaluating, `send` puts a message in another process's
-  mailbox, and `receive` takes one out of its own, waiting for one if need be.
-  Processes don't yet take turns to run.
+- Processes. `spawn` starts a process with an environment of its own, rebuilds
+  the modules it is given inside it, and calls an entry point there. Nothing is
+  shared with the process that spawned it. `self` is the process doing the
+  evaluating, `send` puts a message in another process's mailbox, and
+  `receive` takes one out of its own, waiting for one if need be. A waiting
+  process is carried on when a message arrives, so processes take turns
+  whenever they wait.
 - Lexically scoped closures. `and` and `or` short-circuit.
 - Variadic procedures. A parameter written `xs...` collects the arguments the
   others leave over into a list.
@@ -259,6 +260,12 @@ combining accent, or a `\r\n` line ending — arrives one piece at a time, and a
 byte that is not valid UTF-8 arrives as U+FFFD, the replacement character.
 `exit` works in the REPL too, where it ends the session.
 
+The console primitives — every one but `load` — are defined on the
+[runtime](#defining-primitives), so a process started with [`spawn`](#spawn)
+can print, read and exit too. `load` and [`arguments`](#arguments) belong to
+the program's own session: a spawned process can't load a file, and is given
+any arguments it needs as arguments to `spawn`.
+
 `load` does from inside a program what `--load` does from the command line.
 The file's definitions land in the session's top-level environment, wherever
 the call is made, and a relative path is taken from the current directory, not
@@ -297,7 +304,8 @@ file.
 A document's blocks share one environment, so a later block can use what an
 earlier one defined. A block marked ` ```lisp reset-environment ` starts a
 clean one instead: the environment is replaced with a new one holding only the
-standard library, the executable's own primitives, and `arguments`. The block
+standard library, the executable's own primitives, and `arguments`, in a
+runtime of its own, so a process spawned before the reset is gone too. The block
 and those after it continue there, and so does anything loaded afterwards,
 including the REPL. That suits a document made of separate examples, each
 of which should start fresh. Only a block that runs can reset the environment,
@@ -375,8 +383,9 @@ targets: [
 ## The Swift interface
 
 Myron is a library first. The public surface is deliberately small: a session,
-the runtime behind it, its configuration, a result, the `MyronValue` enum,
-`MyronHashmap`, `MyronSet`, `MyronError`, and the language version. The `myron`
+the runtime behind it and its schedule, its configuration, a result, the
+`MyronValue` enum, `MyronHashmap`, `MyronSet`, `MyronError`, and the language
+version. The `myron`
 executable is itself just another host of the library, in a few dozen lines of
 Swift.
 
@@ -448,23 +457,45 @@ and `didEvaluate` its `MyronFormResult` just after. A host can use them to
 interleave its own output with whatever the forms write, as `myron --show`
 does. A parse failure reaches `didEvaluate` alone.
 
+A session is a process, and `process` is its address: the same value `self`
+gives back inside it, and the one to hand Myron code that should reply to it.
+`runtime` is the [runtime](#myronruntime) it runs in.
+
 An evaluation that [waits for a message](#messaging) gives back
-[`.suspended`](#myronresult). `resume()` carries it on from where it stopped,
-and gives back its result, or `.suspended` again if there is still nothing to
+[`.waiting`](#myronresult). `resume()` carries it on from where it stopped,
+and gives back its result, or `.waiting` again if there is still nothing to
 receive:
 
 ```swift
-let me = session.eval("self").asSuccess!.asProcess!
-
-session.eval("(+ 1 (receive))")           // .suspended
-try session.send(41, to: me)
+session.eval("(+ 1 (receive))")           // .waiting
+try session.send(41, to: session.process)
 session.resume()                          // .success(.integer(42))
 ```
 
-While a session is suspended, `eval` fails with `processNotReady`, and a
-`resume()` when nothing is suspended fails with `processCannotResume`. For now,
-suspending is best kept to the last form in a call: the forms after it are not
-kept with the suspension.
+The runtime may carry a waiting session on by itself, when a message reaches
+it while the runtime is [running its schedule](#scheduling). It then keeps the
+result, success or failure, until the host collects it with `resume()`.
+`hasPendingResult` says whether one is there:
+
+```swift
+let runtime = MyronRuntime()
+let session = runtime.makeSession()
+let other = runtime.makeSession()
+try other.set("w", to: .process(session.process))
+
+session.eval("(+ 1 (receive))")           // .waiting
+other.eval("(send w 41)")                 // the runtime carries session on
+session.hasPendingResult                  // true
+session.resume()                          // .success(.integer(42))
+session.hasPendingResult                  // false
+```
+
+While a session is waiting, `eval` fails with `processNotReady`. A `resume()`
+with nothing waiting and no result pending fails with `processCannotResume`,
+and a new `eval` discards a result that was not collected. Waiting is best kept
+to the last form in a call. A form before it that waits is carried on only if
+its message arrives while the runtime runs its schedule at the end of that
+form; otherwise the next form fails with `processNotReady`.
 
 #### Reading and writing the environment
 
@@ -674,6 +705,36 @@ try session.define("wrong") { _ in session.names.count }
 Read what a body needs before defining it, or hold the state in a `Sendable`
 type of your own.
 
+**Defining on the runtime.** A primitive defined on a session belongs to that
+session's process, so a process it [spawns](#spawn) can't call it. When every
+process should reach a primitive — input and output, a clock, anything the host
+offers the program as a whole — define it on the [runtime](#myronruntime)
+instead. `MyronRuntime.define` has the same overloads, and takes the same
+signatures, names and context:
+
+```swift
+let runtime = MyronRuntime()
+let session = runtime.makeSession()
+
+try runtime.define("double") { _, value in
+    try value.requireInteger() * 2
+}
+
+session.eval("""
+    (module twice (go) (define (go reply-to) (send reply-to (double 21))))
+    (spawn (twice) twice.go self)
+    (receive)
+    """)                                  // .success(.integer(42))
+```
+
+A process looks a name up in its own environment first, then among the
+runtime's primitives, then in the standard library. So a session's own
+definition of a name shadows the runtime's for that session alone, and a
+runtime primitive can shadow a standard one. A runtime primitive is visible to
+processes that already exist as well as to later ones, and its context's
+`process` says which of them is calling. Its body must not capture the runtime,
+for the same reason a session's must not capture the session.
+
 #### Signatures
 
 `define` takes an optional signature, a string naming the kinds of argument the
@@ -770,14 +831,15 @@ b.eval("x")                               // .failure — unrecognisedSymbol
 ```
 
 Each session has its own environment, so what one defines the other cannot see.
-What they share is the runtime: its [configuration](#configuration), the
-numbering of the processes they spawn, and the delivery of
-[messages](#messaging) between them. A session can send a message from Swift
-as well as from Myron, to any process whose address it holds:
+What they share is the runtime: its [configuration](#configuration), any
+[primitives defined on it](#defining-primitives), the numbering of the
+processes they spawn, the delivery of [messages](#messaging) between them, and
+the [schedule](#scheduling) that carries waiting processes on. A session can
+send a message from Swift as well as from Myron, to any process whose address
+it holds:
 
 ```swift
-let address = b.eval("self").asSuccess?.asProcess
-try a.send(.symbol("hello"), to: address!)   // into b's mailbox
+try a.send(.symbol("hello"), to: b.process)   // into b's mailbox
 ```
 
 `send(_:to:)` throws `expectedSendable` for a value that Myron code could not
@@ -789,6 +851,47 @@ A session holds its runtime, so the runtime lasts as long as any session made
 from it, or as long as the host holds it. See
 [Lifetime and threading](#lifetime-and-threading).
 
+#### Scheduling
+
+A process that [waits for a message](#messaging) stops where it is. When a
+message is sent to it, it joins the runtime's run queue, and running the
+schedule carries each process in the queue on, in turn, until the queue is
+empty. A process carried on may send more messages, and the processes those
+wake join the same queue. A process takes its turn until it waits again or
+comes to the end, so nothing is interrupted: a process that never waits holds
+everything else up until it is done.
+
+The runtime runs its schedule by itself at the end of every `eval` and
+`resume`, so a host that only evaluates never needs to think about it. A
+message sent from Swift queues its destination but runs nothing, so a host can
+send several and then run them together, either by evaluating again or by
+asking:
+
+```swift
+let session = MyronSession()
+let runtime = session.runtime
+
+session.eval("(+ 1 (receive))")           // .waiting
+try session.send(41, to: session.process)
+runtime.hasPendingWork                    // true
+runtime.runSchedule()
+runtime.hasPendingWork                    // false
+session.hasPendingResult                  // true
+session.resume()                          // .success(.integer(42))
+```
+
+A spawned process that comes to the end in its turn is shut down, and its
+result, which nobody can collect, is dropped. A session that comes to the end
+keeps its result until the host collects it with
+[`resume()`](#myronsession); `hasPendingResult(for:)` asks about any process
+by address, and a session's own `hasPendingResult` asks about it.
+
+`runSchedule()` may be called from inside a host primitive's body, in the
+middle of an evaluation. The processes in the queue then take their turns
+there and then, before the evaluation carries on, so a primitive that runs the
+schedule changes the order in which things happen. Calling it with nothing in
+the queue does nothing.
+
 ### `MyronResult`
 
 `eval` returns a `MyronResult`, a four-case enum:
@@ -798,7 +901,7 @@ public enum MyronResult {
     case success(MyronValue)
     case failure([MyronError])
     case nothing
-    case suspended
+    case waiting
 }
 ```
 
@@ -816,7 +919,7 @@ case .failure(let errors):
 case .nothing:
     break                                 // the source contained no forms
 
-case .suspended:
+case .waiting:
     break                                 // waiting for a message; see resume()
 }
 ```
@@ -826,8 +929,9 @@ empty, whitespace, or nothing but comments. It is distinct from a successful
 evaluation that produced the Myron value `nothing`, which arrives as
 `.success(.nothing)`.
 
-`.suspended` is returned when the evaluation is waiting for a message, and the
-session's [`resume()`](#myronsession) carries it on.
+`.waiting` is returned when the evaluation is waiting for a message, and the
+session's [`resume()`](#myronsession) carries it on, or collects its result if
+the runtime has already [carried it to the end](#scheduling).
 
 A `failure` carries an array because lexing and parsing report every problem
 they find in one pass. Evaluation, by contrast, stops at the first error, so an
@@ -843,6 +947,7 @@ result.asSuccess                          // MyronValue?
 result.isFailure                          // Bool
 result.asFailure                          // [MyronError]?
 result.isNothing                          // Bool
+result.isWaiting                          // Bool
 ```
 
 ### `MyronValue`
@@ -1035,9 +1140,10 @@ also has a `description`, which is the first line of the rendered message.
 | `invalidNumber` | A numeric token or cast could not be read as a number. |
 | `malformedAlist(Int)` | An alist entry was not a two-element list; carries the index. |
 | `malformedSignature(String, String)` | A [signature](#signatures) could not be parsed, or disagreed with the arity of the body given to a host's `define`; carries the signature and what is wrong with it. |
+| `moduleCannotWaitDuringSpawn(String)` | A module waited for a message while [`spawn`](#spawn) was rebuilding it; carries the module's name. |
 | `overflow` | Integer arithmetic exceeded `Int`. |
-| `processCannotResume(String)` | A session's `resume()` was called with nothing suspended; carries the process's state. |
-| `processNotReady(String)` | A session was asked to evaluate while it was [suspended](#myronresult); carries the process's state. |
+| `processCannotResume(String)` | A session's `resume()` was called with nothing waiting and no result pending; carries the process's state. |
+| `processNotReady(String)` | A session was asked to evaluate while it was [waiting](#myronresult); carries the process's state. |
 | `raised(String)` | A program called [`raise`](#errors-1) and no [`try`](#try) caught it; carries the message. |
 | `subscriptOutOfBounds(Int, Int)` | An `nth` index fell outside the sequence; carries index and length. |
 | `typeCastFailed(MyronValue.Kind, MyronValue.Kind)` | `integer` or `double` was applied to a value it cannot convert. |
@@ -1492,17 +1598,19 @@ equal to itself however many names it is bound to.
 #### `MyronProcess`
 
 The payload of `MyronValue.process`: the address of a process, given by
-[`spawn`](#spawn) or [`self`](#self) rather than made in Swift. It is a value
+[`spawn`](#spawn), [`self`](#self) or a session's `process` rather than made
+in Swift. It is a value
 type, `Equatable`, `Hashable` and `Sendable`, and two are equal when they
 address the same process. Its description is `<process: 3>`, numbered within its
 [runtime](#myronruntime), where a number is never used twice.
 
 An address does not keep its process alive, and says nothing about whether it
-still is. A process ends when its entry call returns, whoever holds its
-address — and for now that is always before `spawn` returns, so every spawned
-process a host is given has already finished. A session's own process, which
-`self` gives back, lasts as long as the session. A message sent to an address
-whose process has ended is dropped without an error.
+still is. A spawned process ends when its entry call returns or fails, whoever
+holds its address. That happens before `spawn` returns unless the process
+[waits for a message](#messaging); one that waits lives on until the
+[scheduler](#scheduling) carries it to the end, which may be never. A session's
+own process lasts as long as the session. A message sent to an address whose
+process has ended is dropped without an error.
 
 #### Keys
 
@@ -1582,7 +1690,10 @@ session made from it, to a single thread or actor.
 
 When a session is deallocated it shuts down every environment it created, and
 its process leaves the runtime. A spawned process does the same when it ends, so
-nothing it defined outlives it, and nor does anything left in its mailbox. This
+nothing it defined outlives it, and nor does anything left in its mailbox. A
+spawned process that waits for a message that never comes doesn't end: it stays
+in the runtime until the runtime itself is deallocated, which shuts down every
+process still in it. This
 matters because closures capture their defining environment, and a procedure
 stored in an environment forms a reference cycle with it; the session's registry
 breaks those cycles at teardown. The practical consequence is that a
@@ -1597,9 +1708,11 @@ reached, including from inside a list or hashmap it was stored in.
 The same reasoning applies to a [host primitive](#defining-primitives) from the
 other side. A session owns the environment that holds the closure, so a body
 that captured its session would form a cycle nothing could break, and the
-registry would never get to run. The `@Sendable` signature makes that a compile
-error, and it also means anything a body does capture has to be `Sendable` —
-which is worth knowing before you reach for a non-`Sendable` service inside one.
+registry would never get to run. The same goes for a primitive defined on the
+runtime, which the runtime holds, and a body that captured the runtime. The
+`@Sendable` signature makes both a compile error, and it also means anything a
+body does capture has to be `Sendable` — which is worth knowing before you
+reach for a non-`Sendable` service inside one.
 
 ## A tour of Myron
 
@@ -2179,10 +2292,28 @@ the other knows where to reply:
 (receive-from p)                          ; hello
 ```
 
-When there is nothing to take, the evaluation waits for a message to arrive.
-In a session, that means it suspends, and the host [resumes](#myronsession) it
-later. Processes don't take turns yet, so a spawned process still runs to the
-end before `spawn` returns, and one that waits for a message ends there.
+When there is nothing to take, the evaluation waits for a message to arrive. A
+spawned process that waits lives on, and when a message reaches it, the runtime
+carries it on from where it stopped. So a process can be a small server that
+answers, then waits for the next request:
+
+```lisp
+(module doubler (go)
+  (define (answer request) (send (head request) (* 2 (last request))))
+  (define (go) (answer (receive)) (go)))
+
+(define d (spawn (doubler) doubler.go))
+(send d (list self 21))                   ; <nothing>
+(receive)                                 ; 42
+(send d (list self 50))                   ; <nothing>
+(receive)                                 ; 100
+```
+
+Processes take turns only when they wait. A process carries on until it waits
+for a message or comes to the end, and nothing interrupts it, so one that never
+waits holds up everything else until it is done. In a session with nothing to
+take, the evaluation waits too: the REPL prints `waiting`, and the session
+carries on when its host [resumes](#myronsession) it.
 
 ### Macros
 
@@ -2836,9 +2967,10 @@ are evaluated in the current environment, left to right. The entry is not
 evaluated: it is a name, looked up in the new process rather than here, so it
 must be written as a symbol.
 
-The new process starts with an environment of its own, which sees only the
-standard environment — not the names around the `spawn`, and not a host's
-[primitives](#defining-primitives). Each module in the list is rebuilt there
+The new process starts with an environment of its own, which sees the standard
+environment and any primitives the host defined on the
+[runtime](#defining-primitives) — not the names around the `spawn`, and not
+primitives the host defined on a session. Each module in the list is rebuilt there
 from its source, in order, and bound under its own name, whatever name it was
 reached by. The entry is then looked up and applied to the argument values. It
 is usually a qualified name, `module.export`, whose first part must be one of
@@ -2861,11 +2993,20 @@ outside it — rather than importing it — finds nothing there. If that happens
 while the module is being rebuilt, `spawn` fails; if it happens inside a
 procedure, the new process fails when the procedure is called.
 
-The process ends when the entry call returns, or fails. Either way, nothing in
-the spawning process hears about it. Until processes take turns, the entry call
-runs before `spawn` returns, so a spawned process that never returns holds up
-the one that spawned it, and one that [waits for a message](#messaging) ends
-there.
+The entry call runs before `spawn` returns, until it returns, fails, or
+[waits for a message](#messaging). If it waits, `spawn` returns, and the
+process lives on until a message carries it on and it comes to the end; the
+[scheduler](#scheduling) does that. Either way, the process ends when the
+entry call returns or fails, and nothing in the spawning process hears about
+it. A process that neither returns nor waits holds up the one that spawned it.
+
+A module must not wait while it is being rebuilt. That is for defining things,
+and a process starts doing them in its entry call, so `receive` belongs there:
+
+```lisp
+(module server (go) (define (go) (receive)))
+(process? (spawn (server) server.go))     ; true
+```
 
 *Errors:* `unexpectedArity` without a module list and an entry; `unexpectedType`
 when the module list is not a list, one of its values is not a module, or the
@@ -2873,8 +3014,10 @@ entry is not a symbol; `expectedSendable` for an argument that is not sendable,
 naming the kind of the part that is not, with hints showing the argument and
 saying that `spawn` cannot enter; `unrecognisedSymbol` when the entry's first
 part is not a listed module, with a hint, when a module cannot be rebuilt, or
-when the entry is not found in the new process. Errors inside the entry call
-belong to the new process and are not reported.
+when the entry is not found in the new process; `moduleCannotWaitDuringSpawn`,
+with a hint to receive from the entry function instead, when a module waits for
+a message while it is being rebuilt. Errors inside the entry call belong to the
+new process and are not reported.
 
 #### `self`
 
@@ -3936,12 +4079,16 @@ that wants a reply puts [`self`](#self) in the message. `receive-from` picks
 out messages by who sent them, and leaves messages from anyone else in the
 mailbox, in order.
 
-When there is no message to take, the evaluation waits for one. A session
-reports this as [`.suspended`](#myronresult), and carries on from the same
-place when its host calls [`resume()`](#myronsession). A spawned process that
-waits ends there, for now. Waiting is not possible inside a nested evaluation,
-such as a `load` or a host primitive that evaluates source, so a
-`receive` there with nothing to take is an error.
+When there is no message to take, the evaluation waits for one, and carries on
+from the same place once one arrives. A `send` to a waiting process wakes it,
+and the runtime carries it on in its turn: see [Scheduling](#scheduling). A
+`receive-from` woken by a message from someone else takes nothing and waits
+again. A session reports waiting as [`.waiting`](#myronresult), and its host
+collects the result with [`resume()`](#myronsession). A spawned process that
+waits lives on until it is carried to the end. Waiting is not possible inside a
+nested evaluation, such as a `load` or a host primitive that evaluates source,
+so a `receive` there with nothing to take is an error, and nor is it possible
+for a module while [`spawn`](#spawn) rebuilds it.
 
 *Errors:* for `send`, `unexpectedArity` without exactly two arguments;
 `unexpectedType` when the destination is not a process; `expectedSendable` when
@@ -4182,10 +4329,17 @@ Still to come:
 - Modules kept in files of their own, found by the host when `import` names one
   the program cannot see. Until then, `load` the file that defines the module
   and `import` it afterwards.
-- Processes that take turns to run. Until then, a spawned process runs before
-  `spawn` returns, and ends if it waits for a message. Suspending works best
-  in the last form of an evaluation, and there is no way yet to give up on a
-  suspended one, so a REPL that suspends stays that way.
+- Processes that can be interrupted. Until then, a process takes its turn until
+  it waits or comes to the end, so one that never waits holds everything else
+  up, and two that keep answering each other never let the evaluation that
+  started them finish.
+- Hearing about a spawned process that fails. Until then, its failure ends it
+  without a word to anyone, so a process waiting for its answer waits forever.
+- Stopping a process. Until then, a spawned process waiting for a message that
+  will never come stays in the runtime for as long as the runtime lasts.
+- Giving up on a waiting session. Until then, a REPL that waits stays that
+  way until a message arrives, and waiting works best in the last form of an
+  evaluation.
 - `sourceHandle` on errors. It is carried through tokenisation but not yet
   surfaced. Until then, an error in a procedure defined by an earlier `eval` is
   shown against the source of the current one, and an error raised while

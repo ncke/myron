@@ -29,13 +29,12 @@ final class Machine {
 extension Machine {
 
     enum State: CustomStringConvertible {
-        case ready, evaluating, suspended, waiting
+        case ready, evaluating, waiting
 
         var description: String {
             switch self {
             case .ready: return "ready"
             case .evaluating: return "evaluating"
-            case .suspended: return "suspended"
             case .waiting: return "waiting"
             }
         }

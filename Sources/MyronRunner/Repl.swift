@@ -29,8 +29,8 @@ enum Repl {
             case .nothing:
                 break
 
-            case .suspended:
-                print("suspended")
+            case .waiting:
+                print("waiting")
             }
         }
     }

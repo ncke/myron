@@ -5,9 +5,10 @@ import Testing
 
 // `receive` takes the oldest message from the process's mailbox, and
 // `receive-from` the oldest from one sender. When nothing matches, the
-// evaluation suspends and the session reports `.suspended`; a later `resume`
-// calls the receive again and carries on from where it stopped. There is no
-// scheduler yet, so these tests send from the host and resume by hand.
+// evaluation waits and the session reports `.waiting`; a later `resume` calls
+// the receive again and carries on from where it stopped. These tests send from
+// the host and resume by hand; the Scheduling tests cover the runtime waking a
+// waiting process itself.
 
 @Suite("Receive")
 
@@ -17,11 +18,6 @@ struct ReceiveTests {
 
     private static func address(of session: MyronSession) throws -> MyronProcess {
         try #require(session.eval("self").asSuccess?.asProcess)
-    }
-
-    private static func isSuspended(_ result: MyronResult) -> Bool {
-        if case .suspended = result { return true }
-        return false
     }
 
     // A host primitive that evaluates its argument in the same session, the
@@ -115,17 +111,17 @@ struct ReceiveTests {
         #expect(runtime.mailbox(of: b)?.map(\.content.description) == ["a2"])
     }
 
-    // MARK: Suspending
+    // MARK: Waiting
 
-    @Test("receive on an empty mailbox suspends")
-    func emptyMailboxSuspends() {
+    @Test("receive on an empty mailbox waits")
+    func emptyMailboxWaits() {
         let session = MyronSession()
-        #expect(Self.isSuspended(session.eval("(receive)")))
+        #expect(session.eval("(receive)").isWaiting)
     }
 
-    // Each batch is sent before a resume; every resume but the last stays
-    // suspended, and the last gives the expected value.
-    @Test("resume carries on from the receive that suspended", arguments: [
+    // Each batch is sent before a resume; every resume but the last keeps
+    // waiting, and the last gives the expected value.
+    @Test("resume carries on from the receive that waited", arguments: [
         ("(+ 1 (receive))", [], [[41]], "42"),
         ("(list 0 (receive) (receive) 3)", [1], [[2]], "(0 1 2 3)"),
         ("(list (receive) (receive))", [], [[1], [2]], "(1 2)"),
@@ -140,45 +136,45 @@ struct ReceiveTests {
         let me = try Self.address(of: session)
 
         for n in c.before { try session.send(.integer(n), to: me) }
-        #expect(Self.isSuspended(session.eval(c.source)))
+        #expect(session.eval(c.source).isWaiting)
 
         for (index, batch) in c.batches.enumerated() {
             for n in batch { try session.send(.integer(n), to: me) }
             let result = session.resume()
 
             if index < c.batches.count - 1 {
-                #expect(Self.isSuspended(result), "\(c.source) batch \(index) got \(result)")
+                #expect(result.isWaiting, "\(c.source) batch \(index) got \(result)")
             } else {
                 #expect(result.asSuccess?.description == c.expected, "\(c.source) got \(result)")
             }
         }
     }
 
-    @Test("a procedure defined earlier can suspend when called")
-    func procedureSuspends() throws {
+    @Test("a procedure defined earlier can wait when called")
+    func procedureWaits() throws {
         let session = MyronSession()
         let me = try Self.address(of: session)
 
         _ = session.eval("(define (next) (+ 1 (receive)))")
-        #expect(Self.isSuspended(session.eval("(next)")))
+        #expect(session.eval("(next)").isWaiting)
 
         try session.send(1, to: me)
         #expect(session.resume().asSuccess?.description == "2")
     }
 
-    @Test("resuming with nothing to receive stays suspended")
+    @Test("resuming with nothing to receive keeps waiting")
     func resumeWithoutMessage() throws {
         let session = MyronSession()
         let me = try Self.address(of: session)
 
-        #expect(Self.isSuspended(session.eval("(+ 1 (receive))")))
-        #expect(Self.isSuspended(session.resume()))
+        #expect(session.eval("(+ 1 (receive))").isWaiting)
+        #expect(session.resume().isWaiting)
 
         try session.send(1, to: me)
         #expect(session.resume().asSuccess?.description == "2")
     }
 
-    @Test("receive-from stays suspended until that sender sends")
+    @Test("receive-from keeps waiting until that sender sends")
     func receiveFromWaitsForSender() throws {
         let runtime = MyronRuntime()
         let first = runtime.makeSession()
@@ -189,10 +185,10 @@ struct ReceiveTests {
         try first.set("b", to: .process(b))
         try second.set("a", to: .process(a))
 
-        #expect(Self.isSuspended(second.eval("(receive-from a)")))
+        #expect(second.eval("(receive-from a)").isWaiting)
 
         try second.send("own", to: b)
-        #expect(Self.isSuspended(second.resume()))
+        #expect(second.resume().isWaiting)
 
         _ = first.eval("(send b 'from-a)")
         #expect(second.resume().asSuccess?.description == "from-a")
@@ -209,7 +205,7 @@ struct ReceiveTests {
         _ = session.resume()
 
         #expect(session.eval("(+ 1 1)").asSuccess?.description == "2")
-        #expect(Self.isSuspended(session.eval("(receive)")))
+        #expect(session.eval("(receive)").isWaiting)
     }
 
     @Test("an error after a resume is reported and the process recovers")
@@ -227,8 +223,8 @@ struct ReceiveTests {
 
     // MARK: Process State
 
-    @Test("a suspended process cannot start another evaluation")
-    func evalWhileSuspended() throws {
+    @Test("a waiting process cannot start another evaluation")
+    func evalWhileWaiting() throws {
         let session = MyronSession()
         let me = try Self.address(of: session)
 
@@ -241,7 +237,7 @@ struct ReceiveTests {
         #expect(session.resume().asSuccess?.description == "2")
     }
 
-    @Test("a process that is not suspended cannot resume")
+    @Test("a process that is not waiting cannot resume")
     func resumeWhenReady() throws {
         let session = MyronSession()
         _ = session.eval("(+ 1 1)")
@@ -254,7 +250,7 @@ struct ReceiveTests {
     // MARK: Nested Evaluation
 
     // A nested evaluation runs on top of the host's Swift frames, so it has no
-    // continuation to keep. Blocking there is an error rather than a suspension.
+    // continuation to keep. Blocking there is an error rather than a wait.
     @Test("receive cannot wait inside a nested evaluation")
     func nestedCannotWait() throws {
         let session = MyronSession()

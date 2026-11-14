@@ -139,7 +139,7 @@ struct StandardOrderingTests {
         case .success: #expect(answer.description == "true")
         case .failure: #expect(answer.description == "false")
         case .nothing: Issue.record("(sort \(list)) got nothing")
-        case .suspended: Issue.record("(sort \(list)) got suspended")
+        case .waiting: Issue.record("(sort \(list)) got waiting")
         }
     }
 

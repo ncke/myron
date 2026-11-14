@@ -20,11 +20,14 @@ final class Script: @unchecked Sendable {
         resetEnvironment()
     }
 
-    // A clean session, with the runner's own primitives and bindings.
+    // A clean session on a fresh runtime, with the runner's own primitives and
+    // bindings. The console primitives go on the runtime, so every process can
+    // reach them; `load` and `arguments` belong to this session alone.
     func resetEnvironment() {
-        let session = MyronSession()
+        let runtime = MyronRuntime()
+        let session = runtime.makeSession()
         do {
-            try session.defineConsolePrimitives()
+            try runtime.defineConsolePrimitives()
             try session.defineLoadPrimitive(using: self)
         } catch {
             fatalError("myron: cannot define the runner's primitives: \(error)")
@@ -81,7 +84,7 @@ final class Script: @unchecked Sendable {
 
         switch session.eval(source) {
         case .success(let value): return value
-        case .nothing, .suspended: return .nothing
+        case .nothing, .waiting: return .nothing
         case .failure(let errors): throw .failed(path, source, errors)
         }
     }
@@ -234,7 +237,7 @@ extension Script {
             return errors.map { error in error.message ?? error.reason.description }.joined(separator: "\n")
         case .nothing:
             return "=> nothing"
-        case .suspended:
+        case .waiting:
             return "=> waiting"
         }
     }
