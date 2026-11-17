@@ -72,12 +72,15 @@ struct StandardMathematicsTests {
         ("(+ 1 2.0)", .unexpectedType(.double, [.integer])),
         ("(+ 1 \"x\")", .unexpectedType(.string, [.integer])),
         ("(- 1 2 3)", .unexpectedArity(3, .exactly(2))),
-        ("(- 1 2.0)", .unexpectedType(.integer, [.double, .integer])),
+        ("(- 1 2.0)", .unexpectedType(.double, [.integer])),
+        ("(- 1 \"x\")", .unexpectedType(.string, [.double, .integer])),
+        ("(- \"x\" 1)", .unexpectedType(.string, [.double, .integer])),
         ("(* 2)", .unexpectedArity(1, .atLeast(2))),
         ("(* 1 2.0)", .unexpectedType(.double, [.integer])),
         ("(/ 1 0)", .divisionByZero),
         ("(/ 1.0 0.0)", .divisionByZero),
-        ("(/ 1 2.0)", .unexpectedType(.integer, [.double, .integer])),
+        ("(/ 1 2.0)", .unexpectedType(.double, [.integer])),
+        ("(/ 1.0 \"x\")", .unexpectedType(.string, [.double, .integer])),
         ("(/ 1 2 3)", .unexpectedArity(3, .exactly(2))),
         ("(sqrt \"x\")", .unexpectedType(.string, [.double, .integer])),
         ("(sqrt 1 2)", .unexpectedArity(2, .exactly(1))),
@@ -442,7 +445,8 @@ struct StandardMathematicsTests {
 
     @Test("extended arithmetic errors", arguments: [
         ("(pow 2)", .unexpectedArity(1, .exactly(2))),
-        ("(pow 2 \"x\")", .unexpectedType(.integer, [.double, .integer])),
+        ("(pow 2 \"x\")", .unexpectedType(.string, [.double, .integer])),
+        ("(pow 2.0 3)", .unexpectedType(.integer, [.double])),
         ("(mod 7.0 3.0)", .unexpectedType(.double, [.integer])),
         ("(min)", .unexpectedArity(0, .atLeast(1))),
         ("(min 1 2.0)", .unexpectedType(.double, [.integer])),
@@ -450,7 +454,9 @@ struct StandardMathematicsTests {
         ("(round 3)", .unexpectedType(.integer, [.double])),
         ("(log 100)", .unexpectedType(.integer, [.double])),
         ("(sin 0)", .unexpectedType(.integer, [.double])),
-        ("(atan2 1.0)", .unexpectedArity(1, .exactly(2)))
+        ("(atan2 1.0)", .unexpectedArity(1, .exactly(2))),
+        ("(atan2 1 1.0)", .unexpectedType(.integer, [.double])),
+        ("(atan2 1.0 1)", .unexpectedType(.integer, [.double]))
     ] as [FailureCase])
     func extendedErrors(_ c: FailureCase) {
         expectFailure(c.source, reason: c.reason)

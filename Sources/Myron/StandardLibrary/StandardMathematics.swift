@@ -49,7 +49,8 @@ struct StandardMathematics: StandardModule {
 
                 if let f = fst.asDouble, let s = snd.asDouble { return .double(f - s) }
 
-                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+                let (got, expected) = badKind(fst.kind, snd.kind)
+                throw MyronError(.unexpectedType(got, expected), at: location)
         }),
         
         MyronPrimitive(
@@ -93,7 +94,8 @@ struct StandardMathematics: StandardModule {
                     return .double(f / s)
                 }
 
-                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+                let (got, expected) = badKind(fst.kind, snd.kind)
+                throw MyronError(.unexpectedType(got, expected), at: location)
         }),
         
         // MARK: Modulo & Remainder
@@ -315,7 +317,8 @@ struct StandardMathematics: StandardModule {
                     return .double(pow(f, s))
                 }
 
-                throw MyronError(.unexpectedType(fst.kind, [.integer, .double]), at: location)
+                let (got, expected) = badKind(fst.kind, snd.kind)
+                throw MyronError(.unexpectedType(got, expected), at: location)
         }),
         
         MyronPrimitive(
@@ -413,7 +416,7 @@ struct StandardMathematics: StandardModule {
                 if let y = y.asDouble, let x = x.asDouble { return .double(atan2(y, x)) }
 
                 let got = x.kind == .double ? y.kind : x.kind
-                throw MyronError(.unexpectedType(got, [.integer]), at: location)
+                throw MyronError(.unexpectedType(got, [.double]), at: location)
         }),
         
         // MARK: Angles
@@ -441,6 +444,21 @@ struct StandardMathematics: StandardModule {
 }
 
 // MARK: - Helpers
+
+private extension StandardMathematics {
+
+    static func badKind(
+        _ fstKind: MyronValue.Kind,
+        _ sndKind: MyronValue.Kind
+    ) -> (MyronValue.Kind, Set<MyronValue.Kind>) {
+        if fstKind != .integer && fstKind != .double { return (fstKind, [ .integer, .double ]) }
+        if sndKind != .integer && sndKind != .double { return (sndKind, [ .integer, .double ]) }
+        return (sndKind, [fstKind])
+    }
+
+}
+
+// MARK: - Mathematical Helpers
 
 private extension StandardMathematics {
     
